@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+{% block title %}{{ get_cms('site_title', 'Think.4U - Community Charity Platform') }}{% endblock %}
+
+{% block content %}
+
+<!-- Hero Section - Warm Charity Colors -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <!-- Background gradient - Navy to Sky Blue -->
+    <div class="absolute inset-0 bg-gradient-to-br from-blue-900 via-blue-700 to-sky-500"></div>
+    
+    <!-- Animated background elements - Softer colors -->
+    <div class="absolute inset-0 opacity-20">
+        <div class="absolute top-20 left-10 w-72 h-72 bg-amber-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+        <div class="absolute top-40 right-10 w-96 h-96 bg-sky-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+        <div class="absolute bottom-20 left-1/2 w-80 h-80 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
+    </div>
+    
+    <!-- Content -->
+    <div class="relative z-10 container mx-auto px-4 text-center">
+        <!-- Main Heading -->
+        <h1 class="text-5xl md:text-7xl lg:text-8xl font-black text-white mb-8 leading-tight tracking-tight drop-shadow-2xl">
+            {{ get_cms('hero_title', 'Think<span class="text-amber-400">.4</span>U') | safe }}
+        </h1>
+        
+        <!-- Subtitle -->
+        <p class="text-xl md:text-2xl text-white/95 mb-12 max-w-3xl mx-auto leading-relaxed drop-shadow-lg font-medium">
+            {{ get_cms('hero_subtitle', 'Making a difference in our community through compassion and action') }}
+        </p>
+        
+        <!-- CTA Buttons - Warm colors -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <a href="{{ url_for('donate') }}" 
+               class="group px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-300 flex items-center gap-2">
+                <i data-lucide="heart" class="w-5 h-5 group-hover:scale-125 transition-transform"></i>
+                {{ get_cms('cta_donate_text', 'Donate Now') }}
+            </a>
+            
+            <a href="{{ url_for('volunteer') }}" 
+               class="group px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-full shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-300 flex items-center gap-2">
+                <i data-lucide="users" class="w-5 h-5 group-hover:scale-125 transition-transform"></i>
+                {{ get_cms('cta_volunteer_text', 'Volunteer') }}
+            </a>
+        </div>
+        
+        <!-- Stats - Soft glass effect -->
+        <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div class="bg-white/15 backdrop-blur-md rounded-2xl p-6 border-2 border-white/30 hover:scale-105 transition-transform shadow-xl">
+                <div class="text-4xl font-black text-amber-300 mb-2">
+                    {{ get_cms('stat_donations_display', stats.total_donations|string or '0') }}
+                </div>
+                <div class="text-white font-semibold">
+                    {{ get_cms('stat_donations_label', 'Donations Received') }}
+                </div>
+            </div>
+            <div class="bg-white/15 backdrop-blur-md rounded-2xl p-6 border-2 border-white/30 hover:scale-105 transition-transform shadow-xl">
+                <div class="text-4xl font-black text-emerald-300 mb-2">
+                    {{ get_cms('stat_volunteers_display', stats.total_volunteers|string or '0') }}
+                </div>
+                <div class="text-white font-semibold">
+                    {{ get_cms('stat_volunteers_label', 'Active Volunteers') }}
+                </div>
+            </div>
+            <div class="bg-white/15 backdrop-blur-md rounded-2xl p-6 border-2 border-white/30 hover:scale-105 transition-transform shadow-xl">
+                <div class="text-4xl font-black text-sky-300 mb-2">
+                    {{ get_cms('stat_programs_display', stats.total_programs|string or '0') }}
+                </div>
+                <div class="text-white font-semibold">
+                    {{ get_cms('stat_programs_label', 'Active Programs') }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scroll indicator -->
+    <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
+        <i data-lucide="chevron-down" class="w-8 h-8 text-white opacity-80"></i>
+    </div>
+</section>
+
+<!-- Mission Section - Clean white background -->
+<section id="about" class="py-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div class="container mx-auto px-4">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-4xl lg:text-5xl font-black mb-6">
+                <span class="bg-gradient-to-r from-blue-700 via-sky-600 to-emerald-600 bg-clip-text text-transparent">
+                    {{ get_cms('mission_title', 'Our Mission') }}
+                </span>
+            </h2>
+            <p class="text-xl text-slate-700 leading-relaxed mb-8 font-medium">
+                {{ get_cms('mission_text', 'To promote education for underprivileged children and youth, empower women and rural communities through skill development and entrepreneurship, support preventive and mental healthcare initiatives, foster environmental sustainability, and partner with organizations, institutions, and volunteers to achieve scalable social impact.') }}
+            </p>
+            
+            <!-- Mission Cards - Charity colors -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                <!-- Compassion Card - Warm orange -->
+                <div class="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all hover:scale-105 border-2 border-orange-100">
+                    <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <i data-lucide="heart" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Compassion</h3>
+                    <p class="text-slate-600">
+                        {{ get_cms('mission_compassion', 'We act with care, love, and human values to uplift underprivileged individuals and communities.') }}
+                    </p>
+                </div>
+                
+                <!-- Community Card - Blue -->
+                <div class="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all hover:scale-105 border-2 border-blue-100">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <i data-lucide="users" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Community</h3>
+                    <p class="text-slate-600">
+                        {{ get_cms('mission_community', 'We collaborate with schools, organizations, volunteers, and institutions to build an inclusive and self-reliant society.') }}
+                    </p>
+                </div>
+                
+                <!-- Transform Card - Green -->
+                <div class="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all hover:scale-105 border-2 border-emerald-100">
+                    <div class="w-16 h-16 bg-gradient-to-br from-emerald-600 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <i data-lucide="sparkles" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Transform</h3>
+                    <p class="text-slate-600">
+                        {{ get_cms('mission_transform', 'We create sustainable change through education, skill development, healthcare awareness, and environmental initiatives that measurably improve lives.') }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Programs Section -->
+<section id="programs" class="py-20 bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl lg:text-5xl font-black mb-4">
+                <span class="bg-gradient-to-r from-blue-700 via-sky-600 to-emerald-600 bg-clip-text text-transparent">
+                    {{ get_cms('programs_heading', 'Our Programs') }}
+                </span>
+            </h2>
+            <p class="text-xl text-slate-700 max-w-2xl mx-auto font-medium">
+                {{ get_cms('programs_subtitle', 'Discover the various ways we\'re making a positive impact in our community') }}
+            </p>
+        </div>
+        
+        <!-- Programs Grid -->
+        {% if programs %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for program in programs %}
+            <div class="group bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 border-2 border-blue-100">
+                <!-- Program Image -->
+                {% if program.image_url %}
+                <div class="relative h-64 overflow-hidden">
+                    <img src="{{ program.image_url }}" 
+                         alt="{{ program.title }}" 
+                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/40 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 right-4">
+                        <h3 class="text-2xl font-bold text-white drop-shadow-lg">{{ program.title }}</h3>
+                    </div>
+                </div>
+                {% else %}
+                <div class="h-64 bg-gradient-to-br from-blue-500 via-sky-500 to-emerald-500 flex items-center justify-center">
+                    <i data-lucide="heart" class="w-20 h-20 text-white opacity-60"></i>
+                </div>
+                {% endif %}
+                
+                <!-- Program Content -->
+                <div class="p-6">
+                    <p class="text-slate-600 mb-6 line-clamp-3">
+                        {{ program.description }}
+                    </p>
+                    
+                    <a href="{{ url_for('program_detail', program_id=program.id) }}" 
+                       class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-sky-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                        Learn More
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-16">
+            <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-sky-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="inbox" class="w-12 h-12 text-blue-600"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800 mb-2">No Programs Yet</h3>
+            <p class="text-slate-600">Check back soon for upcoming programs!</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Impact Section - Deep navy background -->
+<section id="impact" class="py-20 bg-gradient-to-br from-slate-900 via-blue-900 to-sky-900 relative overflow-hidden">
+    <!-- Decorative elements -->
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 left-0 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500 rounded-full filter blur-3xl"></div>
+    </div>
+    
+    <div class="container mx-auto px-4 relative z-10">
+        <div class="max-w-4xl mx-auto text-center text-white">
+            <h2 class="text-4xl lg:text-5xl font-black mb-6">
+                {{ get_cms('impact_title', 'Our Impact') }}
+            </h2>
+            <p class="text-xl text-white/90 mb-12 font-medium">
+                {{ get_cms('impact_subtitle', 'Together, we\'re creating meaningful change in our community') }}
+            </p>
+            
+            <!-- Impact Stats - Charity colors -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="text-5xl font-black mb-2 bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+                        {{ get_cms('impact_people', '10K+') }}
+                    </div>
+                    <div class="text-white/80 font-semibold">People Helped</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-5xl font-black mb-2 bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                        {{ get_cms('impact_meals', '50K+') }}
+                    </div>
+                    <div class="text-white/80 font-semibold">Meals Served</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-5xl font-black mb-2 bg-gradient-to-r from-blue-400 to-sky-400 bg-clip-text text-transparent">
+                        {{ get_cms('impact_education', '2K+') }}
+                    </div>
+                    <div class="text-white/80 font-semibold">Students Educated</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-5xl font-black mb-2 bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text text-transparent">
+                        {{ get_cms('impact_families', '5K+') }}
+                    </div>
+                    <div class="text-white/80 font-semibold">Families Supported</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action - Warm gradient -->
+<section class="py-20 bg-gradient-to-br from-sky-50 to-emerald-50">
+    <div class="container mx-auto px-4">
+        <div class="max-w-4xl mx-auto bg-gradient-to-r from-blue-700 via-sky-600 to-emerald-600 rounded-3xl p-12 shadow-2xl text-center text-white relative overflow-hidden">
+            <!-- Decorative circles -->
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+            <div class="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full -ml-32 -mb-32"></div>
+            
+            <div class="relative z-10">
+                <h2 class="text-4xl lg:text-5xl font-black mb-6">
+                    {{ get_cms('cta_title', 'Ready to Make a Difference?') }}
+                </h2>
+                <p class="text-xl text-white/95 mb-8 max-w-2xl mx-auto font-medium">
+                    {{ get_cms('cta_subtitle', 'Join thousands of supporters who are transforming lives. Every contribution counts!') }}
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="{{ url_for('donate') }}" 
+                       class="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-xl hover:shadow-2xl hover:scale-110 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="heart" class="w-5 h-5"></i>
+                        {{ get_cms('cta_donate_button', 'Donate Now') }}
+                    </a>
+                    
+                    <a href="{{ url_for('volunteer') }}" 
+                       class="px-8 py-4 bg-white text-blue-700 font-bold rounded-full hover:bg-blue-50 shadow-xl transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                        {{ get_cms('cta_volunteer_button', 'Become a Volunteer') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials Section -->
+<section class="py-20 bg-white">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl lg:text-5xl font-black mb-4">
+                <span class="bg-gradient-to-r from-blue-700 via-sky-600 to-emerald-600 bg-clip-text text-transparent">
+                    {{ get_cms('testimonials_heading', 'What People Say') }}
+                </span>
+            </h2>
+            <p class="text-xl text-slate-700 font-medium">
+                {{ get_cms('testimonials_subtitle', 'Hear from those whose lives we\'ve touched') }}
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <!-- Testimonial 1 - Orange/Amber -->
+            <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-8 border-2 border-orange-100 hover:shadow-xl transition-all">
+                <div class="flex items-center gap-1 mb-4">
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                </div>
+                <p class="text-slate-700 mb-4 italic leading-relaxed">
+                    "{{ get_cms('testimonial_1', 'Think.4U changed my life. Their support helped me get back on my feet.') }}"
+                </p>
+                <div class="font-bold text-orange-700">- {{ get_cms('testimonial_1_author', 'Priya S.') }}</div>
+            </div>
+            
+            <!-- Testimonial 2 - Blue -->
+            <div class="bg-gradient-to-br from-blue-50 to-sky-50 rounded-2xl p-8 border-2 border-blue-100 hover:shadow-xl transition-all">
+                <div class="flex items-center gap-1 mb-4">
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                </div>
+                <p class="text-slate-700 mb-4 italic leading-relaxed">
+                    "{{ get_cms('testimonial_2', 'Amazing organization doing incredible work. Proud to volunteer here!') }}"
+                </p>
+                <div class="font-bold text-blue-700">- {{ get_cms('testimonial_2_author', 'Rahul K.') }}</div>
+            </div>
+            
+            <!-- Testimonial 3 - Green -->
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 border-2 border-emerald-100 hover:shadow-xl transition-all">
+                <div class="flex items-center gap-1 mb-4">
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                    <i data-lucide="star" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
+                </div>
+                <p class="text-slate-700 mb-4 italic leading-relaxed">
+                    "{{ get_cms('testimonial_3', 'The education program gave my children hope for a better future.') }}"
+                </p>
+                <div class="font-bold text-emerald-700">- {{ get_cms('testimonial_3_author', 'Anjali M.') }}</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+    });
+</script>
+
+<style>
+    @keyframes blob {
+        0%, 100% { transform: translate(0px, 0px) scale(1); }
+        33% { transform: translate(30px, -50px) scale(1.1); }
+        66% { transform: translate(-20px, 20px) scale(0.9); }
+    }
+    
+    .animate-blob {
+        animation: blob 7s infinite;
+    }
+    
+    .animation-delay-2000 {
+        animation-delay: 2s;
+    }
+    
+    .animation-delay-4000 {
+        animation-delay: 4s;
+    }
+    
+    .line-clamp-3 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,336 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="flex min-h-screen">
+    
+    <!-- Include Sidebar -->
+    {% include 'admin/sidebar_menu.html' %}
+
+    <!-- Main Content -->
+    <main class="flex-1 lg:ml-72 p-6 lg:p-8">
+        
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-black mb-2">
+                <span class="gradient-text">Dashboard</span>
+            </h1>
+            <p class="text-slate-600">Welcome back! Here's what's happening with Think.4U today.</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            
+            <!-- Total Donations -->
+            <div class="glass p-6 rounded-2xl border-2 border-cyan-200/50 hover:shadow-xl transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <i data-lucide="indian-rupee" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <span class="text-xs font-bold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full">Total</span>
+                </div>
+                <div class="text-3xl font-black text-slate-800 mb-1" id="stat-total-donations">₹0</div>
+                <p class="text-sm font-semibold text-slate-600">Total Donations</p>
+            </div>
+
+            <!-- Donation Count -->
+            <div class="glass p-6 rounded-2xl border-2 border-green-200/50 hover:shadow-xl transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <i data-lucide="heart" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <span class="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">Count</span>
+                </div>
+                <div class="text-3xl font-black text-slate-800 mb-1" id="stat-donation-count">0</div>
+                <p class="text-sm font-semibold text-slate-600">Donations Received</p>
+            </div>
+
+            <!-- Volunteers -->
+            <div class="glass p-6 rounded-2xl border-2 border-orange-200/50 hover:shadow-xl transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <i data-lucide="users" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <span class="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">Active</span>
+                </div>
+                <div class="text-3xl font-black text-slate-800 mb-1" id="stat-volunteers">0</div>
+                <p class="text-sm font-semibold text-slate-600">Active Volunteers</p>
+            </div>
+
+            <!-- Programs -->
+            <div class="glass p-6 rounded-2xl border-2 border-purple-200/50 hover:shadow-xl transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <i data-lucide="layers" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <span class="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">Running</span>
+                </div>
+                <div class="text-3xl font-black text-slate-800 mb-1" id="stat-programs">0</div>
+                <p class="text-sm font-semibold text-slate-600">Active Programs</p>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            
+            <!-- Donations Chart -->
+            <div class="glass p-6 rounded-2xl border-2 border-slate-200/50">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-slate-800">Donation Trends (Last 7 Days)</h3>
+                    <button onclick="refreshCharts()" class="px-4 py-2 rounded-xl border-2 border-slate-200 bg-white hover:bg-slate-50 font-semibold text-sm transition">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
+                        Refresh
+                    </button>
+                </div>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="donationsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Category Chart -->
+            <div class="glass p-6 rounded-2xl border-2 border-slate-200/50">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-slate-800">Volunteer Status</h3>
+                </div>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="volunteersChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Recent Donations -->
+            <div class="glass p-6 rounded-2xl border-2 border-slate-200/50">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-slate-800">Recent Donations</h3>
+                    <a href="/admin/donations" class="text-sm font-semibold text-cyan-600 hover:text-cyan-700">View All →</a>
+                </div>
+                
+                <div class="space-y-4" id="recent-donations">
+                    <div class="flex items-center justify-center py-8">
+                        <div class="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Volunteers -->
+            <div class="glass p-6 rounded-2xl border-2 border-slate-200/50">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-slate-800">Recent Volunteers</h3>
+                    <a href="/admin/volunteers" class="text-sm font-semibold text-green-600 hover:text-green-700">View All →</a>
+                </div>
+                
+                <div class="space-y-4" id="recent-volunteers">
+                    <div class="flex items-center justify-center py-8">
+                        <div class="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let donationsChartInstance = null;
+    let volunteersChartInstance = null;
+
+    // Load Analytics Data
+    async function loadAnalytics() {
+        try {
+            const response = await fetch('/api/analytics');
+            const data = await response.json();
+            
+            // Update stats
+            document.getElementById('stat-total-donations').textContent = 
+                '₹' + (data.total_donations || 0).toLocaleString('en-IN', {maximumFractionDigits: 0});
+            document.getElementById('stat-donation-count').textContent = 
+                (data.donation_count || 0).toLocaleString();
+            document.getElementById('stat-volunteers').textContent = 
+                (data.volunteer_count || 0).toLocaleString();
+            document.getElementById('stat-programs').textContent = 
+                (data.program_count || 0).toLocaleString();
+                
+        } catch (error) {
+            console.error('Failed to load analytics:', error);
+        }
+    }
+
+    // Load Recent Donations
+    async function loadRecentDonations() {
+        const container = document.getElementById('recent-donations');
+        try {
+            const donations = {{ recent_donations | tojson | safe }};
+            
+            if (donations && donations.length > 0) {
+                container.innerHTML = donations.slice(0, 5).map(d => `
+                    <div class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-cyan-50 to-cyan-100/30 border border-cyan-200/50 hover:shadow-md transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-green-500 flex items-center justify-center text-white font-bold">
+                                ${d.name ? d.name[0].toUpperCase() : 'A'}
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-800">${d.name || d.email || 'Anonymous'}</p>
+                                <p class="text-xs text-slate-600">${new Date(d.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-green-600">₹${(d.amount / 100).toFixed(2)}</p>
+                            <p class="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-full">${d.status}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-center text-slate-500 py-8">No recent donations yet</p>';
+            }
+        } catch (error) {
+            container.innerHTML = '<p class="text-center text-slate-500 py-8">No donations yet</p>';
+        }
+    }
+
+    // ✅ UPDATED: Load Real Chart Data
+    async function initCharts() {
+        try {
+            // Load donations chart data
+            const donationsResponse = await fetch('/api/chart-donations');
+            const donationsData = await donationsResponse.json();
+            
+            // Load volunteers chart data
+            const volunteersResponse = await fetch('/api/chart-volunteers');
+            const volunteersData = await volunteersResponse.json();
+            
+            // Donations Chart
+            const donationsCtx = document.getElementById('donationsChart');
+            if (donationsCtx) {
+                if (donationsChartInstance) {
+                    donationsChartInstance.destroy();
+                }
+                
+                donationsChartInstance = new Chart(donationsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: donationsData.labels,
+                        datasets: [{
+                            label: 'Donations (₹)',
+                            data: donationsData.data,
+                            borderColor: '#22d3ee',
+                            backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#22d3ee',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Donations: ₹' + context.parsed.y.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { weight: 'bold' } }
+                            },
+                            y: { 
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                                ticks: {
+                                    font: { weight: 'bold' },
+                                    callback: function(value) {
+                                        return '₹' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Volunteers Chart
+            const volunteersCtx = document.getElementById('volunteersChart');
+            if (volunteersCtx) {
+                if (volunteersChartInstance) {
+                    volunteersChartInstance.destroy();
+                }
+                
+                volunteersChartInstance = new Chart(volunteersCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: volunteersData.labels,
+                        datasets: [{
+                            data: volunteersData.data,
+                            backgroundColor: ['#4ade80', '#fb923c', '#ef4444'],
+                            borderWidth: 0,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { 
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    font: { size: 14, weight: 'bold' },
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                cornerRadius: 8
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            }
+            
+        } catch (error) {
+            console.error('Failed to load chart data:', error);
+        }
+    }
+
+    // Refresh charts
+    async function refreshCharts() {
+        await initCharts();
+        await loadAnalytics();
+    }
+
+    // Initialize everything
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAnalytics();
+        loadRecentDonations();
+        
+        // Wait for Chart.js to load
+        setTimeout(() => {
+            initCharts();
+            lucide.createIcons();
+        }, 100);
+    });
+</script>
+{% endblock %}

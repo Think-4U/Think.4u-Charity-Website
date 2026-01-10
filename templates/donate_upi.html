@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}UPI Payment - Think.4U{% endblock %}
+{% block content %}
+
+<div class="relative min-h-screen pt-32 pb-20 flex items-center justify-center overflow-hidden">
+    
+    <!-- Background -->
+    <div class="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-green-50"></div>
+    
+    <div class="relative z-10 max-w-xl mx-auto px-4">
+        <div class="relative group">
+            <!-- Glow effect -->
+            <div class="absolute -inset-2 bg-gradient-to-r from-cyan-500 to-green-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            
+            <!-- Main card -->
+            <div class="relative glass p-10 rounded-3xl shadow-2xl border-2 border-white/50 text-center">
+                
+                <!-- Header -->
+                <div class="mb-8">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-cyan-500 to-green-500 rounded-2xl flex items-center justify-center shadow-xl">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-4xl font-black mb-4">
+                        <span class="gradient-text">Pay via UPI</span>
+                    </h1>
+                    <p class="text-slate-600 text-lg leading-relaxed">
+                        Scan this QR code with your UPI app or copy the UPI ID below
+                    </p>
+                </div>
+                
+                <!-- QR Code -->
+                <div class="mb-8 p-6 bg-white rounded-2xl shadow-lg inline-block">
+                    <img src="{{ url_for('upi_qr') }}{% if amount %}?amount={{ amount }}{% endif %}" 
+                         alt="UPI QR Code" 
+                         class="w-64 h-64 rounded-xl object-contain" 
+                         loading="lazy" 
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27256%27 height=%27256%27%3E%3Crect fill=%27%23f1f5f9%27 width=%27256%27 height=%27256%27/%3E%3Ctext x=%2750%25%27 y=%2750%25%27 dominant-baseline=%27middle%27 text-anchor=%27middle%27 font-family=%27monospace%27 font-size=%2720px%27 fill=%27%2364748b%27%3EQR Code%3C/text%3E%3C/svg%3E'" />
+                </div>
+                
+                <!-- UPI ID -->
+                <div class="glass p-6 rounded-2xl shadow-lg border-2 border-cyan-200/50">
+                    <label class="block text-sm font-bold text-slate-600 mb-3 uppercase tracking-wide">UPI ID</label>
+                    <div id="upiId" class="font-mono text-xl font-bold text-cyan-700 mb-4 break-all select-all bg-cyan-50 p-4 rounded-xl">
+                        {{ upi_vpa }}
+                    </div>
+                    <button 
+                        id="copyBtn"
+                        class="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-green-500 hover:from-cyan-600 hover:to-green-600 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                        onclick="copyUpiId()">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        <span id="copyText">Copy UPI ID</span>
+                    </button>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="mt-8 p-6 bg-gradient-to-r from-cyan-50 to-green-50 rounded-2xl border border-cyan-200/50">
+                    <h3 class="font-bold text-cyan-700 mb-3 text-left">How to Pay:</h3>
+                    <ol class="text-sm text-slate-600 leading-relaxed text-left space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="flex-shrink-0 w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                            <span>Open any UPI app (Google Pay, PhonePe, Paytm, etc.)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="flex-shrink-0 w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                            <span>Scan the QR code or paste the UPI ID</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="flex-shrink-0 w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                            <span>Enter donation amount and complete payment</span>
+                        </li>
+                    </ol>
+                </div>
+                
+                <!-- Supported Apps -->
+                <div class="mt-6 flex justify-center gap-4 flex-wrap">
+                    <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">Google Pay</span>
+                    <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">PhonePe</span>
+                    <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">Paytm</span>
+                    <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">BHIM</span>
+                </div>
+                
+                <!-- Back Button -->
+                <a href="/donate" class="inline-flex items-center mt-8 text-cyan-600 font-semibold hover:text-cyan-700 transition group">
+                    <svg class="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Donation Options
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+  function copyUpiId() {
+    const upiId = document.getElementById('upiId').textContent.trim();
+    const copyBtn = document.getElementById('copyBtn');
+    const copyText = document.getElementById('copyText');
+    
+    navigator.clipboard.writeText(upiId).then(() => {
+      // Success feedback
+      copyText.textContent = 'Copied!';
+      copyBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+      copyBtn.classList.remove('from-cyan-500', 'to-green-500', 'hover:from-cyan-600', 'hover:to-green-600');
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        copyText.textContent = 'Copy UPI ID';
+        copyBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+        copyBtn.classList.add('bg-gradient-to-r', 'from-cyan-500', 'to-green-500', 'hover:from-cyan-600', 'hover:to-green-600');
+      }, 2000);
+    }).catch(err => {
+      alert('Failed to copy UPI ID. Please copy manually.');
+      console.error('Copy failed:', err);
+    });
+  }
+</script>
+
+{% endblock %}

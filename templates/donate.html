@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Donate - Think.4U{% endblock %}
+{% block content %}
+
+<div class="pt-32 pb-20 bg-gradient-to-b from-slate-50 to-white min-h-screen">
+
+    <!-- Header -->
+    <div class="max-w-3xl mx-auto text-center mb-12 px-4">
+        <h1 class="text-5xl font-black text-slate-900 mb-4 leading-tight">
+            <span class="gradient-text">Support Think.4U</span>
+        </h1>
+        <p class="text-slate-600 text-lg max-w-2xl mx-auto">
+            Your generous donation helps us provide mental health support, education, and community programs that change lives.
+        </p>
+    </div>
+
+    <!-- Impact Cards -->
+    <div class="max-w-4xl mx-auto mb-12 px-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-teal-100 hover:shadow-lg transition">
+                <div class="text-3xl mb-2">💚</div>
+                <h3 class="font-bold text-slate-800 mb-1">₹100</h3>
+                <p class="text-sm text-slate-600">Provides one counseling session</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-teal-100 hover:shadow-lg transition">
+                <div class="text-3xl mb-2">📚</div>
+                <h3 class="font-bold text-slate-800 mb-1">₹500</h3>
+                <p class="text-sm text-slate-600">Sponsors educational materials</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-teal-100 hover:shadow-lg transition">
+                <div class="text-3xl mb-2">🏥</div>
+                <h3 class="font-bold text-slate-800 mb-1">₹1000</h3>
+                <p class="text-sm text-slate-600">Funds emergency mental health support</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Donation Form -->
+    <div class="max-w-lg mx-auto bg-white p-10 rounded-3xl shadow-2xl border border-slate-100 ring-1 ring-slate-200 transition-all hover:shadow-3xl px-4">
+        
+        <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">Choose Your Donation</h2>
+        
+        <!-- Quick Amount Buttons -->
+        <div class="grid grid-cols-4 gap-3 mb-6">
+            <button type="button" onclick="setAmount(100)" class="px-4 py-3 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded-xl transition border-2 border-teal-200 hover:border-teal-400 active:scale-95">
+                ₹100
+            </button>
+            <button type="button" onclick="setAmount(500)" class="px-4 py-3 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded-xl transition border-2 border-teal-200 hover:border-teal-400 active:scale-95">
+                ₹500
+            </button>
+            <button type="button" onclick="setAmount(1000)" class="px-4 py-3 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded-xl transition border-2 border-teal-200 hover:border-teal-400 active:scale-95">
+                ₹1000
+            </button>
+            <button type="button" onclick="setAmount(5000)" class="px-4 py-3 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded-xl transition border-2 border-teal-200 hover:border-teal-400 active:scale-95">
+                ₹5000
+            </button>
+        </div>
+        
+        <!-- Custom Amount Input -->
+        <label for="amount" class="block text-slate-700 font-bold mb-3 text-left text-base">
+            Or Enter Custom Amount (₹)
+        </label>
+        <input 
+            id="amount"
+            type="number" 
+            min="10" 
+            step="1"
+            value="{{ amount_display or '' }}"
+            placeholder="Enter amount (min ₹10)"
+            class="w-full p-4 border-2 border-slate-200 rounded-xl text-lg font-semibold focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none mb-8 transition-shadow shadow-sm hover:shadow-md" 
+        />
+        
+        <!-- Donate Button -->
+        <button 
+            id="payBtn"
+            class="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-xl font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl active:scale-95 transition-all duration-200"
+        >
+            <span id="btnText">Donate Now ❤️</span>
+        </button>
+        
+        <!-- Alternative Payment Link -->
+        <div class="mt-6 text-center">
+            <a href="/donate-upi" class="text-sm text-teal-600 hover:text-teal-700 font-semibold flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+                </svg>
+                Or pay via UPI
+            </a>
+        </div>
+        
+        <!-- Security Badge -->
+        <div class="mt-6 flex items-center justify-center gap-2 text-sm text-slate-500">
+            <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            <span class="font-semibold">100% Secure</span>
+            <span>•</span>
+            <span>Powered by Razorpay</span>
+        </div>
+    </div>
+
+    <!-- Payment Methods -->
+    <div class="max-w-lg mx-auto mt-8 text-center px-4">
+        <p class="text-slate-500 text-sm mb-3">We accept</p>
+        <div class="flex justify-center items-center gap-4 flex-wrap">
+            <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">💳 Cards</span>
+            <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">📱 UPI</span>
+            <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">🏦 NetBanking</span>
+            <span class="px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200 text-xs font-semibold text-slate-600">💼 Wallets</span>
+        </div>
+    </div>
+
+</div>
+
+<!-- Razorpay Checkout Script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+  // Function to set amount from quick buttons
+  function setAmount(amount) {
+    document.getElementById('amount').value = amount;
+  }
+
+  // Main payment handler
+  document.getElementById('payBtn').addEventListener('click', async () => {
+    const amountInput = document.getElementById('amount');
+    const payBtn = document.getElementById('payBtn');
+    const btnText = document.getElementById('btnText');
+    
+    // Validate amount
+    let amountValue = parseFloat(amountInput.value);
+    
+    if (isNaN(amountValue) || amountValue < 10) {
+      alert('Please enter a valid amount of ₹10 or more.');
+      amountInput.focus();
+      return;
+    }
+    
+    // Convert to paise (₹1 = 100 paise)
+    const amountInPaise = Math.round(amountValue * 100);
+    
+    // Disable button
+    payBtn.disabled = true;
+    btnText.textContent = 'Creating order...';
+
+    try {
+      // ✅ FIXED: Correct route with hyphen
+      const response = await fetch('/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amountInPaise })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create order');
+      }
+      
+      const order = await response.json();
+      
+      if (order.error) {
+        throw new Error(order.error);
+      }
+
+      console.log('✅ Order created:', order.id);
+
+      // Razorpay checkout options
+      const options = {
+        key: "{{ razor_key }}",
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.id,
+        name: "Think.4U",
+        description: "Mental Health Support Donation",
+        image: "/static/images/logo.png",
+        
+        // ✅ FIXED: Correct success handler
+        handler: function (response) {
+          console.log('✅ Payment successful:', response.razorpay_payment_id);
+          
+          // Redirect to success page with payment details
+          window.location.href = `/payment-success?razorpay_payment_id=${response.razorpay_payment_id}&razorpay_order_id=${response.razorpay_order_id}&razorpay_signature=${response.razorpay_signature}`;
+        },
+        
+        prefill: {
+          name: '',
+          email: '',
+          contact: ''
+        },
+        
+        theme: {
+          color: "#0d9488"  // Teal color
+        },
+        
+        modal: {
+          ondismiss: function() {
+            console.log('❌ Payment popup closed by user');
+            payBtn.disabled = false;
+            btnText.textContent = 'Donate Now ❤️';
+          }
+        }
+      };
+
+      // Open Razorpay checkout
+      const rzp = new Razorpay(options);
+      
+      rzp.on('payment.failed', function (response) {
+        console.error('❌ Payment failed:', response.error);
+        alert('Payment failed: ' + response.error.description);
+        payBtn.disabled = false;
+        btnText.textContent = 'Donate Now ❤️';
+      });
+      
+      rzp.open();
+      
+    } catch (error) {
+      console.error('❌ Error:', error);
+      alert('An error occurred while initiating payment. Please try again later.');
+      payBtn.disabled = false;
+      btnText.textContent = 'Donate Now ❤️';
+    }
+  });
+</script>
+
+{% endblock %}

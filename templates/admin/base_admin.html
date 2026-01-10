@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Dashboard{% endblock %} | Think.4U</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --cyan-gradient: linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #0891b2 100%);
+            --green-gradient: linear-gradient(135deg, #86efac 0%, #4ade80 50%, #22c55e 100%);
+            --orange-gradient: linear-gradient(135deg, #fdba74 0%, #fb923c 50%, #f97316 100%);
+            --brand-gradient: linear-gradient(135deg, #22d3ee 0%, #4ade80 33%, #fb923c 66%, #f97316 100%);
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .gradient-text {
+            background: var(--brand-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #22d3ee, #4ade80);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #06b6d4, #22c55e);
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-slate-50 via-white to-cyan-50 text-slate-800">
+
+    <!-- ADMIN NAVBAR -->
+    <nav class="fixed top-0 w-full z-50 glass shadow-lg border-b border-slate-200/50">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                
+                <!-- Left: Logo & Menu Toggle -->
+                <div class="flex items-center gap-4">
+                    <!-- Mobile Menu Toggle -->
+                    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl hover:bg-slate-100 transition">
+                        <i data-lucide="menu" class="w-6 h-6 text-slate-700"></i>
+                    </button>
+                    
+                    <!-- Logo -->
+                    <a href="/admin" class="flex items-center group">
+                        <div class="relative">
+                            <img src="{{ url_for('static', filename='images/logo-white.png') }}" 
+                                 alt="Think.4U Logo" 
+                                 class="h-10 w-auto transition-transform duration-300 group-hover:scale-110"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="h-10 w-24 bg-gradient-to-r from-cyan-500 via-green-500 to-orange-500 rounded-xl hidden items-center justify-center font-bold text-white text-sm">
+                                <span>THINK<span class="text-orange-200">.4U</span></span>
+                            </div>
+                        </div>
+                        <span class="ml-3 text-sm font-bold text-slate-600">Admin Panel</span>
+                    </a>
+                </div>
+
+                <!-- Right: Actions -->
+                <div class="flex items-center gap-3">
+                    <!-- View Site -->
+                    <a href="/" target="_blank" 
+                       class="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-50 text-cyan-700 hover:bg-cyan-100 font-semibold text-sm transition">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                        <span>View Site</span>
+                    </a>
+                    
+                    <!-- User Menu -->
+                    <div class="relative group">
+                        <button class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-green-500 flex items-center justify-center text-white font-bold text-sm">
+                                {{ (current_user.name[0] if current_user.name else current_user.email[0]).upper() if current_user.is_authenticated else 'A' }}
+                            </div>
+                            <span class="hidden sm:block font-semibold text-sm text-slate-700">
+                                {{ current_user.username if current_user.is_authenticated else 'Admin' }}
+                            </span>
+                        </button>
+                        
+                        <!-- Dropdown -->
+                        <div class="absolute right-0 mt-2 w-48 glass rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                            <a href="/admin/settings" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-t-xl text-slate-700 font-medium text-sm">
+                                <i data-lucide="settings" class="w-4 h-4"></i>
+                                Settings
+                            </a>
+                            <a href="/logout" class="flex items-center gap-3 px-4 py-3 hover:bg-red-50 rounded-b-xl text-red-600 font-medium text-sm">
+                                <i data-lucide="log-out" class="w-4 h-4"></i>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="fixed top-20 right-4 z-50 space-y-2">
+                {% for category, message in messages %}
+                    <div class="flex items-center gap-3 px-6 py-4 rounded-xl shadow-xl animate-slide-in {% if category == 'error' %}bg-red-500{% elif category == 'success' %}bg-green-500{% elif category == 'warning' %}bg-orange-500{% else %}bg-cyan-500{% endif %} text-white font-semibold">
+                        <i data-lucide="{% if category == 'error' %}alert-circle{% elif category == 'success' %}check-circle{% elif category == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-5 h-5"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <div class="pt-16">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+        
+        // Toggle Sidebar (Mobile)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+            }
+        }
+        
+        // Auto-hide flash messages
+        setTimeout(() => {
+            const messages = document.querySelectorAll('.animate-slide-in');
+            messages.forEach(msg => {
+                msg.style.opacity = '0';
+                msg.style.transform = 'translateX(400px)';
+                setTimeout(() => msg.remove(), 300);
+            });
+        }, 5000);
+        
+        // Close sidebar on outside click (mobile)
+        document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const menuBtn = document.querySelector('[onclick="toggleSidebar()"]');
+            
+            if (overlay && !overlay.classList.contains('hidden')) {
+                if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+                    toggleSidebar();
+                }
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

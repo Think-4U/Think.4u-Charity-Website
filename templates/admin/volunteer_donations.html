@@ -1,0 +1,137 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Volunteer Donations - {{ volunteer.name }}{% endblock %}
+{% block content %}
+
+<div class="flex min-h-screen">
+    {% include 'admin/sidebar_menu.html' %}
+    
+    <main class="flex-1 lg:ml-72 p-6 lg:p-8">
+        <!-- Back Button -->
+        <a href="/admin/volunteers" class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-800 font-semibold mb-6 transition">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            Back to Volunteers
+        </a>
+
+        <!-- Volunteer Header -->
+        <div class="glass p-8 rounded-2xl border-2 border-slate-200/50 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-3xl font-bold">
+                    {{ volunteer.name[0].upper() }}
+                </div>
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 mb-1">{{ volunteer.name }}</h1>
+                    <p class="text-slate-600">{{ volunteer.email }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Donation Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass p-6 rounded-2xl border-2 border-purple-200/50">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                        <i data-lucide="heart" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-600">Total Donations</p>
+                        <p class="text-2xl font-black text-purple-600">{{ donations|length }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass p-6 rounded-2xl border-2 border-green-200/50">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                        <i data-lucide="dollar-sign" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-600">Total Amount</p>
+                        <p class="text-2xl font-black text-green-600">₹{{ "%.2f"|format(total_donated) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass p-6 rounded-2xl border-2 border-blue-200/50">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-600">Avg Donation</p>
+                        <p class="text-2xl font-black text-blue-600">₹{{ "%.2f"|format(total_donated / donations|length if donations|length > 0 else 0) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Donations List -->
+        <div class="glass rounded-2xl border-2 border-slate-200/50 overflow-hidden">
+            <div class="p-6 border-b border-slate-200">
+                <h2 class="text-xl font-bold text-slate-800">Donation History</h2>
+            </div>
+
+            {% if donations %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">Date</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">Amount</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">Payment ID</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase">Method</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for donation in donations %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-6 py-4 text-sm text-slate-700">
+                                {{ donation.created_at[:10] if donation.created_at else 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-lg font-bold text-green-600">₹{{ "%.2f"|format(donation.amount / 100) }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-sm font-mono text-slate-600">
+                                {{ donation.razorpay_payment_id[:20] if donation.razorpay_payment_id else 'N/A' }}...
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if donation.status == 'paid' %}
+                                <span class="px-3 py-1 text-xs font-bold text-green-700 bg-green-100 rounded-full">
+                                    ✓ Paid
+                                </span>
+                                {% else %}
+                                <span class="px-3 py-1 text-xs font-bold text-orange-700 bg-orange-100 rounded-full">
+                                    {{ donation.status }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-slate-700">
+                                {{ donation.payment_method or 'Online' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-12 text-center">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                    <i data-lucide="heart" class="w-10 h-10 text-slate-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">No donations yet</h3>
+                <p class="text-slate-600">This volunteer hasn't made any donations</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

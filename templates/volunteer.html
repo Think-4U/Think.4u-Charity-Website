@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="relative min-h-screen py-20 lg:py-32 px-4 flex items-center justify-center overflow-hidden">
+    
+    <!-- Background -->
+    <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-cyan-50 to-green-50"></div>
+    
+    <!-- Decorative elements -->
+    <div class="absolute top-10 right-10 w-64 h-64 bg-cyan-300/20 rounded-full blur-3xl animate-pulse"></div>
+    <div class="absolute bottom-10 left-10 w-80 h-80 bg-green-300/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 1.5s;"></div>
+    
+    <div class="relative z-10 max-w-2xl w-full mx-auto">
+        
+        <!-- Header Section -->
+        <div class="text-center mb-12">
+            <div class="inline-flex items-center px-6 py-3 rounded-full glass border-2 border-cyan-400/50 text-cyan-600 shadow-xl mb-6 animate-bounce">
+                <i data-lucide="users" class="w-5 h-5 mr-3"></i>
+                <span class="text-sm font-semibold tracking-wide">Join Our Mission</span>
+            </div>
+            <h1 class="text-5xl lg:text-6xl font-black mb-6 leading-tight tracking-tight">
+                <span class="gradient-text">Become a Volunteer</span>
+            </h1>
+            <p class="text-xl lg:text-2xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                Help us change lives and uplift communities through your time and compassion.
+            </p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="relative group">
+            <!-- Glow effect -->
+            <div class="absolute -inset-2 bg-gradient-to-r from-cyan-500 via-green-500 to-orange-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            
+            <!-- Main card -->
+            <div class="relative glass p-10 lg:p-12 rounded-3xl shadow-2xl border-2 border-white/50 hover:shadow-3xl transition-all duration-500">
+                
+                <!-- Form Header -->
+                <div class="text-center mb-10">
+                    <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cyan-500 to-green-500 rounded-3xl flex items-center justify-center shadow-2xl logo-pulse">
+                        <i data-lucide="heart-handshake" class="w-10 h-10 text-white"></i>
+                    </div>
+                    <p class="text-slate-600 text-lg">Fill out the form below and we'll get back to you within 24 hours.</p>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="mb-6 p-4 rounded-xl {% if category == 'error' %}bg-red-50 border-2 border-red-200 text-red-700{% else %}bg-green-50 border-2 border-green-200 text-green-700{% endif %}">
+                                <div class="flex items-center">
+                                    <i data-lucide="{% if category == 'error' %}alert-circle{% else %}check-circle{% endif %}" class="w-5 h-5 mr-3"></i>
+                                    <span class="font-semibold">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Volunteer Form -->
+                <form method="POST" action="{{ url_for('volunteer') }}" class="space-y-6">
+                    
+                    <!-- Name Field -->
+                    <div>
+                        <label for="name" class="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <i data-lucide="user" class="w-4 h-4 mr-2 text-cyan-600"></i>
+                            Full Name *
+                        </label>
+                        <input type="text" 
+                               id="name" 
+                               name="name" 
+                               required
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 focus:outline-none transition-all bg-white"
+                               placeholder="John Doe" />
+                    </div>
+
+                    <!-- Email Field -->
+                    <div>
+                        <label for="email" class="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <i data-lucide="mail" class="w-4 h-4 mr-2 text-green-600"></i>
+                            Email Address *
+                        </label>
+                        <input type="email" 
+                               id="email" 
+                               name="email" 
+                               required
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 focus:outline-none transition-all bg-white"
+                               placeholder="john@example.com" />
+                    </div>
+
+                    <!-- Phone Field -->
+                    <div>
+                        <label for="phone" class="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <i data-lucide="phone" class="w-4 h-4 mr-2 text-orange-600"></i>
+                            Phone Number *
+                        </label>
+                        <input type="tel" 
+                               id="phone" 
+                               name="phone" 
+                               required
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 focus:outline-none transition-all bg-white"
+                               placeholder="+91 98765 43210" />
+                    </div>
+
+                    <!-- Interest Area -->
+                    <div>
+                        <label for="interest" class="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <i data-lucide="target" class="w-4 h-4 mr-2 text-purple-600"></i>
+                            Area of Interest *
+                        </label>
+                        <select id="interest" 
+                                name="interest" 
+                                required
+                                class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 focus:outline-none transition-all bg-white">
+                            <option value="">Select an area...</option>
+                            <option value="mental-health">Mental Health Support</option>
+                            <option value="education">Education & Tutoring</option>
+                            <option value="community">Community Outreach</option>
+                            <option value="fundraising">Fundraising</option>
+                            <option value="events">Event Management</option>
+                            <option value="social-media">Social Media & Marketing</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Message Field -->
+                    <div>
+                        <label for="message" class="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <i data-lucide="message-square" class="w-4 h-4 mr-2 text-cyan-600"></i>
+                            Why do you want to volunteer?
+                        </label>
+                        <textarea id="message" 
+                                  name="message" 
+                                  rows="4"
+                                  class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 focus:outline-none transition-all bg-white resize-none"
+                                  placeholder="Tell us about your motivation and what you hope to contribute..."></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit"
+                            class="w-full bg-gradient-to-r from-cyan-500 via-green-500 to-orange-500 hover:from-cyan-600 hover:via-green-600 hover:to-orange-600 text-white font-bold py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center">
+                        <i data-lucide="send" class="w-5 h-5 mr-3"></i>
+                        Submit Application
+                    </button>
+                </form>
+
+                <!-- Info Box -->
+                <div class="mt-8 p-6 bg-gradient-to-r from-cyan-50 to-green-50 rounded-2xl border border-cyan-200/50">
+                    <div class="flex items-start text-sm text-slate-600">
+                        <i data-lucide="info" class="w-5 h-5 mr-3 mt-0.5 text-cyan-600 flex-shrink-0"></i>
+                        <p class="leading-relaxed">
+                            <strong class="text-cyan-700">What happens next?</strong> 
+                            Our team will review your application and contact you within 24 hours to discuss next steps and opportunities.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+  lucide.createIcons();
+</script>
+
+{% endblock %}

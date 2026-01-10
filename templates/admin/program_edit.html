@@ -1,0 +1,160 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Edit Program{% endblock %}
+{% block content %}
+
+<div class="flex min-h-screen">
+    {% include 'admin/sidebar_menu.html' %}
+
+    <main class="flex-1 lg:ml-72 p-6 lg:p-8">
+        
+        <!-- Header -->
+        <div class="mb-8">
+            <a href="{{ url_for('admin_programs') }}" class="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-semibold mb-4 transition">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Programs
+            </a>
+            <h1 class="text-4xl font-black mb-2">
+                <span class="gradient-text">Edit Program</span>
+            </h1>
+            <p class="text-slate-600">Update program details</p>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6 p-4 rounded-xl border-2 {% if category == 'success' %}bg-green-50 border-green-200 text-green-800{% elif category == 'error' %}bg-red-50 border-red-200 text-red-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %} flex items-center gap-3">
+                        {% if category == 'error' %}
+                            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+                        {% elif category == 'success' %}
+                            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+                        {% else %}
+                            <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
+                        {% endif %}
+                        <span class="font-semibold">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Form -->
+        <div class="max-w-3xl">
+            <!-- ✅ FIXED: Added action -->
+            <form method="POST" action="{{ url_for('admin_program_edit', pid=program.id) }}" enctype="multipart/form-data" class="glass p-8 rounded-2xl border-2 border-slate-200/50">
+                
+                <div class="space-y-6">
+                    <!-- Title -->
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">
+                            <i data-lucide="text" class="w-4 h-4 inline mr-2"></i>
+                            Program Title
+                        </label>
+                        <input type="text" name="title" value="{{ program.title }}" required 
+                               class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none">
+                    </div>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">
+                            <i data-lucide="align-left" class="w-4 h-4 inline mr-2"></i>
+                            Description
+                        </label>
+                        <textarea name="description" rows="8" required 
+                                  class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none">{{ program.description }}</textarea>
+                    </div>
+                    
+                    <!-- Current Image Preview -->
+                    {% if program.image_url %}
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Current Image</label>
+                        <div class="relative h-64 rounded-xl overflow-hidden border-2 border-slate-200">
+                            <img src="{{ program.image_url }}" alt="{{ program.title }}" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Image Upload Options -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm font-bold text-slate-700">
+                                <i data-lucide="image" class="w-4 h-4 inline mr-2"></i>
+                                Change Image
+                            </label>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="showImageUrl()" 
+                                        class="px-3 py-1 text-xs border-2 border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 transition">
+                                    Use URL
+                                </button>
+                                <button type="button" onclick="showImageFile()" 
+                                        class="px-3 py-1 text-xs bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition">
+                                    Upload File
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- File Upload -->
+                        <div id="imageFileSection">
+                            <input type="file" name="image" accept="image/*"
+                                   class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none">
+                            <p class="text-xs text-slate-500 mt-2">
+                                📁 Upload a new image (leave empty to keep current image)
+                            </p>
+                        </div>
+                        
+                        <!-- Image URL -->
+                        <div id="imageUrlSection" class="hidden">
+                            <input type="url" name="image_url" value="{{ program.image_url or '' }}" 
+                                   class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                                   placeholder="https://images.unsplash.com/...">
+                            <p class="text-xs text-slate-500 mt-2">
+                                💡 Use <a href="https://unsplash.com" target="_blank" class="text-teal-600 hover:underline">Unsplash</a> for free images
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="flex gap-3 pt-4">
+                        <a href="{{ url_for('admin_programs') }}" 
+                           class="flex-1 px-6 py-3 border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition text-center">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+    });
+
+    function showImageUrl() {
+        document.getElementById('imageFileSection').classList.add('hidden');
+        document.getElementById('imageUrlSection').classList.remove('hidden');
+        // Clear file input
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = '';
+    }
+
+    function showImageFile() {
+        document.getElementById('imageUrlSection').classList.add('hidden');
+        document.getElementById('imageFileSection').classList.remove('hidden');
+    }
+</script>
+
+<style>
+    .glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}

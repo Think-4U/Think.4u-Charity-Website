@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ get_cms('site_title', 'Think.4U - Community Charity Foundation') }}{% endblock %}</title>
+    
+    <!-- Meta Tags -->
+    <meta name="description" content="{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through compassion and action.') }}">
+    <meta name="keywords" content="charity, donation, volunteer, community, help, support">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            /* Charity Color Palette */
+            --primary-blue: #1e40af;
+            --secondary-sky: #0ea5e9;
+            --accent-emerald: #10b981;
+            --warm-orange: #f97316;
+            --gold-amber: #f59e0b;
+            
+            /* Gradients */
+            --hero-gradient: linear-gradient(135deg, #1e3a8a 0%, #1e40af 25%, #0ea5e9 75%, #38bdf8 100%);
+            --cta-gradient: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+            --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Animated Background */
+        #canvas-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        /* Logo Animation */
+        .logo-pulse {
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Gradient Text */
+        .gradient-text {
+            background: linear-gradient(135deg, #1e40af, #0ea5e9, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Floating Animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* Sticky Donate Button */
+        .sticky-donate {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.05); }
+        }
+
+        /* Smooth Scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #1e40af, #0ea5e9);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #1e3a8a, #0284c7);
+        }
+
+        /* Nav Hover Effect */
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 3px;
+            bottom: -5px;
+            left: 50%;
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        /* Trust Badges */
+        .trust-badge {
+            transition: transform 0.3s ease;
+        }
+
+        .trust-badge:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="relative min-h-screen">
+    <!-- Animated Background Canvas -->
+    <canvas id="canvas-bg"></canvas>
+
+    <!-- Navigation -->
+    <nav class="glass sticky top-0 z-50 shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <a href="{{ url_for('index') }}" class="flex items-center gap-3 group">
+                        <img src="{{ url_for('static', filename='images/logo-white.png') }}" 
+                            alt="Think.4U Logo" 
+                            class="h-20 w-auto object-contain logo-pulse group-hover:scale-105 transition-transform">
+                    <span class="text-2xl font-black">
+                    Think<span class="text-amber-500">.4</span><span class="text-blue-600">U</span>
+                    </span>
+                </a>
+
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="{{ url_for('index') }}" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Home</a>
+                    <a href="{{ url_for('index') }}#programs" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Programs</a>
+                    <a href="{{ url_for('volunteer') }}" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Volunteer</a>
+                    <a href="{{ url_for('index') }}#impact" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Impact</a>
+                    
+                    <!-- CTA Buttons -->
+                    <a href="{{ url_for('donate') }}" 
+                       class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2">
+                        <i data-lucide="heart" class="w-4 h-4"></i>
+                        Donate
+                    </a>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" class="md:hidden text-slate-700 hover:text-blue-600 transition">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden mt-6 pb-4 space-y-4">
+                <a href="{{ url_for('index') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Home</a>
+                <a href="{{ url_for('index') }}#programs" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Programs</a>
+                <a href="{{ url_for('volunteer') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Volunteer</a>
+                <a href="{{ url_for('index') }}#impact" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Impact</a>
+                <a href="{{ url_for('donate') }}" 
+                   class="block text-center px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg">
+                    Donate Now
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Trust Badges Bar -->
+    <div class="bg-gradient-to-r from-blue-50 via-sky-50 to-emerald-50 py-4 border-b border-blue-100">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
+                <div class="flex items-center gap-2 text-slate-700 trust-badge">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
+                    <span class="font-semibold">{{ get_cms('trust_badge_1', '100% Secure') }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-700 trust-badge">
+                    <i data-lucide="award" class="w-5 h-5 text-blue-600"></i>
+                    <span class="font-semibold">{{ get_cms('trust_badge_2', 'Tax Deductible') }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-700 trust-badge">
+                    <i data-lucide="users" class="w-5 h-5 text-amber-600"></i>
+                    <span class="font-semibold">{{ get_cms('trust_badge_3', '10,000+ Supporters') }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-700 trust-badge">
+                    <i data-lucide="heart" class="w-5 h-5 text-rose-500"></i>
+                    <span class="font-semibold">{{ get_cms('trust_badge_4', 'Transparent Impact') }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="relative z-10">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white py-16 mt-20">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <!-- About Column -->
+                <div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <img src="{{ url_for('static', filename='images/logo-white.png') }}" 
+                            alt="Think.4U Logo" 
+                            class="h-20 w-auto object-contain">
+                            <span class="text-xl font-black">Think<span class="text-amber-400">.4</span>U</span>
+                    </div>
+                    <p class="text-white/80 leading-relaxed">
+                        {{ get_cms('footer_about', 'Making a difference in our community through compassion, dedication, and meaningful action.') }}
+                    </p>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-amber-400">Quick Links</h3>
+                    <ul class="space-y-3">
+                        <li><a href="{{ url_for('index') }}" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Home
+                        </a></li>
+                        <li><a href="{{ url_for('index') }}#programs" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Programs
+                        </a></li>
+                        <li><a href="{{ url_for('volunteer') }}" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Volunteer
+                        </a></li>
+                        <li><a href="{{ url_for('donate') }}" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Donate
+                        </a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact Info -->
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-amber-400">Contact Us</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3 text-white/80">
+                            <i data-lucide="mail" class="w-5 h-5 mt-1 text-sky-400"></i>
+                            <span>{{ get_cms('contact_email', 'hello@think4u.org') }}</span>
+                        </li>
+                        <li class="flex items-start gap-3 text-white/80">
+                            <i data-lucide="phone" class="w-5 h-5 mt-1 text-emerald-400"></i>
+                            <span>{{ get_cms('contact_phone', '+91 1234567890') }}</span>
+                        </li>
+                        <li class="flex items-start gap-3 text-white/80">
+                            <i data-lucide="map-pin" class="w-5 h-5 mt-1 text-orange-400"></i>
+                            <span>{{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Social Media -->
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-amber-400">Follow Us</h3>
+                    <div class="flex gap-4 mb-6">
+                        <a href="{{ get_cms('social_facebook', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-blue-600 rounded-full flex items-center justify-center transition-all hover:scale-110">
+                            <i data-lucide="facebook" class="w-5 h-5"></i>
+                        </a>
+                        <a href="{{ get_cms('social_twitter', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-sky-500 rounded-full flex items-center justify-center transition-all hover:scale-110">
+                            <i data-lucide="twitter" class="w-5 h-5"></i>
+                        </a>
+                        <a href="{{ get_cms('social_instagram', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all hover:scale-110">
+                            <i data-lucide="instagram" class="w-5 h-5"></i>
+                        </a>
+                        <a href="{{ get_cms('social_linkedin', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all hover:scale-110">
+                            <i data-lucide="linkedin" class="w-5 h-5"></i>
+                        </a>
+                    </div>
+                    <p class="text-white/60 text-sm">
+                        {{ get_cms('footer_social_text', 'Stay connected and join our community of supporters making a real difference.') }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div class="border-t border-white/20 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                <p class="text-white/60 text-sm">
+                    {{ get_cms('footer_copyright', '© 2025 Think.4U. All rights reserved.') }}
+                </p>
+                <div class="flex gap-6 text-sm">
+                    <a href="#" class="text-white/60 hover:text-amber-400 transition">Privacy Policy</a>
+                    <a href="#" class="text-white/60 hover:text-amber-400 transition">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Sticky Donate Button -->
+    <a href="{{ url_for('donate') }}" 
+       class="sticky-donate hidden lg:flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-2xl hover:shadow-3xl group">
+        <i data-lucide="heart" class="w-5 h-5 group-hover:scale-125 transition-transform"></i>
+        <span>{{ get_cms('sticky_donate_text', 'Donate Now') }}</span>
+    </a>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Lucide Icons
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // Mobile Menu Toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Animated Canvas Background
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = Math.random() * 2 - 1;
+                this.speedY = Math.random() * 2 - 1;
+                this.color = ['#1e40af', '#0ea5e9', '#10b981', '#f59e0b'][Math.floor(Math.random() * 4)];
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
+                if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        const particles = [];
+        for (let i = 0; i < 50; i++) {
+            particles.push(new Particle());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Resize canvas on window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Smooth Scroll for anchor links
+        // Smooth Scroll for anchor links - Including full URLs with hash
+        document.querySelectorAll('a[href*="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+        
+            // Check if it's a same-page anchor
+            if (href.includes('#')) {
+            const hashIndex = href.indexOf('#');
+            const hash = href.substring(hashIndex);
+            const path = href.substring(0, hashIndex);
+            
+            // If it's same domain or current page
+            if (!path || path === window.location.pathname || path === '/') {
+                e.preventDefault();
+                const target = document.querySelector(hash);
+                if (target) {
+                    // Close mobile menu if open
+                    const mobileMenu = document.getElementById('mobile-menu');
+                    if (mobileMenu) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                    
+                    // Smooth scroll to target
+                    const navHeight = document.querySelector('nav').offsetHeight;
+                    const targetPosition = target.offsetTop - navHeight - 20;
+                    
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+    });
+});
+
+    </script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

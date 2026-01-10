@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donation Receipt - Think.4U</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body style="font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #ecfeff 0%, #d1fae5 50%, #fed7aa 100%); min-height: 100vh;">
+    
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);">
+        
+        <!-- Header with Logo -->
+        <div style="background: linear-gradient(135deg, #22d3ee 0%, #4ade80 50%, #fb923c 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="color: white; font-family: 'Poppins', sans-serif; font-size: 32px; margin: 0 0 10px 0; font-weight: 800;">
+                THINK<span style="color: #fed7aa;">.4U</span>
+            </h1>
+            <p style="color: rgba(255, 255, 255, 0.9); margin: 0; font-size: 14px; font-weight: 600;">
+                Empowering Minds, Changing Lives
+            </p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 40px 30px;">
+            
+            <!-- Success Icon -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-block; width: 80px; height: 80px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 50%; padding: 20px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="width: 40px; height: 40px;">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                </div>
+            </div>
+
+            <h2 style="text-align: center; font-family: 'Poppins', sans-serif; font-size: 28px; color: #0f172a; margin: 0 0 15px 0; font-weight: 700;">
+                Thank You!
+            </h2>
+
+            <p style="text-align: center; color: #64748b; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                Your generous donation will help us provide mental health support and education to those in need.
+            </p>
+
+            <!-- Amount Box -->
+            <div style="background: linear-gradient(135deg, #f0fdfa, #ecfdf5); border: 2px solid #a7f3d0; border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px;">
+                <p style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px 0; font-weight: 600;">
+                    Donation Amount
+                </p>
+                <div style="font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #22d3ee, #4ade80); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px;">
+                    ₹{{ "%.2f"|format(amount/100) }}
+                </div>
+                <p style="color: #64748b; font-size: 11px; margin: 0;">
+                    Tax benefits under Section 80G apply
+                </p>
+            </div>
+
+            <!-- Details -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <tr>
+                    <td style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px 8px 0 0;">
+                        <strong style="color: #475569; font-size: 13px;">Transaction ID:</strong><br>
+                        <code style="color: #0891b2; font-size: 12px; word-break: break-all;">{{ donation.razorpay_payment_id or donation.razorpay_order_id or 'Processing' }}</code>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 15px; background: #f8fafc; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">
+                        <strong style="color: #475569; font-size: 13px;">Date:</strong><br>
+                        <span style="color: #64748b; font-size: 13px;">{{ donation.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                        <strong style="color: #475569; font-size: 13px;">Payment Status:</strong><br>
+                        <span style="display: inline-block; background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-top: 5px;">
+                            ✓ Successful
+                        </span>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Impact Message -->
+            <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border-left: 4px solid #fb923c; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
+                    <strong>💝 Your Impact:</strong> Your donation helps provide counseling, educational resources, and community support programs.
+                </p>
+            </div>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="https://think4u.org" style="display: inline-block; background: linear-gradient(135deg, #22d3ee, #4ade80); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 10px 20px rgba(34, 211, 238, 0.3);">
+                    Visit Our Website
+                </a>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #64748b; font-size: 13px; margin: 0 0 10px 0;">
+                Questions? Email us at <a href="mailto:info@think4u.org" style="color: #0891b2; text-decoration: none; font-weight: 600;">info@think4u.org</a>
+            </p>
+            <p style="color: #94a3b8; font-size: 11px; margin: 0;">
+                © 2025 Think.4U Charity Foundation. All rights reserved.
+            </p>
+        </div>
+
+    </div>
+
+</body>
+</html>

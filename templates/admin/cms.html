@@ -1,0 +1,234 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Website Content Manager{% endblock %}
+{% block content %}
+
+<div class="flex min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
+    
+    {% include 'admin/sidebar_menu.html' %}
+
+    <main class="flex-1 lg:ml-72 p-6 lg:p-8">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-4xl lg:text-5xl font-black mb-2">
+                    <span class="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">
+                        Content Manager
+                    </span>
+                </h1>
+                <p class="text-slate-600 font-medium">Edit website text, headlines & messages</p>
+            </div>
+            
+            <button onclick="openAddModal()" 
+                    class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                Add Content
+            </button>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6 p-4 rounded-xl border-2 {% if category == 'success' %}bg-green-50 border-green-200 text-green-800{% elif category == 'error' %}bg-red-50 border-red-200 text-red-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %} flex items-center gap-3">
+                        <i data-lucide="{% if category == 'error' %}alert-circle{% elif category == 'success' %}check-circle{% else %}info{% endif %}" class="w-5 h-5"></i>
+                        <span class="font-semibold">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Content Grid -->
+        {% if content_items %}
+        <div class="grid grid-cols-1 gap-6">
+            {% for item in content_items %}
+            <div class="glass rounded-2xl border-2 border-white/50 p-6 hover:shadow-2xl transition-all group">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-4">
+                            <!-- Colorful Icon -->
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br 
+                                {% set colors = ['purple', 'pink', 'orange', 'green', 'blue'] %}
+                                from-{{ colors[loop.index0 % 5] }}-400 to-{{ colors[(loop.index0 + 1) % 5] }}-500 
+                                flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <i data-lucide="file-text" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-slate-800">{{ item.key }}</h3>
+                                <p class="text-sm text-slate-500">
+                                    <i data-lucide="clock" class="w-3 h-3 inline"></i>
+                                    Updated: 
+                                    {% if item.updated_at is string %}
+                                        {{ item.updated_at[:10] }}
+                                    {% else %}
+                                        {{ item.updated_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Content Display -->
+                        <div class="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200">
+                            <p class="text-slate-700 leading-relaxed">{{ item.value }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons - FIXED -->
+                    <div class="flex flex-col gap-2">
+                        <button onclick="editContent(this)" 
+                                data-id="{{ item.id }}"
+                                data-key="{{ item.key }}"
+                                data-value="{{ item.value }}"
+                                class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold rounded-lg text-sm transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
+                            <i data-lucide="edit" class="w-4 h-4"></i>
+                            Edit
+                        </button>
+                        <button onclick="deleteContent({{ item.id }}, '{{ item.key }}')" 
+                                class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-lg text-sm transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="glass rounded-2xl border-2 border-white/50 p-12 text-center">
+            <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                <i data-lucide="file-text" class="w-12 h-12 text-purple-500"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800 mb-2">No Content Yet</h3>
+            <p class="text-slate-600 mb-6">Start adding website content to manage your pages</p>
+            <button onclick="openAddModal()" 
+                    class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                Add First Content
+            </button>
+        </div>
+        {% endif %}
+    </main>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="contentModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="p-6 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500">
+            <h2 id="modalTitle" class="text-2xl font-bold text-white">Add Content</h2>
+            <button onclick="closeModal()" class="text-white hover:text-slate-200 transition">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        
+        <form id="contentForm" method="POST" action="{{ url_for('admin_cms') }}" class="p-6 space-y-6">
+            <input type="hidden" id="contentId" name="content_id">
+            
+            <!-- Key/Name -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">
+                    <i data-lucide="tag" class="w-4 h-4 inline mr-2"></i>
+                    Content Key (e.g., homepage_title)
+                </label>
+                <input type="text" id="contentKey" name="key" required 
+                       class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
+                       placeholder="e.g., about_text, footer_message">
+            </div>
+            
+            <!-- Value/Content -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">
+                    <i data-lucide="file-text" class="w-4 h-4 inline mr-2"></i>
+                    Content Value
+                </label>
+                <textarea id="contentValue" name="value" rows="6" required 
+                          class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
+                          placeholder="Enter your content here..."></textarea>
+            </div>
+            
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal()" 
+                        class="flex-1 px-6 py-3 border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition">
+                    Save Content
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+    });
+
+    function openAddModal() {
+        document.getElementById('modalTitle').textContent = 'Add Content';
+        document.getElementById('contentForm').reset();
+        document.getElementById('contentId').value = '';
+        document.getElementById('contentModal').classList.remove('hidden');
+    }
+
+    // FIXED: Updated function
+    function editContent(button) {
+        const id = button.getAttribute('data-id');
+        const key = button.getAttribute('data-key');
+        const value = button.getAttribute('data-value');
+        
+        document.getElementById('modalTitle').textContent = 'Edit Content';
+        document.getElementById('contentId').value = id;
+        document.getElementById('contentKey').value = key;
+        document.getElementById('contentValue').value = value;
+        document.getElementById('contentModal').classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    function closeModal() {
+        document.getElementById('contentModal').classList.add('hidden');
+    }
+
+    function deleteContent(id, key) {
+        if (confirm(`Are you sure you want to delete "${key}"?`)) {
+            fetch(`/admin/cms/delete/${id}`, {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Error deleting content');
+                }
+            });
+        }
+    }
+
+    // Close modal on outside click
+    document.getElementById('contentModal').addEventListener('click', (e) => {
+        if (e.target.id === 'contentModal') {
+            closeModal();
+        }
+    });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+
+<style>
+    .glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}

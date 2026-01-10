@@ -1,0 +1,117 @@
+<aside id="sidebar" 
+       class="w-72 fixed left-0 inset-y-0 pt-16 bg-white/95 backdrop-blur-xl border-r border-slate-200/60 z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 overflow-y-auto">
+    
+    <div class="p-6">
+        <!-- Sidebar Header -->
+        <div class="mb-6">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Navigation</h3>
+        </div>
+
+        <!-- Menu Items -->
+        <ul class="space-y-2">
+            <!-- Dashboard -->
+            <li>
+                <a href="/admin" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if request.path == '/admin' or request.path == '/admin/' %}bg-gradient-to-r from-cyan-500 to-green-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+
+            <!-- Donations -->
+            <li>
+                <a href="/admin/donations" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/donations' in request.path %}bg-gradient-to-r from-green-500 to-cyan-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="heart" class="w-5 h-5"></i>
+                    <span>Donations</span>
+                </a>
+            </li>
+
+            <!-- Volunteers -->
+            <li>
+                <a href="/admin/volunteers" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/volunteers' in request.path %}bg-gradient-to-r from-orange-500 to-green-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                    <span>Volunteers</span>
+                </a>
+            </li>
+
+            <!-- Programs -->
+            <li>
+                <a href="/admin/programs" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/programs' in request.path %}bg-gradient-to-r from-cyan-500 to-orange-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                    <span>Programs</span>
+                </a>
+            </li>
+
+            <!-- CMS -->
+            <li>
+                <a href="/admin/cms" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/cms' in request.path %}bg-gradient-to-r from-green-500 to-orange-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                    <span>CMS Content</span>
+                </a>
+            </li>
+
+            <!-- Settings -->
+            <li>
+                <a href="/admin/settings" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/settings' in request.path %}bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- Divider -->
+        <div class="my-6 border-t border-slate-200"></div>
+
+        <!-- Quick Stats -->
+        <div class="space-y-3">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Quick Stats</h3>
+            
+            <div class="p-4 rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100/50 border border-cyan-200/50">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold text-cyan-700">Total Donations</span>
+                    <i data-lucide="trending-up" class="w-4 h-4 text-cyan-600"></i>
+                </div>
+                <div class="text-2xl font-black text-cyan-700" id="sidebar-donations">-</div>
+            </div>
+            
+            <div class="p-4 rounded-xl bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200/50">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold text-green-700">Volunteers</span>
+                    <i data-lucide="users" class="w-4 h-4 text-green-600"></i>
+                </div>
+                <div class="text-2xl font-black text-green-700" id="sidebar-volunteers">-</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 p-4 rounded-xl bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-200/50">
+            <p class="text-xs text-slate-600 text-center">
+                <strong class="gradient-text">Think.4U</strong><br>
+                Admin Panel v1.0
+            </p>
+        </div>
+    </div>
+</aside>
+
+<!-- Mobile Overlay -->
+<div id="overlay" 
+     class="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 hidden lg:hidden transition-opacity duration-300" 
+     onclick="toggleSidebar()"></div>
+
+<script>
+    // Load sidebar stats
+    fetch('/api/analytics')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('sidebar-donations').textContent = 
+                '₹' + (data.total_donations || 0).toLocaleString();
+            document.getElementById('sidebar-volunteers').textContent = 
+                (data.volunteer_count || 0).toLocaleString();
+        })
+        .catch(err => console.error('Failed to load stats:', err));
+</script>

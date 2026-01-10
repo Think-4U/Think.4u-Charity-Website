@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ program.title }} - Think.4U{% endblock %}
+{% block content %}
+
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 py-20">
+    <div class="container mx-auto px-4">
+        
+        <!-- Back Button -->
+        <div class="mb-8">
+            <a href="{{ url_for('index') }}" 
+               class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold transition group">
+                <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i>
+                Back to Home
+            </a>
+        </div>
+
+        <!-- Main Card -->
+        <div class="max-w-5xl mx-auto">
+            <div class="glass rounded-3xl border-2 border-white/50 overflow-hidden shadow-2xl backdrop-blur-xl">
+                
+                <!-- Beautiful Image Header -->
+                {% if program.image_url %}
+                <div class="relative h-96 lg:h-[500px] overflow-hidden group">
+                    <img src="{{ program.image_url }}" 
+                         alt="{{ program.title }}" 
+                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <!-- Gradient Overlay -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                    
+                    <!-- Title on Image -->
+                    <div class="absolute bottom-0 left-0 right-0 p-8 lg:p-12">
+                        <h1 class="text-4xl lg:text-6xl font-black text-white mb-4 drop-shadow-2xl">
+                            {{ program.title }}
+                        </h1>
+                        {% if program.created_at %}
+                        <div class="flex items-center gap-2 text-white/90">
+                            <i data-lucide="calendar" class="w-5 h-5"></i>
+                            <span class="font-medium">
+                                {% if program.created_at is string %}
+                                    {{ program.created_at[:10] }}
+                                {% else %}
+                                    {{ program.created_at.strftime('%B %d, %Y') }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <!-- Colorful Placeholder -->
+                <div class="relative h-96 bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center overflow-hidden">
+                    <div class="absolute inset-0 opacity-20">
+                        <div class="absolute top-10 left-10 w-72 h-72 bg-yellow-300 rounded-full blur-3xl"></div>
+                        <div class="absolute bottom-10 right-10 w-96 h-96 bg-pink-300 rounded-full blur-3xl"></div>
+                    </div>
+                    <div class="relative text-center text-white">
+                        <i data-lucide="heart" class="w-32 h-32 mx-auto mb-4 opacity-80"></i>
+                        <h1 class="text-5xl font-black mb-2">{{ program.title }}</h1>
+                        <p class="text-xl opacity-90">Making a Difference</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Content -->
+                <div class="p-8 lg:p-12">
+                    
+                    <!-- Colorful Tags -->
+                    <div class="flex flex-wrap gap-3 mb-8">
+                        <span class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full text-sm shadow-lg">
+                            <i data-lucide="heart" class="w-4 h-4 inline mr-1"></i>
+                            Community Impact
+                        </span>
+                        <span class="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-full text-sm shadow-lg">
+                            <i data-lucide="users" class="w-4 h-4 inline mr-1"></i>
+                            Active Program
+                        </span>
+                        <span class="px-4 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold rounded-full text-sm shadow-lg">
+                            <i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i>
+                            Join Now
+                        </span>
+                    </div>
+
+                    <!-- Description with colorful accents -->
+                    <div class="prose prose-lg max-w-none mb-12">
+                        <div class="text-slate-700 leading-relaxed text-lg space-y-6 border-l-4 border-gradient-to-b from-purple-500 via-pink-500 to-orange-500 pl-6">
+                            {{ program.description | safe }}
+                        </div>
+                    </div>
+
+                    <!-- Colorful Stats/Features -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                        <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-200">
+                            <i data-lucide="users" class="w-12 h-12 text-purple-600 mx-auto mb-3"></i>
+                            <h3 class="font-bold text-slate-800 text-lg">Community</h3>
+                            <p class="text-slate-600 text-sm">Making Impact Together</p>
+                        </div>
+                        
+                        <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-orange-100 to-red-100 border-2 border-orange-200">
+                            <i data-lucide="heart" class="w-12 h-12 text-orange-600 mx-auto mb-3"></i>
+                            <h3 class="font-bold text-slate-800 text-lg">Compassion</h3>
+                            <p class="text-slate-600 text-sm">Helping Those in Need</p>
+                        </div>
+                        
+                        <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-green-100 to-teal-100 border-2 border-green-200">
+                            <i data-lucide="sparkles" class="w-12 h-12 text-green-600 mx-auto mb-3"></i>
+                            <h3 class="font-bold text-slate-800 text-lg">Transform</h3>
+                            <p class="text-slate-600 text-sm">Creating Real Change</p>
+                        </div>
+                    </div>
+
+                    <!-- Colorful Call to Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4 mb-8">
+                        <a href="{{ url_for('donate') }}" 
+                           class="flex-1 inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all group">
+                            <i data-lucide="heart" class="w-6 h-6 group-hover:scale-125 transition-transform"></i>
+                            <span class="text-lg">Support This Program</span>
+                        </a>
+                        
+                        <a href="{{ url_for('volunteer') }}" 
+                           class="flex-1 inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all group">
+                            <i data-lucide="users" class="w-6 h-6 group-hover:scale-125 transition-transform"></i>
+                            <span class="text-lg">Volunteer With Us</span>
+                        </a>
+                    </div>
+
+                    <!-- Colorful Share Section -->
+                    <div class="text-center pt-8 border-t-2 border-gradient-to-r from-purple-200 via-pink-200 to-orange-200">
+                        <p class="text-slate-700 mb-6 font-bold text-lg flex items-center justify-center gap-2">
+                            <i data-lucide="share-2" class="w-5 h-5 text-purple-600"></i>
+                            Share This Program
+                        </p>
+                        <div class="flex justify-center gap-4">
+                            <a href="#" class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
+                                <i data-lucide="facebook" class="w-6 h-6"></i>
+                            </a>
+                            <a href="#" class="w-14 h-14 bg-gradient-to-br from-sky-400 to-sky-500 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
+                                <i data-lucide="twitter" class="w-6 h-6"></i>
+                            </a>
+                            <a href="#" class="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
+                                <i data-lucide="share-2" class="w-6 h-6"></i>
+                            </a>
+                            <a href="#" class="w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
+                                <i data-lucide="instagram" class="w-6 h-6"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .glass {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+    }
+    
+    .prose p {
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+    }
+    
+    /* Animated gradient border */
+    @keyframes gradient-border {
+        0%, 100% {
+            border-image-source: linear-gradient(135deg, #a855f7, #ec4899, #f97316);
+        }
+        50% {
+            border-image-source: linear-gradient(135deg, #f97316, #ec4899, #a855f7);
+        }
+    }
+    
+    /* Floating animation for icons */
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    [data-lucide="heart"]:hover,
+    [data-lucide="users"]:hover,
+    [data-lucide="sparkles"]:hover {
+        animation: float 1s ease-in-out infinite;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        
+        // Add parallax effect to image
+        const img = document.querySelector('img');
+        if (img) {
+            window.addEventListener('scroll', () => {
+                const scrolled = window.pageYOffset;
+                if (img.parentElement) {
+                    img.style.transform = `translateY(${scrolled * 0.5}px) scale(1.1)`;
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock %}

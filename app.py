@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import traceback
-
+import tempfile
 
 
 # Load environment variables
@@ -66,12 +66,16 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 # ------------------------------
 # Upload Configuration
 # ------------------------------
-UPLOAD_FOLDER = 'static/uploads'
+if os.environ.get("VERCEL" or "RENDER"):
+    UPLOAD_FOLDER = tempfile.gettempdir()  # /tmp
+else:
+    UPLOAD_FOLDER = "static/uploads"
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

@@ -1,8 +1,10 @@
 # ------------------------------
 # Think.4U - Charity Platform
 # ------------------------------
+from flask_mail import Mail, Message
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+import io
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
@@ -13,7 +15,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import traceback
 import tempfile
-
+import qrcode
+from io import BytesIO
+import base64
+from num2words import num2words
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from io import BytesIO
+from PIL import Image, ImageDraw
 
 # Load environment variables
 load_dotenv()
@@ -23,6 +34,7 @@ load_dotenv()
 # ------------------------------
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+UPI_VPA = os.getenv("UPI_VPA")
 
 # ------------------------------
 # Flask-Login Setup
@@ -60,8 +72,17 @@ print(f"🔑 Razorpay initialized with key: {RAZOR_KEY[:15] if RAZOR_KEY else 'N
 # ------------------------------
 # Admin Credentials
 # ------------------------------
-ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
+app.config.update(
+    MAIL_SERVER="smtp.gmail.com",
+    MAIL_PORT=587,
+    MAIL_USE_TLS=True,
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_DEFAULT_SENDER=("Think.4U", os.getenv("MAIL_USERNAME"))
+)
+
+mail = Mail(app)
+
 
 # ------------------------------
 # Upload Configuration
@@ -110,9 +131,9 @@ def load_user(user_id):
     try:
         print(f"🔍 Loading user ID: {user_id}")
         response = supabase.table('users').select('*').eq('id', int(user_id)).execute()
-        if response.data and len(response.data) > 0:
-            user_data = response.data[0]
-            return User(id=user_data['id'], email=user_data['email'], name=user_data.get('name', 'User'))
+        if response.data:
+            u = response.data[0]
+            return User(id=u['id'], email=u['email'], name=u.get('name'))
         print(f"⚠️ No user found with ID: {user_id}")
         return None
     except Exception as e:
@@ -221,15 +242,18 @@ def create_order():
         return jsonify({"error": "No JSON data"}), 400
 
     amount = data.get("amount")
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    phone = data.get("phone", "").strip()
+
     if not amount or amount <= 0:
         return jsonify({"error": "Invalid amount"}), 400
 
-    # ✅ Fixed: Use timezone-aware datetime
-    receipt = f"rcpt_{int(datetime.now(timezone.utc).timestamp())}"
+    if not name or not email or not phone:
+        return jsonify({"error": "Missing donor details"}), 400
 
-    # Debug: Print keys (remove in production)
-    print(f"🔑 Using Razorpay Key: {RAZOR_KEY[:15]}...")
-    print(f"💰 Creating order for amount: ₹{amount/100}")
+    # Receipt ID (timezone safe)
+    receipt = f"rcpt_{int(datetime.now(timezone.utc).timestamp())}"
 
     try:
         # Create Razorpay order
@@ -239,11 +263,12 @@ def create_order():
             "receipt": receipt,
             "payment_capture": 1
         })
-        
-        print(f"✅ Razorpay order created: {order['id']}")
-        
-        # Save to Supabase
-        supabase.table('donations').insert({
+
+        # ✅ SAVE FULL DONOR DATA
+        supabase.table("donations").insert({
+            "name": name,
+            "email": email,
+            "phone": phone,
             "amount": amount,
             "razorpay_order_id": order["id"],
             "status": "pending",
@@ -256,13 +281,13 @@ def create_order():
             "currency": order["currency"],
             "key_id": RAZOR_KEY
         })
-        
+
     except razorpay.errors.BadRequestError as e:
-        app.logger.error(f"Razorpay BadRequest: {e}")
-        return jsonify({"error": "Authentication failed. Please check Razorpay keys."}), 500
-        
+        app.logger.error(f"Razorpay error: {e}")
+        return jsonify({"error": "Razorpay authentication failed"}), 500
+
     except Exception as e:
-        app.logger.error(f"Error creating order: {e}")
+        app.logger.error(f"Order creation failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -409,49 +434,122 @@ def upi_qr():
 
 @app.route("/donation-receipt/<int:donation_id>")
 def donation_receipt(donation_id):
-    """Display donation receipt"""
     try:
-        response = supabase.table('donations').select("*").eq('id', donation_id).execute()
-        
+        response = supabase.table("donations").select("*").eq("id", donation_id).execute()
+
         if not response.data:
-            flash('Donation not found', 'error')
-            return redirect('/donate')
-        
+            flash("Donation not found", "error")
+            return redirect("/donate")
+
         donation = response.data[0]
-        
-        if donation['status'] != 'paid':
-            flash('Payment not completed', 'warning')
-            return redirect('/donate')
-        
-        # Parse created_at string into datetime object
-        created_at_str = donation.get('created_at', '')
-        if created_at_str:
-            # Parse ISO format string to datetime
-            created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-        else:
-            created_at = datetime.now(timezone.utc)
-        
-        # Update donation dict with datetime object
-        donation['created_at'] = created_at
-        
-        print(f"📄 Donation data: {donation}")
-        
-        return render_template('emails/donation_receipt.html',
-            donation=donation,
-            amount=donation['amount'],
-            transaction_id=donation.get('razorpay_payment_id', 'N/A'),
-            order_id=donation.get('razorpay_order_id', 'N/A'),
-            created_at=created_at,
-            payment_method=donation.get('payment_method', 'Razorpay'),
-            status=donation.get('status', 'paid')
+
+        if donation["status"] != "paid":
+            flash("Payment not completed", "warning")
+            return redirect("/donate")
+
+        created_at = datetime.fromisoformat(
+            donation["created_at"].replace("Z", "+00:00")
         )
+        donation["created_at"] = created_at
         
+        receipt_url = url_for("donation_receipt", donation_id=donation_id, _external=True)
+        qr_code = generate_qr(receipt_url)
+        print("✅ QR length:", len(qr_code) if qr_code else "NO QR")
+
+        # Shared context
+        context = {
+            "donation": donation,
+            "amount": donation["amount"],
+            "payment_method": donation.get("payment_method", "Online"),
+            "qr_code": qr_code,
+        }
+
+        # 📧 SEND EMAIL (ONLY ONCE)
+        if not donation.get("receipt_emailed"):
+            email_html = render_template(
+            "emails/donation_receipt_email.html",
+            donation=donation,
+            amount=donation["amount"]
+        )
+
+        msg = Message(
+            subject="Thank you for your donation – Think.4U (80G Eligible)",
+            recipients=[donation.get("email")]
+        )
+        msg.html = email_html
+
+        try:
+            mail.send(msg)
+            supabase.table("donations").update(
+                {"receipt_emailed": True}
+            ).eq("id", donation_id).execute()
+        except Exception as e:
+            app.logger.error(f"❌ Email failed, but receipt shown: {e}")
+
+
+        # 🌐 SHOW WEB RECEIPT
+        return render_template(
+            "emails/donation_receipt.html",
+            **context
+        )
+
     except Exception as e:
         traceback.print_exc()
-        app.logger.error(f"Error: {type(e).__name__}: {str(e)}")
-        flash('Error loading receipt', 'error')
-        return redirect('/donate')
+        flash("Error loading receipt", "error")
+        return redirect("/donate")
 
+
+def generate_receipt_pdf(context):
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=25*mm,
+        leftMargin=25*mm,
+        topMargin=25*mm,
+        bottomMargin=25*mm
+    )
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(Paragraph(f"<b>{context['org_name']}</b>", styles["Title"]))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(
+        f"Donation Receipt<br/>"
+        f"Receipt No: T4U-{context['donation']['id']}<br/>"
+        f"Date: {context['created_at'].strftime('%d-%m-%Y')}",
+        styles["Normal"]
+    ))
+
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(
+        f"<b>Donor:</b> {context['donation'].get('name','Anonymous')}<br/>"
+        f"<b>Email:</b> {context['donation'].get('email','N/A')}<br/>"
+        f"<b>Amount:</b> ₹{context['amount']/100:.2f}",
+        styles["Normal"]
+    ))
+
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(
+        "This donation is eligible under Section 80G of the Income Tax Act, 1961.",
+        styles["Normal"]
+    ))
+
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(
+        f"80G Reg No: {context['org_80g']}<br/>PAN: {context['org_pan']}",
+        styles["Normal"]
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.read()
 
 
 @app.route("/volunteer", methods=["GET", "POST"])
@@ -1115,8 +1213,7 @@ def admin_program_edit(pid):
 @login_required
 def admin_program_delete(pid):
     """Delete program from Supabase"""
-    if not current_user.is_admin:
-        return redirect(url_for('index'))
+
     
     try:
         supabase.table('programs').delete().eq('id', pid).execute()
@@ -1367,6 +1464,24 @@ def admin_settings():
                          payment_settings=payment_settings,
                          social_settings=social_settings)
 
+def generate_qr(data):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=6,
+        border=2,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return base64.b64encode(buf.read()).decode("utf-8")
+
 
 @app.route("/create-admin-secret-123")
 def create_admin_secret():
@@ -1429,7 +1544,8 @@ def create_admin_secret():
         </html>
         """
 
-
+def amount_to_words(amount):
+    return num2words(amount, lang='en_IN').replace('-', ' ').title()
 
 # ===================================
 # RUN APP

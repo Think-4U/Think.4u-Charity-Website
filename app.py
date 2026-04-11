@@ -16,7 +16,6 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from supabase import create_client, Client
 from dotenv import load_dotenv
-import razorpay
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone, timedelta
@@ -138,22 +137,30 @@ if SUPABASE_ENABLED and supabase_key_role != "service_role":
 # ------------------------------
 # Razorpay Configuration
 # ------------------------------
+# Razorpay Configuration (Vercel-safe)
+
 RAZOR_KEY = os.getenv('RAZOR_KEY_ID')
 RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET')
 RAZORPAY_ENABLED = bool(RAZOR_KEY and RAZOR_SECRET)
-if RAZORPAY_ENABLED:
+
+def get_razorpay_client():
     try:
-        razor_client = razorpay.Client(auth=(RAZOR_KEY, RAZOR_SECRET))
-    except Exception as razor_init_error:
-        app.logger.error(f"Razorpay initialization failed: {razor_init_error}")
-        razor_client = None
-        RAZORPAY_ENABLED = False
+        import razorpay  
+        return razorpay.Client(auth=(RAZOR_KEY, RAZOR_SECRET))
+    except Exception as e:
+        app.logger.error(f"Razorpay initialization failed: {e}")
+        return None
+
+# Initialize safely
+razor_client = None
+if RAZORPAY_ENABLED:
+    razor_client = get_razorpay_client()
 else:
     app.logger.warning("Razorpay keys missing. Online payment routes are disabled.")
-    razor_client = None
 
-app.logger.info("Razorpay client initialized" if RAZORPAY_ENABLED else "Razorpay client not initialized")
-
+app.logger.info(
+    "Razorpay client initialized" if razor_client else "Razorpay client not initialized"
+)
 # ------------------------------
 # Admin Credentials
 # ------------------------------
@@ -624,7 +631,8 @@ def set_security_headers(response):
 def verify_checkout_signature(payload):
     """Verify Razorpay signature"""
     try:
-        razor_client.utility.verify_payment_signature(payload)
+        client = razor_client or get_razorpay_client()
+        client.utility.verify_payment_signature(payload)
         return True
     except razorpay.errors.SignatureVerificationError:
         return False
@@ -740,7 +748,8 @@ def donate_upi():
 @login_required
 def create_order():
     """Create Razorpay order for logged-in donor"""
-    if not RAZORPAY_ENABLED or razor_client is None:
+    client = razor_client or get_razorpay_client()
+    if not RAZORPAY_ENABLED or client is None:
         return jsonify({"error": "Payment gateway is temporarily unavailable"}), 503
 
     data = request.get_json(silent=True) or {}
@@ -763,7 +772,8 @@ def create_order():
     receipt = f"rcpt_{int(datetime.now(timezone.utc).timestamp())}_{current_user.id}"
 
     try:
-        order = razor_client.order.create({
+        client = razor_client or get_razorpay_client()
+        order = client.order.create({
             "amount": amount,
             "currency": "INR",
             "receipt": receipt,
@@ -800,7 +810,8 @@ def create_order():
 @login_required
 def payment_success_redirect():
     """Handle payment success redirect"""
-    if not RAZORPAY_ENABLED or razor_client is None:
+    client = razor_client or get_razorpay_client()
+    if not RAZORPAY_ENABLED or client is None:
         flash("Payment verification service unavailable. Please contact support.", "error")
         return redirect(url_for("donate"))
 
@@ -819,7 +830,8 @@ def payment_success_redirect():
     }
 
     try:
-        razor_client.utility.verify_payment_signature(payload)
+        client = razor_client or get_razorpay_client()
+        client.utility.verify_payment_signature(payload)
 
         response = supabase.table('donations') \
             .update({
@@ -868,7 +880,8 @@ def payment_success_redirect():
 @app.route("/razorpay-webhook", methods=["POST"])
 def razorpay_webhook():
     """Handle Razorpay webhook events"""
-    if not RAZORPAY_ENABLED or razor_client is None:
+    client = razor_client or get_razorpay_client()
+    if not RAZORPAY_ENABLED or client is None:
         return jsonify({"error": "Razorpay not configured"}), 503
 
     webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
@@ -877,7 +890,8 @@ def razorpay_webhook():
 
     try:
         if webhook_secret:
-            razor_client.utility.verify_webhook_signature(
+            client = razor_client or get_razorpay_client()
+            client.utility.verify_webhook_signature(
                 webhook_body.decode('utf-8'),
                 webhook_signature,
                 webhook_secret

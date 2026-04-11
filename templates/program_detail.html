@@ -115,12 +115,32 @@
                             <i data-lucide="heart" class="w-6 h-6 group-hover:scale-125 transition-transform"></i>
                             <span class="text-lg">Support This Program</span>
                         </a>
-                        
-                        <a href="{{ url_for('volunteer') }}" 
+
+                        {% if current_user.is_authenticated %}
+                            {% if registration %}
+                            <div class="flex-1 p-5 rounded-2xl border-2 border-emerald-300 bg-emerald-50 text-center">
+                                <p class="font-bold text-emerald-700">Registered for Program Event</p>
+                                <p class="text-sm text-emerald-700 mt-1">Status: {{ registration.status|title }}</p>
+                                {% if certificate %}
+                                <p class="text-xs mt-2 text-slate-600">Certificate: {{ (certificate.status or 'pending')|title }}</p>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('register_for_program', program_id=program.id) }}" class="flex-1">
+                                <button type="submit"
+                                        class="w-full inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all group">
+                                    <i data-lucide="users" class="w-6 h-6 group-hover:scale-125 transition-transform"></i>
+                                    <span class="text-lg">Register For Program Event</span>
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% else %}
+                        <a href="{{ url_for('login', next=url_for('program_detail', program_id=program.id)) }}"
                            class="flex-1 inline-flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all group">
                             <i data-lucide="users" class="w-6 h-6 group-hover:scale-125 transition-transform"></i>
-                            <span class="text-lg">Volunteer With Us</span>
+                            <span class="text-lg">Login To Register</span>
                         </a>
+                        {% endif %}
                     </div>
 
                     <!-- Colorful Share Section -->
@@ -131,16 +151,16 @@
                         </p>
                         <div class="flex justify-center gap-4">
                             <a href="#" class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
-                                <i data-lucide="facebook" class="w-6 h-6"></i>
+                                <i data-lucide="users" class="w-6 h-6"></i>
                             </a>
                             <a href="#" class="w-14 h-14 bg-gradient-to-br from-sky-400 to-sky-500 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
-                                <i data-lucide="twitter" class="w-6 h-6"></i>
+                                <i data-lucide="message-circle" class="w-6 h-6"></i>
                             </a>
                             <a href="#" class="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
                                 <i data-lucide="share-2" class="w-6 h-6"></i>
                             </a>
                             <a href="#" class="w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-2xl flex items-center justify-center hover:scale-110 hover:rotate-6 transition-all shadow-lg">
-                                <i data-lucide="instagram" class="w-6 h-6"></i>
+                                <i data-lucide="camera" class="w-6 h-6"></i>
                             </a>
                         </div>
                     </div>

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Policy & Terms - Think.4U{% endblock %}
+
+{% block content %}
+<section class="px-4 py-10">
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow border p-8">
+        <h1 class="text-4xl font-black text-slate-900 mb-4">Policy & Terms</h1>
+        <p class="text-slate-600 mb-8">Please read our privacy, cookies, and terms information.</p>
+
+        <div class="space-y-8 text-slate-700 leading-relaxed">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">1. Cookies Policy</h2>
+                <p>We use essential cookies to keep sessions secure, remember consent, and improve navigation performance.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">2. Terms & Conditions</h2>
+                <p>By using Think.4U, you agree to use the platform responsibly and not misuse donation, volunteer, or grievance workflows.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">3. Privacy Notice</h2>
+                <p>We collect only information required to provide services such as donations, receipts, volunteer management, and communication.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">4. Payment Security</h2>
+                <p>Payments are processed through secure payment gateways. We do not store card numbers or sensitive payment credentials.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">5. Contact</h2>
+                <p>For policy questions, please contact {{ get_cms('contact_email', 'hello@think4u.org') }}.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

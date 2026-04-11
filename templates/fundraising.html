@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Fundraising - Think.4U{% endblock %}
+
+{% block content %}
+<section class="px-4 py-10">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-black text-slate-900 mb-2">Fundraising Campaigns</h1>
+        <p class="text-slate-600 mb-8">View active fundraisers and donate to any campaign.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for c in campaigns %}
+            <div class="bg-white rounded-2xl shadow border p-6">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ c.title }}</h2>
+                <p class="text-slate-700 mb-4">{{ c.description }}</p>
+
+                {% set target = (c.target_amount or 0) %}
+                {% set raised = (c.raised_amount or 0) %}
+                {% set percent = ((raised / target) * 100) if target else 0 %}
+                <div class="mb-3">
+                    <div class="flex justify-between text-sm text-slate-600 mb-1">
+                        <span>Raised ₹{{ "{:,.0f}".format(raised) }}</span>
+                        <span>Target ₹{{ "{:,.0f}".format(target) }}</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-3">
+                        <div class="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" style="width: {{ [percent, 100]|min }}%"></div>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-500 mb-4">{{ "{:.1f}".format(percent) }}% complete</p>
+
+                <a href="{{ url_for('donate') if current_user.is_authenticated else url_for('login') }}" class="inline-flex px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold">
+                    Donate to This Cause
+                </a>
+            </div>
+            {% else %}
+            <div class="col-span-full bg-white rounded-2xl shadow border p-8 text-center text-slate-600">
+                No fundraising campaigns available right now.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

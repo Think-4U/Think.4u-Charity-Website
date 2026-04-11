@@ -36,6 +36,33 @@
                 </a>
             </li>
 
+            <!-- Certificates -->
+            <li>
+                <a href="/admin/certificates"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/certificates' in request.path %}bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="award" class="w-5 h-5"></i>
+                    <span>Certificates</span>
+                </a>
+            </li>
+
+            <!-- Grievances -->
+            <li>
+                <a href="/admin/grievances"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/grievances' in request.path %}bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="life-buoy" class="w-5 h-5"></i>
+                    <span>Grievance Support</span>
+                </a>
+            </li>
+
+            <!-- Fundraising -->
+            <li>
+                <a href="/admin/fundraising"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/fundraising' in request.path %}bg-gradient-to-r from-amber-500 to-red-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="megaphone" class="w-5 h-5"></i>
+                    <span>Fundraising</span>
+                </a>
+            </li>
+
             <!-- Programs -->
             <li>
                 <a href="/admin/programs" 

@@ -1,178 +1,47 @@
 {% extends "base.html" %}
+{% block title %}Login - Think.4U{% endblock %}
+
 {% block content %}
+<section class="min-h-screen flex items-center justify-center px-4 py-16">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 p-8 md:p-10">
+        <h1 class="text-3xl md:text-4xl font-black text-slate-900 mb-2">Sign In</h1>
+        <p class="text-slate-600 mb-8">Access your dashboard, donations, events, and volunteer updates.</p>
 
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 via-white to-teal-50">
-    <div class="max-w-md w-full space-y-8">
-        
-        <!-- Decorative background elements -->
-        <div class="absolute inset-0 pointer-events-none">
-            <div class="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-teal-200/30 to-blue-200/20 rounded-full blur-3xl animate-pulse"></div>
-            <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-200/20 to-pink-200/20 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
-        </div>
+        <form method="POST" action="{{ url_for('login', next=next_page) }}" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ next_page or '' }}">
 
-        <!-- Main Card -->
-        <div class="relative group">
-            <div class="absolute -inset-2 bg-gradient-to-r from-teal-500/10 via-blue-500/5 to-purple-500/10 rounded-3xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-            <div class="relative bg-white/95 backdrop-blur-xl rounded-3xl p-10 shadow-2xl border border-white/50 ring-1 ring-slate-200/50 hover:shadow-3xl hover:shadow-teal-500/10 transition-all duration-500 group-hover:-translate-y-2">
-                
-                <!-- Logo -->
-                <div class="flex items-center justify-center mb-8">
-                    <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl mr-4 group-hover:scale-110 transition-transform duration-300">
-                        <i data-lucide="shield" class="text-white w-8 h-8"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-3xl font-black text-transparent bg-gradient-to-r from-slate-900 to-slate-800 bg-clip-text tracking-tight">Admin</h2>
-                        <p class="text-sm text-teal-600 font-semibold tracking-wide uppercase">Portal Access</p>
-                    </div>
-                </div>
-
-                <!-- Form -->
-                <form method="POST" class="space-y-6">
-                    
-                    <!-- Flash Messages -->
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="p-4 rounded-xl border-2 {% if category == 'success' %}bg-green-50 border-green-200 text-green-800{% elif category == 'error' %}bg-red-50 border-red-200 text-red-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %} flex items-center gap-3 shadow-sm">
-                                    {% if category == 'error' %}
-                                        <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-                                    {% elif category == 'success' %}
-                                        <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-                                    {% else %}
-                                        <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
-                                    {% endif %}
-                                    <span class="font-semibold">{{ message }}</span>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-
-                    <!-- Email Field -->
-                    <div>
-                        <label for="email" class="block text-sm font-semibold text-slate-700 mb-3 tracking-wide">
-                            Email Address
-                        </label>
-                        <div class="relative">
-                            <i data-lucide="mail" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
-                            <input id="email" name="email"
-                                   type="email" required
-                                   autocomplete="email"
-                                   class="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl bg-slate-50/50 text-lg placeholder-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 focus:outline-none transition-all duration-300 shadow-sm hover:shadow-md hover:border-slate-300 peer"
-                                   placeholder="admin@think4u.local" />
-                            <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 peer-focus:opacity-100 transition-opacity duration-200">
-                                <i data-lucide="check-circle" class="w-5 h-5 text-teal-500"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Password Field -->
-                    <div>
-                        <label for="password" class="block text-sm font-semibold text-slate-700 mb-3 tracking-wide">
-                            Password
-                        </label>
-                        <div class="relative">
-                            <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
-                            <input id="password" name="password"
-                                   type="password" required
-                                   autocomplete="current-password"
-                                   class="w-full pl-12 pr-12 py-4 border-2 border-slate-200 rounded-2xl bg-slate-50/50 text-lg placeholder-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 focus:outline-none transition-all duration-300 shadow-sm hover:shadow-md hover:border-slate-300 peer"
-                                   placeholder="Enter your password" />
-                            <button type="button" id="togglePassword" class="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full transition-all opacity-60 hover:opacity-100">
-                                <i data-lucide="eye" class="w-5 h-5"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <button type="submit"
-                            class="group w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-black text-lg py-5 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-teal-500/25 active:scale-95 active:shadow-lg transition-all duration-200 transform relative overflow-hidden">
-                        <span class="relative z-10 flex items-center justify-center gap-2">
-                            <i data-lucide="log-in" class="w-6 h-6 group-hover:translate-x-1 transition-transform"></i>
-                            Sign In Securely
-                        </span>
-                        <div class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    </button>
-                </form>
-
-                <!-- Divider -->
-                <div class="relative my-8">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-slate-200/50"></div>
-                    </div>
-                    <div class="relative flex justify-center text-xs uppercase">
-                        <span class="px-4 bg-white text-slate-500 font-semibold tracking-wider">Protected Access</span>
-                    </div>
-                </div>
-
-                <!-- Security badges -->
-                <div class="grid grid-cols-2 gap-3 pt-4">
-                    <div class="flex items-center justify-center p-3 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200/50 text-xs font-semibold text-emerald-700">
-                        <i data-lucide="shield-check" class="w-4 h-4 mr-1"></i>
-                        Encrypted
-                    </div>
-                    <div class="flex items-center justify-center p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200/50 text-xs font-semibold text-blue-700">
-                        <i data-lucide="lock" class="w-4 h-4 mr-1"></i>
-                        Secure
-                    </div>
-                </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+                <input type="email" name="email" required autocomplete="email"
+                       class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none"
+                       placeholder="you@example.com">
             </div>
-        </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                <input type="password" name="password" required autocomplete="current-password"
+                       class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none"
+                       placeholder="Enter your password">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Captcha: {{ captcha_question }}</label>
+                <input type="text" name="captcha_answer" required
+                       class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none"
+                       placeholder="Enter answer">
+            </div>
+
+            <button type="submit"
+                    class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 text-white font-bold hover:from-blue-700 hover:to-sky-700 transition">
+                Continue
+            </button>
+        </form>
+
+        <p class="text-sm text-slate-600 mt-6">
+            New here?
+            <a href="{{ url_for('signup') }}" class="font-semibold text-blue-600 hover:text-blue-700">Create your account</a>
+        </p>
     </div>
-</div>
-
-<style>
-    @keyframes tilt {
-        0%, 100% { transform: rotate(0deg); }
-        25% { transform: rotate(1deg); }
-        75% { transform: rotate(-1deg); }
-    }
-    .animate-tilt {
-        animation: tilt 10s ease-in-out infinite;
-    }
-    .animation-delay-2000 {
-        animation-delay: 2s;
-    }
-</style>
-
-<script>
-    // Initialize Lucide icons
-    document.addEventListener('DOMContentLoaded', () => {
-        lucide.createIcons();
-    });
-
-    // Password visibility toggle
-    const passwordField = document.getElementById('password');
-    const togglePasswordBtn = document.getElementById('togglePassword');
-    const eyeIcon = togglePasswordBtn?.querySelector('i');
-    
-    if (togglePasswordBtn && eyeIcon) {
-        togglePasswordBtn.addEventListener('click', () => {
-            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordField.setAttribute('type', type);
-            
-            // Toggle icon
-            if (type === 'text') {
-                eyeIcon.setAttribute('data-lucide', 'eye-off');
-            } else {
-                eyeIcon.setAttribute('data-lucide', 'eye');
-            }
-            
-            // Recreate icon
-            lucide.createIcons();
-        });
-    }
-
-    // Form submit loading state
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', (e) => {
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalContent = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="relative z-10 flex items-center justify-center gap-2"><i data-lucide="loader" class="w-6 h-6 animate-spin"></i> Signing in...</span>';
-            lucide.createIcons();
-        });
-    }
-</script>
-
+</section>
 {% endblock %}

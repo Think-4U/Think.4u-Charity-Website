@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Admin Dashboard{% endblock %} | Think.4U</title>
 
     <!-- Favicon -->
@@ -157,6 +158,35 @@
 
     <!-- JavaScript -->
     <script>
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        window.CSRF_TOKEN = csrfToken;
+
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (resource, init = {}) => {
+            const options = { ...init };
+            const method = (options.method || 'GET').toUpperCase();
+            const headers = new Headers(options.headers || {});
+            if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+                headers.set('X-CSRF-Token', csrfToken);
+            }
+            options.headers = headers;
+            return originalFetch(resource, options);
+        };
+
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            const method = (form.method || 'GET').toUpperCase();
+            if (method === 'GET') return;
+            if (!form.querySelector('input[name="csrf_token"]')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = csrfToken;
+                form.appendChild(input);
+            }
+        });
+
         // Initialize Lucide Icons
         lucide.createIcons();
         
@@ -188,7 +218,7 @@
             const menuBtn = document.querySelector('[onclick="toggleSidebar()"]');
             
             if (overlay && !overlay.classList.contains('hidden')) {
-                if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+                if ((!sidebar || !sidebar.contains(e.target)) && (!menuBtn || !menuBtn.contains(e.target))) {
                     toggleSidebar();
                 }
             }

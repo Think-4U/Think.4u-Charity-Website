@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Previous Donations - Think.4U{% endblock %}
+
+{% block content %}
+<section class="px-4 py-10">
+    <div class="max-w-5xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-4xl font-black text-slate-900 mb-1">Previous Donations</h1>
+                <p class="text-slate-600">All your donation records and receipts.</p>
+            </div>
+            <a href="{{ url_for('dashboard') }}" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-semibold">Back to Dashboard</a>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="text-left px-5 py-3 text-sm font-bold text-slate-700">Date</th>
+                            <th class="text-left px-5 py-3 text-sm font-bold text-slate-700">Amount</th>
+                            <th class="text-left px-5 py-3 text-sm font-bold text-slate-700">Status</th>
+                            <th class="text-left px-5 py-3 text-sm font-bold text-slate-700">Payment ID</th>
+                            <th class="text-left px-5 py-3 text-sm font-bold text-slate-700">Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for d in donations %}
+                        <tr>
+                            <td class="px-5 py-3 text-slate-700">{{ d.created_at[:19] if d.created_at else '-' }}</td>
+                            <td class="px-5 py-3 font-bold text-emerald-600">₹{{ "{:,.2f}".format((d.amount or 0) / 100) }}</td>
+                            <td class="px-5 py-3">
+                                <span class="text-sm font-semibold {% if d.status == 'paid' %}text-green-600{% elif d.status == 'pending' %}text-amber-600{% else %}text-red-600{% endif %}">
+                                    {% if d.status == 'failed' %}Failed (Timed Out){% else %}{{ d.status|title if d.status else '-' }}{% endif %}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-xs text-slate-500">{{ d.razorpay_payment_id or '-' }}</td>
+                            <td class="px-5 py-3">
+                                {% if d.status == 'paid' %}
+                                <a href="{{ url_for('donation_receipt', donation_id=d.id) }}" class="text-blue-600 font-semibold text-sm">View Receipt</a>
+                                {% else %}
+                                <span class="text-slate-400 text-sm">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="px-5 py-10 text-center text-slate-500">No previous donations found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

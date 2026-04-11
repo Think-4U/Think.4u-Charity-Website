@@ -1,18 +1,42 @@
+import argparse
+import os
+import re
+
+from dotenv import load_dotenv
 from supabase import create_client
 from werkzeug.security import generate_password_hash
 
-SUPABASE_URL = "https://gutdnucusjhbimduscno.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1dGRudWN1c2poYmltZHVzY25vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTIwNTg4NSwiZXhwIjoyMDgwNzgxODg1fQ._ZxEkdjnKskMJrQ5FGiiwUnPsR1mKsV2yS71WbP3rBI"
 
-sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+def main():
+    load_dotenv()
+    parser = argparse.ArgumentParser(description="Reset password in public.users table")
+    parser.add_argument("--email", required=True)
+    parser.add_argument("--password", required=True)
+    args = parser.parse_args()
 
-email = "admin@think4u.com"
-new_password = "adminpass"
+    if len(args.password) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    if not re.search(r"[A-Z]", args.password):
+        raise ValueError("Password must include an uppercase letter")
+    if not re.search(r"[a-z]", args.password):
+        raise ValueError("Password must include a lowercase letter")
+    if not re.search(r"\d", args.password):
+        raise ValueError("Password must include a number")
+    if not re.search(r"[^A-Za-z0-9]", args.password):
+        raise ValueError("Password must include a special character")
 
-hash_pw = generate_password_hash(new_password)
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    if not supabase_url or not supabase_key:
+        raise RuntimeError("Set SUPABASE_URL and SUPABASE_KEY in environment")
 
-sb.table("users").update({
-    "password_hash": hash_pw
-}).eq("email", email).execute()
+    supabase = create_client(supabase_url, supabase_key)
+    supabase.table("users").update({
+        "password_hash": generate_password_hash(args.password),
+    }).eq("email", args.email.lower()).execute()
 
-print("✅ Password updated for:", email)
+    print("Password updated for:", args.email.lower())
+
+
+if __name__ == "__main__":
+    main()

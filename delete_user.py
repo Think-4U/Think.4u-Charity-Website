@@ -1,20 +1,43 @@
+import argparse
+import os
+
 import requests
+from dotenv import load_dotenv
 
-SUPABASE_URL = "https://gutdnucusjhbimduscno.supabase.co"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1dGRudWN1c2poYmltZHVzY25vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTIwNTg4NSwiZXhwIjoyMDgwNzgxODg1fQ._ZxEkdjnKskMJrQ5FGiiwUnPsR1mKsV2yS71WbP3rBI"
 
-headers = {
-    "Authorization": f"Bearer {SERVICE_KEY}",
-    "apikey": SERVICE_KEY,
-    "Content-Type": "application/json"
-}
+def main():
+    load_dotenv()
+    parser = argparse.ArgumentParser(description="Delete a Supabase auth user by email")
+    parser.add_argument("--email", required=True)
+    args = parser.parse_args()
 
-EMAIL = "admin@think4u.com"
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_KEY")
+    if not supabase_url or not service_key:
+        raise RuntimeError("Set SUPABASE_URL and SUPABASE_KEY in environment")
 
-users = requests.get(f"{SUPABASE_URL}/auth/v1/admin/users", headers=headers).json()["users"]
+    headers = {
+        "Authorization": f"Bearer {service_key}",
+        "apikey": service_key,
+        "Content-Type": "application/json",
+    }
 
-for u in users:
-    if u["email"] == EMAIL:
-        r = requests.delete(f"{SUPABASE_URL}/auth/v1/admin/users/{u['id']}", headers=headers)
-        print("Deleted user:", r.status_code)
-        break
+    users_resp = requests.get(f"{supabase_url}/auth/v1/admin/users", headers=headers, timeout=30)
+    users_resp.raise_for_status()
+    users = users_resp.json().get("users", [])
+
+    for user in users:
+        if (user.get("email") or "").lower() == args.email.lower():
+            delete_resp = requests.delete(
+                f"{supabase_url}/auth/v1/admin/users/{user['id']}",
+                headers=headers,
+                timeout=30,
+            )
+            print("Deleted user status:", delete_resp.status_code)
+            return
+
+    print("User not found")
+
+
+if __name__ == "__main__":
+    main()

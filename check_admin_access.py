@@ -1,9 +1,21 @@
+import os
+
+from dotenv import load_dotenv
 from supabase import create_client
 
-SUPABASE_URL = "https://gutdnucusjhbimduscno.supabase.co"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1dGRudWN1c2poYmltZHVzY25vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTIwNTg4NSwiZXhwIjoyMDgwNzgxODg1fQ._ZxEkdjnKskMJrQ5FGiiwUnPsR1mKsV2yS71WbP3rBI"
 
-supabase = create_client(SUPABASE_URL, SERVICE_KEY)
+def main():
+    load_dotenv()
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_KEY")
+    if not supabase_url or not service_key:
+        raise RuntimeError("Set SUPABASE_URL and SUPABASE_KEY in environment")
 
-users = supabase.auth.admin.list_users()
-print("Total users found:", len(users))
+    supabase = create_client(supabase_url, service_key)
+    users = supabase.auth.admin.list_users()
+    user_list = users.users if hasattr(users, "users") else users
+    print("Total users found:", len(user_list))
+
+
+if __name__ == "__main__":
+    main()

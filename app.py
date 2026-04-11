@@ -15,7 +15,6 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
 import razorpay
 from werkzeug.utils import secure_filename
@@ -103,10 +102,6 @@ login_manager.session_protection = "strong"
 # ------------------------------
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
-
-
-options = ClientOptions()
-options.auth = None
 
 SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
 if SUPABASE_ENABLED:

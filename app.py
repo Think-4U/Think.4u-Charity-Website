@@ -37,6 +37,25 @@ from PIL import Image, ImageDraw
 # Load environment variables
 load_dotenv()
 
+
+class _NoOpResponse:
+    def __init__(self):
+        self.data = []
+        self.count = 0
+
+
+class _NoOpQuery:
+    def __getattr__(self, _name):
+        return lambda *args, **kwargs: self
+
+    def execute(self):
+        return _NoOpResponse()
+
+
+class _NoOpSupabase:
+    def table(self, _table_name):
+        return _NoOpQuery()
+
 # ------------------------------
 # Flask App Configuration
 # ------------------------------
@@ -89,7 +108,17 @@ SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 options = ClientOptions()
 options.auth = None
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
+if SUPABASE_ENABLED:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as supabase_init_error:
+        app.logger.error(f"Supabase initialization failed: {supabase_init_error}")
+        supabase = _NoOpSupabase()
+        SUPABASE_ENABLED = False
+else:
+    app.logger.warning("Supabase env vars missing. Running in limited mode.")
+    supabase = _NoOpSupabase()
 
 
 def get_supabase_key_role(key):
@@ -104,7 +133,7 @@ def get_supabase_key_role(key):
 
 
 supabase_key_role = get_supabase_key_role(SUPABASE_KEY or "")
-if supabase_key_role != "service_role":
+if SUPABASE_ENABLED and supabase_key_role != "service_role":
     app.logger.warning(
         "SUPABASE_KEY role is '%s'. For backend writes with RLS, use service_role key in .env.",
         supabase_key_role or "unknown"
@@ -116,9 +145,19 @@ if supabase_key_role != "service_role":
 # ------------------------------
 RAZOR_KEY = os.getenv('RAZOR_KEY_ID')
 RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET')
-razor_client = razorpay.Client(auth=(RAZOR_KEY, RAZOR_SECRET))
+RAZORPAY_ENABLED = bool(RAZOR_KEY and RAZOR_SECRET)
+if RAZORPAY_ENABLED:
+    try:
+        razor_client = razorpay.Client(auth=(RAZOR_KEY, RAZOR_SECRET))
+    except Exception as razor_init_error:
+        app.logger.error(f"Razorpay initialization failed: {razor_init_error}")
+        razor_client = None
+        RAZORPAY_ENABLED = False
+else:
+    app.logger.warning("Razorpay keys missing. Online payment routes are disabled.")
+    razor_client = None
 
-app.logger.info("Razorpay client initialized")
+app.logger.info("Razorpay client initialized" if RAZORPAY_ENABLED else "Razorpay client not initialized")
 
 # ------------------------------
 # Admin Credentials
@@ -662,6 +701,15 @@ def index():
                          stats=stats)
 
 
+@app.route("/healthz")
+def healthz():
+    return jsonify({
+        "status": "ok",
+        "supabase_enabled": SUPABASE_ENABLED,
+        "razorpay_enabled": RAZORPAY_ENABLED,
+    }), 200
+
+
 
 @app.route("/donate")
 @login_required
@@ -697,6 +745,9 @@ def donate_upi():
 @login_required
 def create_order():
     """Create Razorpay order for logged-in donor"""
+    if not RAZORPAY_ENABLED or razor_client is None:
+        return jsonify({"error": "Payment gateway is temporarily unavailable"}), 503
+
     data = request.get_json(silent=True) or {}
 
     try:
@@ -754,6 +805,10 @@ def create_order():
 @login_required
 def payment_success_redirect():
     """Handle payment success redirect"""
+    if not RAZORPAY_ENABLED or razor_client is None:
+        flash("Payment verification service unavailable. Please contact support.", "error")
+        return redirect(url_for("donate"))
+
     payment_id = request.args.get('razorpay_payment_id')
     order_id = request.args.get('razorpay_order_id')
     signature = request.args.get('razorpay_signature')
@@ -818,6 +873,9 @@ def payment_success_redirect():
 @app.route("/razorpay-webhook", methods=["POST"])
 def razorpay_webhook():
     """Handle Razorpay webhook events"""
+    if not RAZORPAY_ENABLED or razor_client is None:
+        return jsonify({"error": "Razorpay not configured"}), 503
+
     webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
     webhook_signature = request.headers.get('X-Razorpay-Signature')
     webhook_body = request.get_data()

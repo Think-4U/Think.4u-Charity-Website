@@ -14,5 +14,6 @@ gotrue==2.4.2
 httpx==0.25.2
 bcrypt==5.0.0
 setuptools
+wheel
 num2words
 reportlab==4.0.8

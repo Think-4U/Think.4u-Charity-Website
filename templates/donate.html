@@ -2,168 +2,310 @@
 {% block title %}Donate - Think.4U{% endblock %}
 {% block content %}
 
-<div class="pt-32 pb-20 bg-gradient-to-b from-slate-50 to-white min-h-screen">
+<section class="pt-28 pb-16 px-4 bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white min-h-screen">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-10">
+      <h1 class="text-4xl sm:text-5xl font-black text-slate-900 mb-3">
+        <span class="gradient-text">Support Think.4U</span>
+      </h1>
+      <p class="text-slate-600 text-base sm:text-lg max-w-3xl mx-auto">
+        Your contribution powers mental health support, education drives, and community programs.
+      </p>
+    </div>
 
-  <!-- Header -->
-  <div class="max-w-3xl mx-auto text-center mb-12 px-4">
-    <h1 class="text-5xl font-black text-slate-900 mb-4">
-      <span class="gradient-text">Support Think.4U</span>
-    </h1>
-    <p class="text-slate-600 text-lg">
-      Your generous donation helps us provide mental health support, education, and community programs that change lives.
-    </p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 sm:p-8">
+        <h2 class="text-2xl font-black text-slate-900 mb-5">Donation Checkout</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <div class="sm:col-span-2">
+            <label for="donor_name" class="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
+            <input id="donor_name" type="text" required value="{{ donor_name or '' }}" placeholder="Enter your full name"
+              class="w-full p-3 rounded-xl border-2 border-slate-200 focus:outline-none focus:border-teal-500">
+          </div>
+          <div class="sm:col-span-2">
+            <label for="donor_email" class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+            <input id="donor_email" type="email" required value="{{ donor_email or '' }}" readonly
+              class="w-full p-3 rounded-xl border-2 border-slate-200 bg-slate-100 focus:outline-none focus:border-teal-500">
+          </div>
+          <div class="sm:col-span-2">
+            <label for="donor_phone" class="block text-sm font-semibold text-slate-700 mb-2">Phone Number</label>
+            <input id="donor_phone" type="tel" required placeholder="10 digit mobile number"
+              class="w-full p-3 rounded-xl border-2 border-slate-200 focus:outline-none focus:border-teal-500">
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-bold text-slate-900 mb-3">Choose Amount</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <button type="button" onclick="setAmount(100)" class="amount-btn">Rs 100</button>
+            <button type="button" onclick="setAmount(500)" class="amount-btn">Rs 500</button>
+            <button type="button" onclick="setAmount(1000)" class="amount-btn">Rs 1000</button>
+            <button type="button" onclick="setAmount(5000)" class="amount-btn">Rs 5000</button>
+          </div>
+          <label for="amount" class="block text-sm font-semibold text-slate-700 mb-2">Custom Amount (Rs)</label>
+          <input id="amount" type="number" min="10" value="{{ amount_display or '' }}" placeholder="Minimum Rs 10"
+            class="w-full p-3 rounded-xl border-2 border-slate-200 text-base sm:text-lg focus:outline-none focus:border-teal-500">
+        </div>
+
+        <div id="donation-status" class="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div class="flex items-center gap-2 mb-1">
+            <span id="status-dot" class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+            <p id="status-title" class="font-bold text-slate-800">Ready to proceed</p>
+          </div>
+          <p id="status-message" class="text-sm text-slate-600">
+            Fill details and click Donate Now. If payment fails or checkout is closed, you will get a clear status here.
+          </p>
+        </div>
+
+        <button id="payBtn"
+          class="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-xl transition">
+          <span id="btnText">Donate Now</span>
+        </button>
+
+        <div class="mt-4 flex flex-wrap gap-3 items-center justify-between">
+          <a href="/donate-upi" class="text-teal-700 hover:text-teal-800 font-semibold text-sm">Prefer UPI QR? Pay using UPI instead.</a>
+          <span class="text-xs text-slate-500">Gateway: Razorpay Secure Checkout</span>
+        </div>
+      </div>
+
+      <aside class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-7 h-fit">
+        <h3 class="text-xl font-black text-slate-900 mb-4">What Happens Next</h3>
+        <ul class="space-y-3 text-sm text-slate-700">
+          <li class="flex gap-2">
+            <span class="font-black text-teal-600">1.</span>
+            <span>Order is created securely on server.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="font-black text-teal-600">2.</span>
+            <span>Razorpay checkout opens for payment.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="font-black text-teal-600">3.</span>
+            <span>On success, payment is verified and receipt is generated.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="font-black text-teal-600">4.</span>
+            <span>If checkout fails/cancels, status updates instantly and retry is enabled.</span>
+          </li>
+        </ul>
+
+        <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p class="font-bold text-emerald-800 mb-1">Secure Donation</p>
+          <p class="text-sm text-emerald-700">Only logged-in users can donate and access their receipts.</p>
+        </div>
+      </aside>
+    </div>
   </div>
+</section>
 
-  <!-- Donation Form -->
-  <div class="max-w-lg mx-auto bg-white p-10 rounded-3xl shadow-2xl border">
-
-    <h2 class="text-2xl font-bold text-center mb-6">Donor Details</h2>
-
-    <!-- Donor Details -->
-    <div class="space-y-4 mb-8">
-
-      <div>
-        <label class="font-bold text-slate-700">Full Name</label>
-        <input id="donor_name" type="text" required
-          value="{{ donor_name or '' }}"
-          placeholder="Enter your full name"
-          class="w-full p-4 border-2 rounded-xl focus:border-teal-500" />
-      </div>
-
-      <div>
-        <label class="font-bold text-slate-700">Email</label>
-        <input id="donor_email" type="email" required
-          value="{{ donor_email or '' }}"
-          readonly
-          placeholder="Enter your email"
-          class="w-full p-4 border-2 rounded-xl bg-slate-100 focus:border-teal-500" />
-      </div>
-
-      <div>
-        <label class="font-bold text-slate-700">Phone Number</label>
-        <input id="donor_phone" type="tel" pattern="[0-9]{10}" required
-          placeholder="10 digit mobile number"
-          class="w-full p-4 border-2 rounded-xl focus:border-teal-500" />
-      </div>
-
-    </div>
-
-    <h2 class="text-2xl font-bold text-center mb-6">Choose Amount</h2>
-
-    <!-- Quick Amount Buttons -->
-    <div class="grid grid-cols-4 gap-3 mb-6">
-      <button onclick="setAmount(100)" class="amount-btn">₹100</button>
-      <button onclick="setAmount(500)" class="amount-btn">₹500</button>
-      <button onclick="setAmount(1000)" class="amount-btn">₹1000</button>
-      <button onclick="setAmount(5000)" class="amount-btn">₹5000</button>
-    </div>
-
-    <input id="amount" type="number" min="10"
-      value="{{ amount_display or '' }}"
-      placeholder="Enter custom amount (₹)"
-      class="w-full p-4 border-2 rounded-xl text-lg mb-6" />
-
-    <button id="payBtn"
-      class="w-full bg-teal-600 hover:bg-teal-700 text-white text-xl font-bold py-4 rounded-xl">
-      <span id="btnText">Donate Now ❤️</span>
-    </button>
-
-    <div class="mt-6 text-center">
-      <a href="/donate-upi" class="text-teal-600 font-semibold">
-        Or pay via UPI
-      </a>
-    </div>
-
-  </div>
-</div>
-
-<!-- Razorpay -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
 <script>
-function setAmount(val) {
-  document.getElementById('amount').value = val;
-}
+  const payBtn = document.getElementById("payBtn");
+  const btnText = document.getElementById("btnText");
+  const statusDot = document.getElementById("status-dot");
+  const statusTitle = document.getElementById("status-title");
+  const statusMessage = document.getElementById("status-message");
+  const amountInput = document.getElementById("amount");
+  const nameInput = document.getElementById("donor_name");
+  const emailInput = document.getElementById("donor_email");
+  const phoneInput = document.getElementById("donor_phone");
 
-document.getElementById("payBtn").addEventListener("click", async () => {
+  const statusStyles = {
+    idle: { dot: "bg-slate-400", title: "text-slate-800", msg: "text-slate-600" },
+    loading: { dot: "bg-blue-500", title: "text-blue-800", msg: "text-blue-700" },
+    success: { dot: "bg-emerald-500", title: "text-emerald-800", msg: "text-emerald-700" },
+    warning: { dot: "bg-amber-500", title: "text-amber-800", msg: "text-amber-700" },
+    error: { dot: "bg-red-500", title: "text-red-800", msg: "text-red-700" },
+  };
 
-  const name = donor_name.value.trim();
-  const email = donor_email.value.trim();
-  const phone = donor_phone.value.trim();
-  const amountValue = parseFloat(amount.value);
+  function setAmount(value) {
+    amountInput.value = value;
+  }
+  window.setAmount = setAmount;
 
-  if (!name || !email || !phone) {
-    await window.showUiAlert("Please fill all donor details.", "warning", "Missing Details");
-    return;
+  function setStatus(type, title, message) {
+    const fallback = statusStyles.idle;
+    const style = statusStyles[type] || fallback;
+
+    statusDot.className = `inline-block w-2.5 h-2.5 rounded-full ${style.dot}`;
+    statusTitle.className = `font-bold ${style.title}`;
+    statusMessage.className = `text-sm ${style.msg}`;
+    statusTitle.textContent = title;
+    statusMessage.textContent = message;
   }
 
-  if (!/^\d{10}$/.test(phone)) {
-    await window.showUiAlert("Enter valid 10 digit phone number.", "warning", "Invalid Phone");
-    return;
+  function setButtonState(disabled, label) {
+    payBtn.disabled = disabled;
+    btnText.textContent = label;
   }
 
-  if (isNaN(amountValue) || amountValue < 10) {
-    await window.showUiAlert("Minimum donation is Rs 10.", "warning", "Invalid Amount");
-    return;
+  async function createOrder(payload) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch("/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) {
+        data = {};
+      }
+
+      if (res.status === 401) {
+        throw new Error("Your session expired. Please login again.");
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "Unable to create payment order right now.");
+      }
+
+      if (!data.id) {
+        throw new Error("Payment order response was incomplete.");
+      }
+
+      return data;
+    } catch (error) {
+      if (error.name === "AbortError") {
+        throw new Error("Order creation timed out. Please check network and retry.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
-  const amountInPaise = Math.round(amountValue * 100);
-  btnText.textContent = "Creating order...";
-  payBtn.disabled = true;
+  payBtn.addEventListener("click", async () => {
+    const name = (nameInput.value || "").trim();
+    const email = (emailInput.value || "").trim();
+    const phone = (phoneInput.value || "").trim();
+    const amountValue = parseFloat(amountInput.value);
 
-  try {
-    const res = await fetch("/create-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    if (!name || !email || !phone) {
+      await window.showUiAlert("Please fill all donor details.", "warning", "Missing Details");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      await window.showUiAlert("Enter valid 10 digit phone number.", "warning", "Invalid Phone");
+      return;
+    }
+
+    if (!Number.isFinite(amountValue) || amountValue < 10) {
+      await window.showUiAlert("Minimum donation is Rs 10.", "warning", "Invalid Amount");
+      return;
+    }
+
+    if (!navigator.onLine) {
+      setStatus("warning", "You are offline", "Please reconnect to the internet and try again.");
+      return;
+    }
+
+    if (typeof Razorpay === "undefined") {
+      setStatus("error", "Payment gateway unavailable", "Checkout SDK could not load. Try again or use UPI.");
+      await window.showUiAlert("Payment gateway failed to load. Please retry or use UPI.", "error", "Gateway Unavailable");
+      return;
+    }
+
+    const amountInPaise = Math.round(amountValue * 100);
+    setButtonState(true, "Creating secure order...");
+    setStatus("loading", "Creating order", "Contacting payment gateway securely...");
+
+    try {
+      const order = await createOrder({
         amount: amountInPaise,
         name,
         email,
         phone
-      })
-    });
+      });
 
-    const order = await res.json();
-    if (!order.id) throw new Error(order.error || "Unable to create payment order");
+      setStatus("loading", "Opening checkout", "Secure payment window is opening...");
 
-    const options = {
-      key: "{{ razor_key }}",
-      amount: order.amount,
-      currency: "INR",
-      order_id: order.id,
-      name: "Think.4U",
-      description: "Donation",
-      handler: function (response) {
-        window.location.href =
-          `/payment-success?razorpay_payment_id=${response.razorpay_payment_id}` +
-          `&razorpay_order_id=${response.razorpay_order_id}` +
-          `&razorpay_signature=${response.razorpay_signature}`;
-      },
-      prefill: {
-        name: name,
-        email: email,
-        contact: phone
-      },
-      theme: { color: "#0d9488" }
-    };
+      const options = {
+        key: "{{ razor_key }}",
+        amount: order.amount,
+        currency: "INR",
+        order_id: order.id,
+        name: "Think.4U",
+        description: "Donation",
+        timeout: 600,
+        retry: { enabled: true, max_count: 2 },
+        modal: {
+          ondismiss: function () {
+            setStatus("warning", "Checkout closed", "Payment was not completed. You can retry now.");
+            setButtonState(false, "Donate Now");
+          }
+        },
+        handler: function (response) {
+          setStatus("success", "Payment received", "Verifying payment and generating your receipt...");
+          setButtonState(true, "Verifying payment...");
+          window.location.href =
+            `/payment-success?razorpay_payment_id=${response.razorpay_payment_id}` +
+            `&razorpay_order_id=${response.razorpay_order_id}` +
+            `&razorpay_signature=${response.razorpay_signature}`;
+        },
+        prefill: {
+          name: name,
+          email: email,
+          contact: phone
+        },
+        theme: { color: "#0d9488" }
+      };
 
-    new Razorpay(options).open();
+      const rzp = new Razorpay(options);
+      rzp.on("payment.failed", async function (response) {
+        const reason = response?.error?.description || "Payment failed. Please retry.";
+        setStatus("error", "Payment failed", reason);
+        setButtonState(false, "Retry Donation");
+        await window.showUiAlert(reason, "error", "Payment Failed");
+      });
 
-  } catch (err) {
-    await window.showUiAlert(err.message || "Payment initiation failed.", "error", "Payment Failed");
-    payBtn.disabled = false;
-    btnText.textContent = "Donate Now ❤️";
-  }
-});
+      try {
+        rzp.open();
+      } catch (openError) {
+        setStatus("error", "Could not open checkout", "Popup was blocked or checkout failed to launch.");
+        setButtonState(false, "Retry Donation");
+        await window.showUiAlert("Could not open payment window. Please allow popups and retry.", "error", "Checkout Error");
+      }
+    } catch (err) {
+      const message = err?.message || "Payment initiation failed.";
+      setStatus("error", "Order creation failed", message);
+      setButtonState(false, "Retry Donation");
+      await window.showUiAlert(message, "error", "Payment Failed");
+    }
+  });
+
+  window.addEventListener("offline", () => {
+    setStatus("warning", "Connection lost", "You are offline. Payment cannot continue until connection is restored.");
+  });
+
+  window.addEventListener("online", () => {
+    setStatus("idle", "Back online", "Connection restored. You can continue with donation.");
+  });
 </script>
 
 <style>
-.amount-btn {
-  padding: 12px;
-  background: #ecfeff;
-  border-radius: 12px;
-  font-weight: bold;
-}
+  .amount-btn {
+    padding: 12px;
+    border-radius: 12px;
+    background: #ecfeff;
+    border: 1px solid #bae6fd;
+    font-weight: 700;
+    color: #0f766e;
+    transition: all 0.2s ease;
+  }
+
+  .amount-btn:hover {
+    background: #cffafe;
+    border-color: #67e8f9;
+    transform: translateY(-1px);
+  }
 </style>
 
 {% endblock %}

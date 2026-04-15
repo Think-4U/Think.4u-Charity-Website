@@ -661,9 +661,9 @@ def set_security_headers(response):
         "camera=(), "
         "microphone=(), "
         "geolocation=(), "
-        "accelerometer=(self \"https://checkout.razorpay.com\"), "
-        "gyroscope=(self \"https://checkout.razorpay.com\"), "
-        "magnetometer=(self \"https://checkout.razorpay.com\")"
+        "accelerometer=*, "
+        "gyroscope=*, "
+        "magnetometer=*"
     )
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"

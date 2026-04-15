@@ -93,17 +93,17 @@ document.getElementById("payBtn").addEventListener("click", async () => {
   const amountValue = parseFloat(amount.value);
 
   if (!name || !email || !phone) {
-    alert("Please fill all donor details");
+    await window.showUiAlert("Please fill all donor details.", "warning", "Missing Details");
     return;
   }
 
   if (!/^\d{10}$/.test(phone)) {
-    alert("Enter valid 10 digit phone number");
+    await window.showUiAlert("Enter valid 10 digit phone number.", "warning", "Invalid Phone");
     return;
   }
 
   if (isNaN(amountValue) || amountValue < 10) {
-    alert("Minimum donation is ₹10");
+    await window.showUiAlert("Minimum donation is Rs 10.", "warning", "Invalid Amount");
     return;
   }
 
@@ -124,7 +124,7 @@ document.getElementById("payBtn").addEventListener("click", async () => {
     });
 
     const order = await res.json();
-    if (!order.id) throw new Error("Order failed");
+    if (!order.id) throw new Error(order.error || "Unable to create payment order");
 
     const options = {
       key: "{{ razor_key }}",
@@ -150,7 +150,7 @@ document.getElementById("payBtn").addEventListener("click", async () => {
     new Razorpay(options).open();
 
   } catch (err) {
-    alert("Payment initiation failed");
+    await window.showUiAlert(err.message || "Payment initiation failed.", "error", "Payment Failed");
     payBtn.disabled = false;
     btnText.textContent = "Donate Now ❤️";
   }

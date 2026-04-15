@@ -256,12 +256,22 @@
 
     // Confirm before rejecting
     document.querySelectorAll('form').forEach(form => {
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             const actionInput = form.querySelector('input[name="action"]');
             if (actionInput && actionInput.value === 'reject') {
-                if (!confirm('Are you sure you want to reject this volunteer application?')) {
+                e.preventDefault();
+                const confirmed = await window.showUiConfirm({
+                    title: 'Reject Volunteer?',
+                    text: 'Are you sure you want to reject this volunteer application?',
+                    confirmText: 'Reject',
+                    cancelText: 'Cancel',
+                    icon: 'warning'
+                });
+                if (!confirmed) {
                     e.preventDefault();
+                    return;
                 }
+                form.submit();
             }
         });
     });
@@ -366,7 +376,14 @@
 
     // Delete volunteer
     async function deleteVolunteer(volunteerId, volunteerName) {
-        if (!confirm(`Are you sure you want to permanently remove ${volunteerName}?\n\nThis action cannot be undone.`)) {
+        const confirmed = await window.showUiConfirm({
+            title: 'Remove Volunteer?',
+            text: `Are you sure you want to permanently remove ${volunteerName}? This action cannot be undone.`,
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            icon: 'warning'
+        });
+        if (!confirmed) {
             return;
         }
         
@@ -378,14 +395,14 @@
             const data = await response.json();
             
             if (data.success) {
-                alert('Volunteer removed successfully');
+                await window.showUiAlert('Volunteer removed successfully.', 'success', 'Removed');
                 window.location.reload();
             } else {
                 throw new Error(data.error || 'Failed to remove volunteer');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error removing volunteer: ' + error.message);
+            await window.showUiAlert(`Error removing volunteer: ${error.message}`, 'error', 'Delete Failed');
         }
     }
 </script>

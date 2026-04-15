@@ -75,8 +75,7 @@
                             Edit
                         </a>
                         <form method="POST" action="{{ url_for('admin_program_delete', pid=program.id) }}" 
-                              onsubmit="return confirm('Are you sure you want to delete this program?')" 
-                              class="flex-1">
+                              class="flex-1 js-delete-program">
                             <button type="submit" 
                                     class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition flex items-center justify-center gap-2">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -200,6 +199,22 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
+
+        document.querySelectorAll('.js-delete-program').forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const confirmed = await window.showUiConfirm({
+                    title: 'Delete Program?',
+                    text: 'Are you sure you want to delete this program?',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    icon: 'warning'
+                });
+                if (confirmed) {
+                    form.submit();
+                }
+            });
+        });
     });
 
     function openAddModal() {

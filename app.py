@@ -8,6 +8,8 @@ import csv
 import secrets
 import re
 import threading
+import hashlib
+import hmac
 import html
 import json as pyjson
 from collections import defaultdict, deque
@@ -18,10 +20,12 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import HTTPException
 from datetime import datetime, timezone, timedelta
 import traceback
 import tempfile
 import qrcode
+import httpx
 from io import BytesIO
 import base64
 from num2words import num2words
@@ -77,6 +81,7 @@ LOGIN_BLOCK_SECONDS = int(os.getenv("LOGIN_BLOCK_SECONDS", "900"))
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "90"))
 AUTH_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("AUTH_RATE_LIMIT_MAX_REQUESTS", "20"))
+INACTIVITY_TIMEOUT_SECONDS = int(os.getenv("INACTIVITY_TIMEOUT_SECONDS", "900"))
 ALLOW_DEV_OTP_FALLBACK = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == "true"
 PAYMENT_PENDING_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_PENDING_TIMEOUT_MINUTES", "15"))
 
@@ -137,30 +142,55 @@ if SUPABASE_ENABLED and supabase_key_role != "service_role":
 # ------------------------------
 # Razorpay Configuration
 # ------------------------------
-# Razorpay Configuration (Vercel-safe)
-
 RAZOR_KEY = os.getenv('RAZOR_KEY_ID')
 RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET')
 RAZORPAY_ENABLED = bool(RAZOR_KEY and RAZOR_SECRET)
 
-def get_razorpay_client():
-    try:
-        import razorpay  
-        return razorpay.Client(auth=(RAZOR_KEY, RAZOR_SECRET))
-    except Exception as e:
-        app.logger.error(f"Razorpay initialization failed: {e}")
-        return None
-
-# Initialize safely
-razor_client = None
-if RAZORPAY_ENABLED:
-    razor_client = get_razorpay_client()
-else:
+if not RAZORPAY_ENABLED:
     app.logger.warning("Razorpay keys missing. Online payment routes are disabled.")
 
-app.logger.info(
-    "Razorpay client initialized" if razor_client else "Razorpay client not initialized"
-)
+
+def create_razorpay_order(amount, currency, receipt):
+    if not RAZORPAY_ENABLED:
+        raise RuntimeError("Razorpay is not configured")
+    response = httpx.post(
+        "https://api.razorpay.com/v1/orders",
+        auth=(RAZOR_KEY, RAZOR_SECRET),
+        data={
+            "amount": amount,
+            "currency": currency,
+            "receipt": receipt,
+            "payment_capture": 1,
+        },
+        timeout=15.0,
+    )
+    if response.status_code not in (200, 201):
+        raise RuntimeError(f"Razorpay order creation failed: {response.status_code} {response.text}")
+    return response.json()
+
+
+def verify_checkout_signature(payload):
+    """Verify Razorpay checkout signature without SDK."""
+    order_id = payload.get("razorpay_order_id")
+    payment_id = payload.get("razorpay_payment_id")
+    signature = payload.get("razorpay_signature")
+    if not all([order_id, payment_id, signature, RAZOR_SECRET]):
+        return False
+
+    message = f"{order_id}|{payment_id}".encode("utf-8")
+    expected = hmac.new(RAZOR_SECRET.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+def verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
+    if not webhook_secret:
+        return True
+    if not webhook_signature:
+        return False
+    expected = hmac.new(webhook_secret.encode("utf-8"), webhook_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, webhook_signature)
+
+
 # ------------------------------
 # Admin Credentials
 # ------------------------------
@@ -576,6 +606,31 @@ def apply_security_controls():
         if proto != "https" and request.host.split(":")[0] not in {"localhost", "127.0.0.1"}:
             return redirect(request.url.replace("http://", "https://", 1), code=301)
 
+    endpoint = request.endpoint or ""
+    if current_user.is_authenticated and endpoint != "static":
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        last_activity = session.get("last_activity_ts")
+        try:
+            last_activity = int(last_activity) if last_activity is not None else None
+        except (TypeError, ValueError):
+            last_activity = None
+
+        if last_activity and (now_ts - last_activity) > INACTIVITY_TIMEOUT_SECONDS:
+            logout_user()
+            session.pop("pending_login", None)
+            session.pop("pending_signup", None)
+            session.pop("last_activity_ts", None)
+            if request.is_json or request.path.startswith("/api/"):
+                return jsonify({"error": "Session expired due to inactivity"}), 401
+            timeout_minutes = max(1, INACTIVITY_TIMEOUT_SECONDS // 60)
+            flash(f"Session expired after {timeout_minutes} minute(s) of inactivity. Please log in again.", "warning")
+            return redirect(url_for("login", next=request.path))
+
+        session.permanent = True
+        session["last_activity_ts"] = now_ts
+    else:
+        session.pop("last_activity_ts", None)
+
     if request.method == "POST":
         auth_endpoint = request.endpoint in {"login", "signup", "verify_login", "verify_signup"}
         limit = AUTH_RATE_LIMIT_MAX_REQUESTS if auth_endpoint else RATE_LIMIT_MAX_REQUESTS
@@ -628,16 +683,6 @@ def set_security_headers(response):
 # ===================================
 # HELPER FUNCTIONS
 # ===================================
-def verify_checkout_signature(payload):
-    """Verify Razorpay signature"""
-    try:
-        client = razor_client or get_razorpay_client()
-        client.utility.verify_payment_signature(payload)
-        return True
-    except razorpay.errors.SignatureVerificationError:
-        return False
-
-
 def send_email_async(subject, recipients, html):
     """Send email in background thread"""
     def send():
@@ -704,6 +749,14 @@ def index():
                          stats=stats)
 
 
+@app.route("/favicon.ico")
+@app.route("/favicon.png")
+def favicon():
+    if request.path.endswith(".png"):
+        return redirect(url_for("static", filename="images/favicon.png"))
+    return redirect(url_for("static", filename="images/favicon.ico"))
+
+
 @app.route("/healthz")
 def healthz():
     return jsonify({
@@ -748,8 +801,7 @@ def donate_upi():
 @login_required
 def create_order():
     """Create Razorpay order for logged-in donor"""
-    client = razor_client or get_razorpay_client()
-    if not RAZORPAY_ENABLED or client is None:
+    if not RAZORPAY_ENABLED:
         return jsonify({"error": "Payment gateway is temporarily unavailable"}), 503
 
     data = request.get_json(silent=True) or {}
@@ -764,7 +816,7 @@ def create_order():
     donor_phone = normalize_phone(data.get("phone", ""))
 
     if amount < 1000:
-        return jsonify({"error": "Minimum donation is ?10"}), 400
+        return jsonify({"error": "Minimum donation is Rs 10"}), 400
 
     if not donor_name or not donor_phone:
         return jsonify({"error": "Missing donor details"}), 400
@@ -772,13 +824,11 @@ def create_order():
     receipt = f"rcpt_{int(datetime.now(timezone.utc).timestamp())}_{current_user.id}"
 
     try:
-        client = razor_client or get_razorpay_client()
-        order = client.order.create({
-            "amount": amount,
-            "currency": "INR",
-            "receipt": receipt,
-            "payment_capture": 1
-        })
+        order = create_razorpay_order(
+            amount=amount,
+            currency="INR",
+            receipt=receipt,
+        )
 
         supabase.table("donations").insert({
             "user_id": int(current_user.id),
@@ -798,9 +848,9 @@ def create_order():
             "key_id": RAZOR_KEY
         })
 
-    except razorpay.errors.BadRequestError as e:
+    except RuntimeError as e:
         app.logger.error(f"Razorpay error: {e}")
-        return jsonify({"error": "Payment service authentication failed"}), 500
+        return jsonify({"error": "Payment service unavailable"}), 503
     except Exception as e:
         app.logger.error(f"Order creation failed: {e}")
         return jsonify({"error": "Could not create order"}), 500
@@ -810,8 +860,7 @@ def create_order():
 @login_required
 def payment_success_redirect():
     """Handle payment success redirect"""
-    client = razor_client or get_razorpay_client()
-    if not RAZORPAY_ENABLED or client is None:
+    if not RAZORPAY_ENABLED:
         flash("Payment verification service unavailable. Please contact support.", "error")
         return redirect(url_for("donate"))
 
@@ -830,8 +879,9 @@ def payment_success_redirect():
     }
 
     try:
-        client = razor_client or get_razorpay_client()
-        client.utility.verify_payment_signature(payload)
+        if not verify_checkout_signature(payload):
+            flash('Payment verification failed', 'error')
+            return redirect(url_for('donate'))
 
         response = supabase.table('donations') \
             .update({
@@ -868,8 +918,6 @@ def payment_success_redirect():
         flash('Donation record not found', 'error')
         return redirect(url_for('donate'))
 
-    except razorpay.errors.SignatureVerificationError:
-        flash('Payment verification failed', 'error')
     except Exception as e:
         app.logger.error(f"Payment success handling error: {e}")
         flash('Error processing payment', 'error')
@@ -880,8 +928,7 @@ def payment_success_redirect():
 @app.route("/razorpay-webhook", methods=["POST"])
 def razorpay_webhook():
     """Handle Razorpay webhook events"""
-    client = razor_client or get_razorpay_client()
-    if not RAZORPAY_ENABLED or client is None:
+    if not RAZORPAY_ENABLED:
         return jsonify({"error": "Razorpay not configured"}), 503
 
     webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
@@ -889,13 +936,8 @@ def razorpay_webhook():
     webhook_body = request.get_data()
 
     try:
-        if webhook_secret:
-            client = razor_client or get_razorpay_client()
-            client.utility.verify_webhook_signature(
-                webhook_body.decode('utf-8'),
-                webhook_signature,
-                webhook_secret
-            )
+        if not verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
+            return jsonify({"error": "Invalid webhook signature"}), 400
 
         event = request.json or {}
         event_type = event.get('event')
@@ -1450,9 +1492,15 @@ def verify_login():
 @login_required
 def logout():
     """Logout"""
+    reason = clean_text(request.args.get("reason", ""), 40).lower()
     logout_user()
     session.pop("pending_login", None)
     session.pop("pending_signup", None)
+    session.pop("last_activity_ts", None)
+    if reason == "inactive":
+        timeout_minutes = max(1, INACTIVITY_TIMEOUT_SECONDS // 60)
+        flash(f"You were logged out after {timeout_minutes} minute(s) of inactivity.", "warning")
+        return redirect(url_for("login"))
     flash("Logged out successfully", "info")
     return redirect("/")
 
@@ -1940,6 +1988,65 @@ def grievance_feedback():
 @app.route("/policy-terms")
 def policy_terms():
     return render_template("policy_terms.html")
+
+
+@app.route("/error-help")
+def error_help():
+    return render_template("error_help.html")
+
+
+def _render_error(status_code, title, message):
+    if request.path.startswith("/api/") or request.is_json:
+        return jsonify({
+            "status": status_code,
+            "error": title,
+            "message": message,
+        }), status_code
+    return render_template(
+        "errors/error_page.html",
+        status_code=status_code,
+        error_title=title,
+        error_message=message,
+    ), status_code
+
+
+@app.errorhandler(403)
+def handle_403(_error):
+    return _render_error(403, "Access denied", "You do not have permission to access this page.")
+
+
+@app.errorhandler(400)
+def handle_400(_error):
+    return _render_error(400, "Bad request", "The request could not be understood. Please try again.")
+
+
+@app.errorhandler(404)
+def handle_404(_error):
+    return _render_error(404, "Page not found", "The page you requested does not exist or may have been moved.")
+
+
+@app.errorhandler(405)
+def handle_405(_error):
+    return _render_error(405, "Method not allowed", "This action is not allowed for the requested page.")
+
+
+@app.errorhandler(429)
+def handle_429(_error):
+    return _render_error(429, "Too many requests", "You are sending requests too quickly. Please wait and try again.")
+
+
+@app.errorhandler(500)
+def handle_500(error):
+    app.logger.error(f"Server error: {error}", exc_info=True)
+    return _render_error(500, "Server error", "Something went wrong on our side. Please try again shortly.")
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    if isinstance(error, HTTPException):
+        return error
+    app.logger.error(f"Unhandled exception: {error}", exc_info=True)
+    return _render_error(500, "Unexpected error", "An unexpected error occurred. Please try again.")
 
 
 # ===================================
@@ -3171,7 +3278,8 @@ def inject_cms():
     return dict(
         get_cms=get_cms_content,
         csrf_token=generate_csrf_token,
-        current_year=datetime.now(timezone.utc).year
+        current_year=datetime.now(timezone.utc).year,
+        inactivity_timeout_minutes=max(1, INACTIVITY_TIMEOUT_SECONDS // 60)
     )
 
 

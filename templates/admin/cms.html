@@ -194,20 +194,32 @@
         document.getElementById('contentModal').classList.add('hidden');
     }
 
-    function deleteContent(id, key) {
-        if (confirm(`Are you sure you want to delete "${key}"?`)) {
-            fetch(`/admin/cms/delete/${id}`, {
-                method: 'DELETE',
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert('Error deleting content');
-                }
-            });
+    async function deleteContent(id, key) {
+        const confirmed = await window.showUiConfirm({
+            title: 'Delete Content?',
+            text: `Are you sure you want to delete "${key}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            icon: 'warning'
+        });
+        if (!confirmed) {
+            return;
         }
+
+        fetch(`/admin/cms/delete/${id}`, {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                window.showUiAlert('Error deleting content.', 'error', 'Delete Failed');
+            }
+        })
+        .catch(() => {
+            window.showUiAlert('Network error while deleting content.', 'error', 'Delete Failed');
+        });
     }
 
     // Close modal on outside click

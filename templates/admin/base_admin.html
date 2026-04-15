@@ -17,6 +17,7 @@
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -137,18 +138,12 @@
         </div>
     </nav>
 
-    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="fixed top-20 right-4 z-50 space-y-2">
-                {% for category, message in messages %}
-                    <div class="flex items-center gap-3 px-6 py-4 rounded-xl shadow-xl animate-slide-in {% if category == 'error' %}bg-red-500{% elif category == 'success' %}bg-green-500{% elif category == 'warning' %}bg-orange-500{% else %}bg-cyan-500{% endif %} text-white font-semibold">
-                        <i data-lucide="{% if category == 'error' %}alert-circle{% elif category == 'success' %}check-circle{% elif category == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-5 h-5"></i>
-                        <span>{{ message }}</span>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% if messages %}
+    <script>
+        window.__flashMessages = {{ messages|tojson }};
+    </script>
+    {% endif %}
     {% endwith %}
 
     <!-- Main Content -->
@@ -160,6 +155,67 @@
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         window.CSRF_TOKEN = csrfToken;
+        const userIsAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+        const inactivityTimeoutMinutes = {{ inactivity_timeout_minutes|int }};
+        const inactivityTimeoutMs = inactivityTimeoutMinutes * 60 * 1000;
+
+        const categoryToIcon = {
+            success: 'success',
+            warning: 'warning',
+            error: 'error',
+            info: 'info'
+        };
+
+        window.showUiAlert = (message, category = 'info', title = 'Notice') => {
+            if (!window.Swal) {
+                alert(message);
+                return Promise.resolve();
+            }
+            return Swal.fire({
+                title,
+                text: message,
+                icon: categoryToIcon[category] || 'info',
+                confirmButtonColor: '#0ea5e9'
+            });
+        };
+
+        window.showUiToast = (message, category = 'info') => {
+            if (!window.Swal) {
+                return Promise.resolve();
+            }
+            return Swal.fire({
+                toast: true,
+                position: 'top-end',
+                timer: 3500,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                icon: categoryToIcon[category] || 'info',
+                title: message
+            });
+        };
+
+        window.showUiConfirm = async ({
+            title = 'Please Confirm',
+            text = 'Are you sure?',
+            confirmText = 'Yes',
+            cancelText = 'Cancel',
+            icon = 'warning'
+        } = {}) => {
+            if (!window.Swal) {
+                return Promise.resolve(confirm(text));
+            }
+            const result = await Swal.fire({
+                title,
+                text,
+                icon,
+                showCancelButton: true,
+                confirmButtonText: confirmText,
+                cancelButtonText: cancelText,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#475569'
+            });
+            return !!result.isConfirmed;
+        };
 
         const originalFetch = window.fetch.bind(window);
         window.fetch = (resource, init = {}) => {
@@ -187,9 +243,15 @@
             }
         });
 
-        // Initialize Lucide Icons
-        lucide.createIcons();
-        
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+
+        const flashMessages = Array.isArray(window.__flashMessages) ? window.__flashMessages : [];
+        flashMessages.forEach(([category, message], index) => {
+            setTimeout(() => window.showUiToast(message, category), index * 220);
+        });
+
         // Toggle Sidebar (Mobile)
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -200,17 +262,32 @@
                 overlay.classList.toggle('hidden');
             }
         }
-        
-        // Auto-hide flash messages
-        setTimeout(() => {
-            const messages = document.querySelectorAll('.animate-slide-in');
-            messages.forEach(msg => {
-                msg.style.opacity = '0';
-                msg.style.transform = 'translateX(400px)';
-                setTimeout(() => msg.remove(), 300);
+
+        if (userIsAuthenticated) {
+            let inactivityTimer = null;
+            const resetInactivityTimer = () => {
+                if (inactivityTimer) clearTimeout(inactivityTimer);
+                inactivityTimer = setTimeout(() => {
+                    window.showUiAlert(
+                        `You were inactive for ${inactivityTimeoutMinutes} minute(s). We will log you out for security.`,
+                        'warning',
+                        'Session Expired'
+                    ).then(() => {
+                        window.location.assign('{{ url_for("logout") }}?reason=inactive');
+                    });
+                }, inactivityTimeoutMs);
+            };
+            ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach((eventName) => {
+                window.addEventListener(eventName, resetInactivityTimer);
             });
-        }, 5000);
-        
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    resetInactivityTimer();
+                }
+            });
+            resetInactivityTimer();
+        }
+
         // Close sidebar on outside click (mobile)
         document.addEventListener('click', (e) => {
             const sidebar = document.getElementById('sidebar');

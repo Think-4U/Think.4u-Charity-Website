@@ -11,6 +11,7 @@
 ## 3) Deploy on Vercel
 - Import the GitHub repo in Vercel.
 - Framework: `Other`.
+- Python version: `3.12` (from `.python-version`)
 - Vercel uses:
   - `vercel.json`
   - `api/index.py` (Python serverless function)
@@ -44,4 +45,3 @@ Optional:
   - `/login`
 
 If `/healthz` is not `status: ok`, check Vercel function logs and env variables.
-

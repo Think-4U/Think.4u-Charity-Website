@@ -1,109 +1,219 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donation Receipt - Think.4U</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f1f5f9;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #0f172a;
+        }
+
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+
+        .outer {
+            width: 100%;
+            background: #f1f5f9;
+            padding: 20px 10px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0891b2, #0d9488);
+            color: #ffffff;
+            text-align: center;
+            padding: 24px 18px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1.1;
+        }
+
+        .header p {
+            margin: 8px 0 0 0;
+            font-size: 13px;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 20px 18px;
+        }
+
+        .amount-pill {
+            margin: 0 0 16px 0;
+            padding: 14px;
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            background: #ecfeff;
+            text-align: center;
+        }
+
+        .amount-pill .label {
+            margin: 0 0 6px 0;
+            color: #155e75;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .amount-pill .value {
+            margin: 0;
+            color: #0f766e;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .details td {
+            border: 1px solid #e2e8f0;
+            padding: 11px 10px;
+            font-size: 13px;
+            vertical-align: top;
+        }
+
+        .details .label {
+            width: 38%;
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .details .value {
+            color: #0f172a;
+            word-break: break-word;
+        }
+
+        .note {
+            margin-top: 16px;
+            padding: 12px;
+            border: 1px solid #d1fae5;
+            border-radius: 10px;
+            background: #ecfdf5;
+            color: #065f46;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .cta-wrap {
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .cta {
+            display: inline-block;
+            padding: 11px 18px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13px;
+            color: #ffffff;
+            background: #0d9488;
+        }
+
+        .footer {
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            padding: 14px 18px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        @media only screen and (max-width: 520px) {
+            .header h1 {
+                font-size: 25px;
+            }
+
+            .amount-pill .value {
+                font-size: 24px;
+            }
+
+            .details .label,
+            .details .value {
+                display: block;
+                width: 100% !important;
+            }
+        }
+    </style>
 </head>
-<body style="font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #ecfeff 0%, #d1fae5 50%, #fed7aa 100%); min-height: 100vh;">
-    
-    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);">
-        
-        <!-- Header with Logo -->
-        <div style="background: linear-gradient(135deg, #22d3ee 0%, #4ade80 50%, #fb923c 100%); padding: 40px 30px; text-align: center;">
-            <h1 style="color: white; font-family: 'Poppins', sans-serif; font-size: 32px; margin: 0 0 10px 0; font-weight: 800;">
-                THINK<span style="color: #fed7aa;">.4U</span>
-            </h1>
-            <p style="color: rgba(255, 255, 255, 0.9); margin: 0; font-size: 14px; font-weight: 600;">
-                Empowering Minds, Changing Lives
-            </p>
-        </div>
+<body>
+    <table role="presentation" class="outer" width="100%">
+        <tr>
+            <td>
+                <table role="presentation" class="card" width="100%">
+                    <tr>
+                        <td class="header">
+                            <h1>Think.4U</h1>
+                            <p>Donation Receipt</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="content">
+                            <p style="margin:0 0 8px 0; font-size:14px;">Hello {{ donation.name or 'Supporter' }},</p>
+                            <p style="margin:0 0 16px 0; font-size:14px; color:#334155;">
+                                Thank you for your generous contribution. Your donation has been received successfully.
+                            </p>
 
-        <!-- Content -->
-        <div style="padding: 40px 30px;">
-            
-            <!-- Success Icon -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-block; width: 80px; height: 80px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 50%; padding: 20px;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="width: 40px; height: 40px;">
-                        <path d="M20 6L9 17l-5-5"/>
-                    </svg>
-                </div>
-            </div>
+                            <div class="amount-pill">
+                                <p class="label">Donation Amount</p>
+                                <p class="value">Rs {{ "%.2f"|format(amount/100) }}</p>
+                            </div>
 
-            <h2 style="text-align: center; font-family: 'Poppins', sans-serif; font-size: 28px; color: #0f172a; margin: 0 0 15px 0; font-weight: 700;">
-                Thank You!
-            </h2>
+                            <table role="presentation" class="details" width="100%">
+                                <tr>
+                                    <td class="label">Receipt Number</td>
+                                    <td class="value">T4U-{{ donation.id }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Transaction ID</td>
+                                    <td class="value">{{ donation.razorpay_payment_id or donation.razorpay_order_id or 'Processing' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Payment Method</td>
+                                    <td class="value">{{ donation.payment_method or 'Online' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Date</td>
+                                    <td class="value">{{ donation.created_at.strftime('%d %b %Y, %I:%M %p') if donation.created_at else '' }}</td>
+                                </tr>
+                            </table>
 
-            <p style="text-align: center; color: #64748b; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-                Your generous donation will help us provide mental health support and education to those in need.
-            </p>
+                            <div class="note">
+                                This donation is eligible for tax exemption under Section 80G, subject to applicable terms and document requirements.
+                            </div>
 
-            <!-- Amount Box -->
-            <div style="background: linear-gradient(135deg, #f0fdfa, #ecfdf5); border: 2px solid #a7f3d0; border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px;">
-                <p style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px 0; font-weight: 600;">
-                    Donation Amount
-                </p>
-                <div style="font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #22d3ee, #4ade80); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px;">
-                    ₹{{ "%.2f"|format(amount/100) }}
-                </div>
-                <p style="color: #64748b; font-size: 11px; margin: 0;">
-                    Tax benefits under Section 80G apply
-                </p>
-            </div>
-
-            <!-- Details -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                <tr>
-                    <td style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px 8px 0 0;">
-                        <strong style="color: #475569; font-size: 13px;">Transaction ID:</strong><br>
-                        <code style="color: #0891b2; font-size: 12px; word-break: break-all;">{{ donation.razorpay_payment_id or donation.razorpay_order_id or 'Processing' }}</code>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 15px; background: #f8fafc; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">
-                        <strong style="color: #475569; font-size: 13px;">Date:</strong><br>
-                        <span style="color: #64748b; font-size: 13px;">{{ donation.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
-                        <strong style="color: #475569; font-size: 13px;">Payment Status:</strong><br>
-                        <span style="display: inline-block; background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-top: 5px;">
-                            ✓ Successful
-                        </span>
-                    </td>
-                </tr>
-            </table>
-
-            <!-- Impact Message -->
-            <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border-left: 4px solid #fb923c; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-                <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
-                    <strong>💝 Your Impact:</strong> Your donation helps provide counseling, educational resources, and community support programs.
-                </p>
-            </div>
-
-            <!-- CTA Button -->
-            <div style="text-align: center; margin: 30px 0;">
-                <a href="https://think4u.org" style="display: inline-block; background: linear-gradient(135deg, #22d3ee, #4ade80); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 10px 20px rgba(34, 211, 238, 0.3);">
-                    Visit Our Website
-                </a>
-            </div>
-
-        </div>
-
-        <!-- Footer -->
-        <div style="background: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #64748b; font-size: 13px; margin: 0 0 10px 0;">
-                Questions? Email us at <a href="mailto:info@think4u.org" style="color: #0891b2; text-decoration: none; font-weight: 600;">info@think4u.org</a>
-            </p>
-            <p style="color: #94a3b8; font-size: 11px; margin: 0;">
-                © 2025 Think.4U Charity Foundation. All rights reserved.
-            </p>
-        </div>
-
-    </div>
-
+                            {% if receipt_url %}
+                            <div class="cta-wrap">
+                                <a href="{{ receipt_url }}" class="cta">Open Receipt</a>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer">
+                            Version {{ app_version }} | Think.4U
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

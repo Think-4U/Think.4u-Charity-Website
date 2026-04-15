@@ -68,6 +68,9 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
+    REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_SAMESITE="Lax",
+    REMEMBER_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
 )
 
@@ -84,6 +87,7 @@ AUTH_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("AUTH_RATE_LIMIT_MAX_REQUESTS", "20
 INACTIVITY_TIMEOUT_SECONDS = int(os.getenv("INACTIVITY_TIMEOUT_SECONDS", "900"))
 ALLOW_DEV_OTP_FALLBACK = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == "true"
 PAYMENT_PENDING_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_PENDING_TIMEOUT_MINUTES", "15"))
+APP_VERSION = "2.3.4"
 
 REQUEST_RATE_STATE = defaultdict(deque)
 FAILED_LOGIN_STATE = {}
@@ -150,18 +154,22 @@ if not RAZORPAY_ENABLED:
     app.logger.warning("Razorpay keys missing. Online payment routes are disabled.")
 
 
-def create_razorpay_order(amount, currency, receipt):
+def create_razorpay_order(amount, currency, receipt, notes=None):
     if not RAZORPAY_ENABLED:
         raise RuntimeError("Razorpay is not configured")
+    payload = {
+        "amount": amount,
+        "currency": currency,
+        "receipt": receipt,
+        "payment_capture": 1,
+    }
+    if isinstance(notes, dict) and notes:
+        payload["notes"] = notes
+
     response = httpx.post(
         "https://api.razorpay.com/v1/orders",
         auth=(RAZOR_KEY, RAZOR_SECRET),
-        data={
-            "amount": amount,
-            "currency": currency,
-            "receipt": receipt,
-            "payment_capture": 1,
-        },
+        data=payload,
         timeout=15.0,
     )
     if response.status_code not in (200, 201):
@@ -217,6 +225,8 @@ else:
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['MAX_FORM_MEMORY_SIZE'] = 2 * 1024 * 1024
+app.config['MAX_FORM_PARTS'] = 1000
 
 
 
@@ -291,6 +301,14 @@ def clean_text(value, max_length=255, keep_new_lines=False):
     return text[:max_length]
 
 
+def normalize_currency_text(value):
+    text = str(value or "")
+    text = text.replace("\u20B9", "Rs ")
+    text = text.replace("â‚¹", "Rs ").replace("Ã¢â€šÂ¹", "Rs ").replace("ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹", "Rs ")
+    text = re.sub(r"(?<!\w)\?(?=\s*\d)", "Rs ", text)
+    return text
+
+
 def normalize_email(value):
     email = clean_text(value, max_length=320).lower()
     if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
@@ -350,7 +368,7 @@ def generate_csrf_token():
 def verify_csrf_token():
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return True
-    if request.endpoint in {"razorpay_webhook"}:
+    if request.endpoint in {"razorpay_webhook", "payment_success_redirect"}:
         return True
     provided = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
     expected = session.get("_csrf_token")
@@ -461,7 +479,7 @@ def create_notification_for_user(user_id, title, body):
         supabase.table("notifications").insert({
             "user_id": user_id,
             "title": clean_text(title, 120),
-            "body": clean_text(body, 500, keep_new_lines=True),
+            "body": clean_text(normalize_currency_text(body), 500, keep_new_lines=True),
             "created_at": datetime.now(timezone.utc).isoformat()
         }).execute()
         trim_user_notifications(user_id=user_id, max_keep=4)
@@ -665,8 +683,10 @@ def set_security_headers(response):
         "gyroscope=*, "
         "magnetometer=*"
     )
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    response.headers["Origin-Agent-Cluster"] = "?1"
     if ENFORCE_HTTPS:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = (
@@ -684,6 +704,8 @@ def set_security_headers(response):
         "form-action 'self'; "
         "object-src 'none'"
     )
+    if current_user.is_authenticated and not request.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return response
 
 
@@ -768,6 +790,7 @@ def favicon():
 def healthz():
     return jsonify({
         "status": "ok",
+        "version": APP_VERSION,
         "supabase_enabled": SUPABASE_ENABLED,
         "razorpay_enabled": RAZORPAY_ENABLED,
     }), 200
@@ -793,6 +816,7 @@ def donate():
         razor_key=RAZOR_KEY,
         donor_name=current_user.name,
         donor_email=current_user.email,
+        payment_retry_window_minutes=PAYMENT_PENDING_TIMEOUT_MINUTES,
     )
 
 
@@ -802,6 +826,79 @@ def donate_upi():
     """UPI donation page"""
     amount = request.args.get('amount', '')
     return render_template("donate_upi.html", upi_vpa=UPI_VPA, amount=amount)
+
+
+@app.route("/donate-upi/verify", methods=["POST"])
+@login_required
+def donate_upi_verify():
+    """Create manual UPI donation entry for admin verification."""
+    amount_raw = clean_text(request.form.get("amount"), 20)
+    txn_ref = clean_text(request.form.get("txn_ref"), 80).upper()
+    phone = normalize_phone(request.form.get("phone", ""))
+
+    try:
+        amount_rupees = float(amount_raw)
+        amount_paise = int(round(amount_rupees * 100))
+    except Exception:
+        flash("Enter a valid donation amount.", "error")
+        return redirect(url_for("donate_upi", amount=amount_raw))
+
+    if amount_paise < 1000:
+        flash("Minimum donation is Rs 10.", "error")
+        return redirect(url_for("donate_upi", amount=amount_raw))
+
+    if not re.fullmatch(r"[A-Z0-9]{8,40}", txn_ref):
+        flash("Enter a valid UPI transaction reference (8-40 letters/numbers).", "error")
+        return redirect(url_for("donate_upi", amount=amount_raw))
+
+    if not phone:
+        flash("Enter a valid 10 digit phone number for verification.", "error")
+        return redirect(url_for("donate_upi", amount=amount_raw))
+
+    synthetic_order_id = f"upi_{int(datetime.now(timezone.utc).timestamp())}_{current_user.id}_{secrets.randbelow(10000)}"
+
+    try:
+        supabase.table("donations").insert({
+            "user_id": int(current_user.id),
+            "name": clean_text(current_user.name or current_user.email.split("@")[0], 120),
+            "email": current_user.email,
+            "phone": phone,
+            "amount": amount_paise,
+            "razorpay_order_id": synthetic_order_id,
+            "razorpay_payment_id": txn_ref,
+            "payment_method": "UPI",
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+
+        create_notification_for_user(
+            int(current_user.id),
+            "UPI verification submitted",
+            "Your UPI payment details were submitted. Admin verification is pending."
+        )
+
+        if current_user.email:
+            upi_ack_html = f"""
+            <div style='font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;'>
+                <h2 style='color:#0ea5e9;'>UPI Payment Submitted</h2>
+                <p>Hello {html.escape(clean_text(current_user.name, 120) or 'Supporter')},</p>
+                <p>We received your UPI verification request for <strong>Rs {amount_paise / 100:.2f}</strong>.</p>
+                <p>Reference: <strong>{html.escape(txn_ref)}</strong></p>
+                <p>Our team will verify and update your donation status soon.</p>
+            </div>
+            """
+            send_email_async(
+                subject="Think.4U UPI Verification Received",
+                recipients=[current_user.email],
+                html=upi_ack_html
+            )
+
+        flash("UPI details submitted successfully. Verification is pending.", "success")
+    except Exception as e:
+        app.logger.error(f"UPI verification save failed: {e}")
+        flash("Could not submit UPI verification right now. Please try again.", "error")
+
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/create-order", methods=["POST"])
@@ -835,6 +932,10 @@ def create_order():
             amount=amount,
             currency="INR",
             receipt=receipt,
+            notes={
+                "user_id": str(current_user.id),
+                "email": donor_email,
+            }
         )
 
         supabase.table("donations").insert({
@@ -863,21 +964,80 @@ def create_order():
         return jsonify({"error": "Could not create order"}), 500
 
 
-@app.route("/payment-success", methods=["GET"])
+@app.route("/payment-status", methods=["POST"])
 @login_required
+def payment_status_update():
+    """Mark interrupted Razorpay attempt as failed/cancelled for quicker dashboard visibility."""
+    data = request.get_json(silent=True) or {}
+    order_id = clean_text(data.get("order_id"), 120)
+    raw_status = clean_text(data.get("status"), 40).lower()
+
+    if not order_id:
+        return jsonify({"error": "Missing order id"}), 400
+
+    if raw_status in {"retryable", "in_progress", "temporary_failure"}:
+        return jsonify({"ok": True, "updated": False}), 200
+
+    status = "failed" if raw_status in {"failed", "cancelled", "closed", "dismissed", "expired"} else "failed"
+    update_payload = {
+        "status": status,
+        "payment_method": "Razorpay",
+    }
+
+    try:
+        response = supabase.table("donations") \
+            .update(update_payload) \
+            .eq("razorpay_order_id", order_id) \
+            .eq("user_id", int(current_user.id)) \
+            .eq("status", "pending") \
+            .execute()
+        updated = bool(response.data)
+
+        if updated:
+            create_notification_for_user(
+                int(current_user.id),
+                "Donation attempt incomplete",
+                "Your last payment attempt was not completed. You can retry safely."
+            )
+
+        return jsonify({"ok": True, "updated": updated}), 200
+    except Exception as e:
+        app.logger.warning(f"Payment status update failed: {e}")
+        return jsonify({"error": "Unable to update payment status"}), 500
+
+
+@app.route("/payment-success", methods=["GET", "POST"])
 def payment_success_redirect():
-    """Handle payment success redirect"""
+    """Handle Razorpay success/failure redirect."""
     if not RAZORPAY_ENABLED:
         flash("Payment verification service unavailable. Please contact support.", "error")
-        return redirect(url_for("donate"))
+        return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
-    payment_id = request.args.get('razorpay_payment_id')
-    order_id = request.args.get('razorpay_order_id')
-    signature = request.args.get('razorpay_signature')
+    params = request.values
+    payment_id = clean_text(params.get("razorpay_payment_id"), 120)
+    order_id = clean_text(params.get("razorpay_order_id"), 120)
+    signature = clean_text(params.get("razorpay_signature"), 180)
+    error_code = clean_text(params.get("error_code"), 80)
+    error_description = clean_text(params.get("error_description"), 250)
+
+    if order_id and (error_code or error_description):
+        if current_user.is_authenticated:
+            try:
+                supabase.table("donations") \
+                    .update({"status": "failed", "payment_method": "Razorpay"}) \
+                    .eq("razorpay_order_id", order_id) \
+                    .eq("user_id", int(current_user.id)) \
+                    .eq("status", "pending") \
+                    .execute()
+            except Exception as e:
+                app.logger.warning(f"Failed to mark order as failed after redirect: {e}")
+
+        flash(error_description or "Payment failed or was cancelled.", "error")
+        return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
     if not all([payment_id, order_id, signature]):
         flash('Invalid payment data', 'error')
-        return redirect(url_for('donate'))
+        return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
     payload = {
         'razorpay_order_id': order_id,
@@ -888,7 +1048,7 @@ def payment_success_redirect():
     try:
         if not verify_checkout_signature(payload):
             flash('Payment verification failed', 'error')
-            return redirect(url_for('donate'))
+            return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
         response = supabase.table('donations') \
             .update({
@@ -898,38 +1058,35 @@ def payment_success_redirect():
                 "payment_method": "Razorpay"
             }) \
             .eq('razorpay_order_id', order_id) \
-            .eq('user_id', int(current_user.id)) \
             .execute()
-
-        if not response.data:
-            response = supabase.table('donations') \
-                .update({
-                    "razorpay_payment_id": payment_id,
-                    "razorpay_signature": signature,
-                    "status": "paid",
-                    "payment_method": "Razorpay"
-                }) \
-                .eq('razorpay_order_id', order_id) \
-                .execute()
 
         if response.data:
             donation = response.data[0]
-            create_notification_for_user(
-                int(current_user.id),
-                "Donation successful",
-                f"Your donation of ?{donation.get('amount', 0)/100:.2f} was received successfully."
-            )
+            user_id = donation.get("user_id")
+            if user_id:
+                try:
+                    create_notification_for_user(
+                        int(user_id),
+                        "Donation successful",
+                        f"Your donation of Rs {donation.get('amount', 0)/100:.2f} was received successfully."
+                    )
+                except Exception:
+                    pass
             flash('Thank you for your donation!', 'success')
-            return redirect(url_for('donation_receipt', donation_id=donation['id']))
+            if current_user.is_authenticated:
+                if donation.get("user_id") == int(current_user.id) or donation.get("email") == current_user.email:
+                    return redirect(url_for('donation_receipt', donation_id=donation['id']))
+                return redirect(url_for("dashboard"))
+            return redirect(url_for("login", next=url_for("user_donations")))
 
         flash('Donation record not found', 'error')
-        return redirect(url_for('donate'))
+        return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
     except Exception as e:
         app.logger.error(f"Payment success handling error: {e}")
         flash('Error processing payment', 'error')
 
-    return redirect(url_for('donate'))
+    return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
 
 @app.route("/razorpay-webhook", methods=["POST"])
@@ -1066,17 +1223,21 @@ def donation_receipt(donation_id):
             email_html = render_template(
                 "emails/donation_receipt_email.html",
                 donation=donation,
-                amount=donation.get("amount", 0)
+                amount=donation.get("amount", 0),
+                receipt_url=receipt_url,
             )
             try:
-                send_email_async(
+                email_sent, email_error = send_email_sync(
                     subject="Thank you for your donation - Think.4U (80G Eligible)",
                     recipients=[donation.get("email")],
                     html=email_html,
                 )
-                supabase.table("donations").update(
-                    {"receipt_emailed": True}
-                ).eq("id", donation_id).execute()
+                if email_sent:
+                    supabase.table("donations").update(
+                        {"receipt_emailed": True}
+                    ).eq("id", donation_id).execute()
+                else:
+                    app.logger.warning(f"Receipt email not sent for donation {donation_id}: {email_error}")
             except Exception as e:
                 app.logger.error(f"Email failed, but receipt shown: {e}")
 
@@ -1118,7 +1279,7 @@ def generate_receipt_pdf(context):
     story.append(Paragraph(
         f"<b>Donor:</b> {context['donation'].get('name','Anonymous')}<br/>"
         f"<b>Email:</b> {context['donation'].get('email','N/A')}<br/>"
-        f"<b>Amount:</b> â‚¹{context['amount']/100:.2f}",
+        f"<b>Amount:</b> Rs {context['amount']/100:.2f}",
         styles["Normal"]
     ))
 
@@ -1518,33 +1679,51 @@ def dashboard():
     if current_user.is_admin:
         return redirect(url_for("admin_dashboard"))
 
-    donations = []
+    recent_donations = []
+    all_donations = []
     notifications = []
     volunteer_application = None
     volunteer_events = []
     approved_certificates_count = 0
+    donation_records_count = 0
 
     expire_stale_pending_donations(user_id=current_user.id, email=current_user.email)
 
     try:
-        donations_response = supabase.table("donations") \
+        recent_response = supabase.table("donations") \
             .select("*") \
             .eq("user_id", int(current_user.id)) \
             .order("created_at", desc=True) \
-            .limit(10) \
+            .limit(4) \
             .execute()
-        donations = donations_response.data or []
+        recent_donations = recent_response.data or []
 
-        if not donations:
-            donations_response = supabase.table("donations") \
+        full_response = supabase.table("donations") \
+            .select("*") \
+            .eq("user_id", int(current_user.id)) \
+            .order("created_at", desc=True) \
+            .execute()
+        all_donations = full_response.data or []
+
+        if not recent_donations and not all_donations:
+            recent_response = supabase.table("donations") \
                 .select("*") \
                 .eq("email", current_user.email) \
                 .order("created_at", desc=True) \
-                .limit(10) \
+                .limit(4) \
                 .execute()
-            donations = donations_response.data or []
+            recent_donations = recent_response.data or []
+
+            full_response = supabase.table("donations") \
+                .select("*") \
+                .eq("email", current_user.email) \
+                .order("created_at", desc=True) \
+                .execute()
+            all_donations = full_response.data or []
     except Exception as e:
         app.logger.warning(f"Dashboard donations lookup failed: {e}")
+        recent_donations = []
+        all_donations = []
 
     try:
         trim_user_notifications(user_id=int(current_user.id), max_keep=4)
@@ -1555,6 +1734,8 @@ def dashboard():
             .limit(4) \
             .execute()
         notifications = notifications_response.data or []
+        for notification in notifications:
+            notification["body_display"] = normalize_currency_text(notification.get("body", ""))
     except Exception:
         notifications = []
 
@@ -1587,13 +1768,15 @@ def dashboard():
     except Exception:
         approved_certificates_count = 0
 
-    total_donated = sum((d.get("amount") or 0) for d in donations if d.get("status") == "paid") / 100
+    total_donated = sum((d.get("amount") or 0) for d in all_donations if d.get("status") == "paid") / 100
+    donation_records_count = len(all_donations)
 
     return render_template(
         "dashboard.html",
-        recent_donations=donations,
+        recent_donations=recent_donations,
         notifications=notifications,
         total_donated=total_donated,
+        donation_records_count=donation_records_count,
         volunteer_application=volunteer_application,
         volunteer_events=volunteer_events,
         approved_certificates_count=approved_certificates_count,
@@ -2258,7 +2441,7 @@ def export_donations():
         
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['ID', 'Amount (â‚¹)', 'Payment ID', 'Email', 'Date', 'Status'])
+        writer.writerow(['ID', 'Amount (Rs)', 'Payment ID', 'Email', 'Date', 'Status'])
         
         for d in donations:
             writer.writerow([
@@ -3286,7 +3469,8 @@ def inject_cms():
         get_cms=get_cms_content,
         csrf_token=generate_csrf_token,
         current_year=datetime.now(timezone.utc).year,
-        inactivity_timeout_minutes=max(1, INACTIVITY_TIMEOUT_SECONDS // 60)
+        inactivity_timeout_minutes=max(1, INACTIVITY_TIMEOUT_SECONDS // 60),
+        app_version=APP_VERSION,
     )
 
 
@@ -3562,3 +3746,4 @@ if __name__ == "__main__":
     host = os.getenv("FLASK_HOST", "0.0.0.0")
     port = int(os.getenv("PORT", os.getenv("FLASK_PORT", "5000")))
     app.run(debug=debug_mode, host=host, port=port)
+

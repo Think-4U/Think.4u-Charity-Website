@@ -28,7 +28,7 @@
                         {% for d in donations %}
                         <tr>
                             <td class="px-5 py-3 text-slate-700">{{ d.created_at[:19] if d.created_at else '-' }}</td>
-                            <td class="px-5 py-3 font-bold text-emerald-600">₹{{ "{:,.2f}".format((d.amount or 0) / 100) }}</td>
+                            <td class="px-5 py-3 font-bold text-emerald-600">Rs {{ "{:,.2f}".format((d.amount or 0) / 100) }}</td>
                             <td class="px-5 py-3">
                                 <span class="text-sm font-semibold {% if d.status == 'paid' %}text-green-600{% elif d.status == 'pending' %}text-amber-600{% else %}text-red-600{% endif %}">
                                     {% if d.status == 'failed' %}Failed (Timed Out){% else %}{{ d.status|title if d.status else '-' }}{% endif %}
@@ -55,3 +55,4 @@
     </div>
 </section>
 {% endblock %}
+

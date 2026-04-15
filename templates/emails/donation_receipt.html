@@ -1,185 +1,110 @@
 {% extends "base.html" %}
+{% block title %}Donation Receipt - Think.4U{% endblock %}
 {% block content %}
+<section class="pt-28 pb-14 px-4 min-h-screen bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white">
+  <div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden print:shadow-none print:border-slate-300">
+      <div class="px-6 sm:px-8 py-7 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white">
+        <p class="text-xs font-semibold uppercase tracking-wider text-cyan-100">Think.4U Trust</p>
+        <h1 class="text-3xl sm:text-4xl font-black mt-1">Donation Receipt</h1>
+        <p class="text-sm text-cyan-100 mt-2">Thank you for supporting our programs and community initiatives.</p>
+      </div>
 
-<!-- ================= SCREEN VIEW (RICH UI – UNCHANGED) ================= -->
-<div class="screen-only relative pt-32 pb-20 min-h-screen flex items-center justify-center overflow-hidden">
-
-    <!-- Background -->
-    <div class="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-green-50"></div>
-
-    <!-- Animated particles -->
-    <div class="absolute inset-0 opacity-30">
-        <div class="absolute top-20 left-10 w-32 h-32 bg-cyan-300 rounded-full blur-3xl animate-pulse"></div>
-        <div class="absolute top-40 right-20 w-40 h-40 bg-green-300 rounded-full blur-3xl animate-pulse"></div>
-        <div class="absolute bottom-32 left-1/3 w-36 h-36 bg-orange-300 rounded-full blur-3xl animate-pulse"></div>
-    </div>
-
-    <div class="relative z-10 max-w-2xl mx-auto px-4">
-        <div class="relative glass p-10 lg:p-12 rounded-3xl shadow-2xl border-2 border-white/50">
-
-            <!-- Success Icon -->
-            <div class="flex justify-center mb-8">
-                <div class="w-24 h-24 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-2xl">
-                    <i data-lucide="check" class="w-12 h-12 text-white"></i>
-                </div>
+      <div class="p-6 sm:p-8 space-y-7">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Receipt Number</p>
+              <p class="text-lg font-black text-slate-900 mt-1">T4U-{{ donation.id }}</p>
             </div>
-
-            <h1 class="text-4xl font-black text-center mb-4 gradient-text">
-                Thank You for Your Generosity!
-            </h1>
-
-            <p class="text-slate-600 text-lg text-center mb-8">
-                Your donation helps us support mental health, education, and communities.
-            </p>
-
-            <!-- Amount -->
-            <div class="text-center mb-8">
-                <p class="text-sm uppercase text-slate-500 mb-2">Donation Amount</p>
-                <div class="text-5xl font-black gradient-text">
-                    ₹{{ "%.2f"|format(amount/100) }}
-                </div>
-                <p class="text-xs text-slate-500">80G tax benefits applicable</p>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Status</p>
+              <p class="text-lg font-black text-emerald-600 mt-1">Paid</p>
             </div>
-
-            <!-- Details -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-8">
-                <div><b>Transaction ID:</b><br>{{ donation.razorpay_payment_id or donation.razorpay_order_id }}</div>
-                <div><b>Date:</b><br>{{ donation.created_at.strftime('%d %B %Y, %I:%M %p') }}</div>
-                <div><b>Payment Method:</b><br>{{ donation.payment_method }}</div>
-                <div><b>Status:</b><br><span class="text-green-600 font-bold">Successful</span></div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Amount</p>
+              <p class="text-xl font-black text-emerald-700 mt-1">Rs {{ "%.2f"|format(amount/100) }}</p>
             </div>
-
-            <!-- Actions -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <button onclick="window.print()"
-                        class="px-8 py-4 bg-gradient-to-r from-cyan-500 to-green-500 text-white font-bold rounded-xl shadow-xl">
-                    Print Receipt
-                </button>
-                <a href="/" class="px-8 py-4 border rounded-xl font-bold">
-                    Back to Home
-                </a>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wide">Date</p>
+              <p class="text-sm font-semibold text-slate-900 mt-1">{{ donation.created_at.strftime('%d %b %Y, %I:%M %p') if donation.created_at else '' }}</p>
             </div>
+          </div>
 
+          <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col items-center justify-center text-center">
+            {% if qr_code %}
+            <img src="data:image/png;base64,{{ qr_code }}" alt="Receipt verification QR" class="w-24 h-24 mb-2">
+            {% endif %}
+            <p class="text-xs text-slate-500">Scan to open this receipt</p>
+          </div>
         </div>
-    </div>
-</div>
 
-<!-- ================= PRINT VIEW (CLEAN NGO RECEIPT) ================= -->
-<div class="print-only max-w-3xl mx-auto p-10 text-black hidden">
-
-    <h1 class="text-center text-xl font-bold uppercase">
-        Think.4U Charitable Trust
-    </h1>
-
-    <p class="text-center text-sm mb-6">
-        {{ get_cms('contact_address') }}<br>
-        Email: {{ get_cms('contact_email') }}
-    </p>
-
-    <hr class="border-black mb-6">
-
-    <h2 class="text-center font-bold mb-6">DONATION RECEIPT</h2>
-
-    <div class="flex justify-between text-sm mb-4">
-        <div>
-            <p><b>Receipt No:</b> T4U-{{ donation.id }}</p>
-            <p><b>Date:</b> {{ donation.created_at.strftime('%d-%m-%Y') }}</p>
+        <div class="rounded-2xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Donor Name</th>
+                <td class="px-4 py-3 text-slate-900 font-semibold">{{ donation.name or 'Anonymous' }}</td>
+              </tr>
+              <tr>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Email</th>
+                <td class="px-4 py-3 text-slate-900 break-all">{{ donation.email or 'N/A' }}</td>
+              </tr>
+              <tr>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Transaction ID</th>
+                <td class="px-4 py-3 text-slate-900 break-all">{{ donation.razorpay_payment_id or donation.razorpay_order_id or 'Processing' }}</td>
+              </tr>
+              <tr>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Payment Method</th>
+                <td class="px-4 py-3 text-slate-900">{{ donation.payment_method or 'Online' }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="text-right">
-            <p><b>Status:</b> Paid</p>
-            <p><b>Payment Mode:</b> {{ donation.payment_method }}</p>
+
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p class="text-sm text-emerald-800">
+            This receipt confirms donation payment. Tax exemption details under Section 80G will be shared as per eligibility and document verification.
+          </p>
         </div>
-    </div>
 
-    <div class="text-sm mb-4">
-        <p><b>Donor Name:</b> {{ donation.name or 'Anonymous' }}</p>
-        <p><b>Email:</b> {{ donation.email or 'N/A' }}</p>
-        <p><b>Transaction ID:</b>
-            {{ donation.razorpay_payment_id or donation.razorpay_order_id }}
-        </p>
-    </div>
-
-    <div class="text-sm mb-4">
-        <p><b>Amount Donated:</b> ₹{{ "%.2f"|format(amount/100) }}</p>
-    </div>
-
-    <p class="text-sm mb-4">
-        This is to acknowledge receipt of the above donation.
-        The donation is voluntary and non-refundable.
-    </p>
-
-    <p class="text-sm mb-4">
-        <b>80G Tax Exemption:</b><br>
-        Eligible under Section 80G of the Income Tax Act, 1961.
-    </p>
-
-    <p class="text-sm mb-6">
-        <b>80G Reg No:</b> {{ get_cms('cert_80g') }}<br>
-        <b>PAN:</b> {{ get_cms('tax_id') }}
-    </p>
-
-    <!-- QR CODE -->
-    <div class="text-center mb-8">
-        {% if qr_code %}
-            <img src="data:image/png;base64,{{ qr_code }}" width="120" height="120">
-            <p class="text-xs mt-2">Scan to verify receipt</p>
-        {% endif %}
-    </div>
-
-    <div class="flex justify-between text-sm mt-16">
-        <div>
-            _______________________<br>
-            Authorized Signatory
+        <div class="flex flex-col sm:flex-row gap-3 print:hidden">
+          <button onclick="window.print()" class="px-5 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition">
+            Print Receipt
+          </button>
+          <a href="{{ url_for('user_donations') }}" class="px-5 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition text-center">
+            Back to Donations
+          </a>
+          <a href="{{ url_for('dashboard') }}" class="px-5 py-3 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 transition text-center">
+            Go to Dashboard
+          </a>
         </div>
-        <div>
-            _______________________<br>
-            Organization Stamp
-        </div>
+      </div>
     </div>
+  </div>
+</section>
 
-    <p class="text-center text-xs mt-8">
-        This is a system-generated receipt.
-    </p>
-
-</div>
-
-<!-- ================= PRINT CSS (FINAL, BLANK-PAGE SAFE) ================= -->
 <style>
 @media print {
+  nav,
+  footer,
+  .sticky-donate,
+  #cookie-banner {
+    display: none !important;
+  }
 
-    /* REMOVE screen UI completely */
-    .screen-only {
-        display: none !important;
-    }
+  body {
+    background: #ffffff !important;
+  }
 
-    /* SHOW print receipt */
-    .print-only {
-        display: block !important;
-    }
+  main {
+    padding: 0 !important;
+  }
 
-    nav, footer {
-        display: none !important;
-    }
-
-    body {
-        background: white !important;
-    }
-
-    * {
-        animation: none !important;
-        box-shadow: none !important;
-        background-image: none !important;
-    }
-
-    @page {
-        size: A4;
-        margin: 15mm;
-    }
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
 }
 </style>
-
-<script>
-    lucide.createIcons();
-</script>
-
 {% endblock %}

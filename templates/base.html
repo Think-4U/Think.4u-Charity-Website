@@ -366,6 +366,7 @@
                 <p class="text-white/60 text-sm">
                     {{ get_cms('footer_copyright', '© ' ~ current_year ~ ' Think.4U. All rights reserved.') }}
                 </p>
+                <p class="text-white/50 text-xs">Version {{ app_version }}</p>
                 <div class="flex gap-6 text-sm">
                     <a href="{{ url_for('policy_terms') }}" class="text-white/60 hover:text-amber-400 transition">Policy & Terms</a>
                     <a href="{{ url_for('error_help') }}" class="text-white/60 hover:text-amber-400 transition">Error Help</a>

@@ -65,7 +65,7 @@
 
         <div class="mt-4 flex flex-wrap gap-3 items-center justify-between">
           <a href="/donate-upi" class="text-teal-700 hover:text-teal-800 font-semibold text-sm">Prefer UPI QR? Pay using UPI instead.</a>
-          <span class="text-xs text-slate-500">Gateway: Razorpay Secure Checkout</span>
+          <span class="text-xs text-slate-500">Gateway: Razorpay Secure Checkout (some netbanking flows may open bank window)</span>
         </div>
       </div>
 
@@ -78,7 +78,7 @@
           </li>
           <li class="flex gap-2">
             <span class="font-black text-teal-600">2.</span>
-            <span>Razorpay checkout opens for payment.</span>
+            <span>Razorpay checkout opens with UPI ID/apps, cards, wallets, and netbanking options.</span>
           </li>
           <li class="flex gap-2">
             <span class="font-black text-teal-600">3.</span>
@@ -110,6 +110,10 @@
   const nameInput = document.getElementById("donor_name");
   const emailInput = document.getElementById("donor_email");
   const phoneInput = document.getElementById("donor_phone");
+  let lastOrderId = "";
+  let reusableOrder = null;
+  const RETRY_WINDOW_MINUTES = Math.max(1, Number({{ payment_retry_window_minutes|default(15)|int }}));
+  const ORDER_RETRY_WINDOW_MS = RETRY_WINDOW_MINUTES * 60 * 1000;
 
   const statusStyles = {
     idle: { dot: "bg-slate-400", title: "text-slate-800", msg: "text-slate-600" },
@@ -138,6 +142,15 @@
   function setButtonState(disabled, label) {
     payBtn.disabled = disabled;
     btnText.textContent = label;
+  }
+
+  function isReusableOrderValid() {
+    return !!(reusableOrder && reusableOrder.id && Date.now() < reusableOrder.expiresAt);
+  }
+
+  function secondsLeftForOrder() {
+    if (!reusableOrder) return 0;
+    return Math.max(0, Math.floor((reusableOrder.expiresAt - Date.now()) / 1000));
   }
 
   async function createOrder(payload) {
@@ -181,6 +194,23 @@
     }
   }
 
+  async function reportPaymentStatus(orderId, status, reason) {
+    if (!orderId) return;
+    try {
+      await fetch("/payment-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: orderId,
+          status: status,
+          reason: reason
+        })
+      });
+    } catch (_) {
+      // Best effort update for dashboard visibility.
+    }
+  }
+
   payBtn.addEventListener("click", async () => {
     const name = (nameInput.value || "").trim();
     const email = (emailInput.value || "").trim();
@@ -213,36 +243,77 @@
       return;
     }
 
+    let order = null;
     const amountInPaise = Math.round(amountValue * 100);
-    setButtonState(true, "Creating secure order...");
-    setStatus("loading", "Creating order", "Contacting payment gateway securely...");
 
     try {
-      const order = await createOrder({
-        amount: amountInPaise,
-        name,
-        email,
-        phone
-      });
+      if (isReusableOrderValid() && reusableOrder.amount === amountInPaise) {
+        order = reusableOrder;
+        setButtonState(true, "Retrying payment...");
+        setStatus("loading", "Retrying previous order", `Resuming secure checkout (${secondsLeftForOrder()}s left).`);
+      } else {
+        setButtonState(true, "Creating secure order...");
+        setStatus("loading", "Creating order", "Contacting payment gateway securely...");
+        order = await createOrder({
+          amount: amountInPaise,
+          name,
+          email,
+          phone
+        });
+        lastOrderId = order.id;
+        reusableOrder = {
+          ...order,
+          expiresAt: Date.now() + ORDER_RETRY_WINDOW_MS
+        };
+      }
 
       setStatus("loading", "Opening checkout", "Secure payment window is opening...");
 
       const options = {
-        key: "{{ razor_key }}",
+        key: order.key_id || "{{ razor_key }}",
         amount: order.amount,
         currency: "INR",
         order_id: order.id,
         name: "Think.4U",
         description: "Donation",
-        timeout: 600,
-        retry: { enabled: true, max_count: 2 },
+        timeout: Math.max(60, secondsLeftForOrder() || (RETRY_WINDOW_MINUTES * 60)),
+        retry: { enabled: true, max_count: 3 },
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+          wallet: true
+        },
+        config: {
+          display: {
+            blocks: {
+              upi: {
+                name: "Pay by UPI",
+                instruments: [{ method: "upi" }]
+              }
+            },
+            sequence: ["block.upi"],
+            preferences: {
+              show_default_blocks: true
+            }
+          }
+        },
         modal: {
-          ondismiss: function () {
-            setStatus("warning", "Checkout closed", "Payment was not completed. You can retry now.");
-            setButtonState(false, "Donate Now");
+          ondismiss: async function () {
+            if (isReusableOrderValid()) {
+              setStatus("warning", "Checkout closed", "Payment was not completed. You can retry using the same order.");
+              setButtonState(false, "Retry Payment");
+              await reportPaymentStatus(order.id, "retryable", "Checkout closed by user");
+            } else {
+              setStatus("error", "Order expired", "Order window expired. Please create a fresh donation.");
+              setButtonState(false, "Donate Now");
+              await reportPaymentStatus(order.id, "expired", "Order expired after checkout close");
+              reusableOrder = null;
+            }
           }
         },
         handler: function (response) {
+          reusableOrder = null;
           setStatus("success", "Payment received", "Verifying payment and generating your receipt...");
           setButtonState(true, "Verifying payment...");
           window.location.href =
@@ -261,22 +332,44 @@
       const rzp = new Razorpay(options);
       rzp.on("payment.failed", async function (response) {
         const reason = response?.error?.description || "Payment failed. Please retry.";
-        setStatus("error", "Payment failed", reason);
-        setButtonState(false, "Retry Donation");
-        await window.showUiAlert(reason, "error", "Payment Failed");
+        if (isReusableOrderValid()) {
+          setStatus("warning", "Payment failed", "Attempt failed, but your order is still valid for retry.");
+          setButtonState(false, "Retry Payment");
+          await reportPaymentStatus(order.id, "retryable", reason);
+          if (window.showUiToast) {
+            window.showUiToast(reason, "warning");
+          }
+        } else {
+          setStatus("error", "Payment failed", reason);
+          setButtonState(false, "Donate Now");
+          await reportPaymentStatus(order.id, "failed", reason);
+          await window.showUiAlert(reason, "error", "Payment Failed");
+          reusableOrder = null;
+        }
       });
 
       try {
         rzp.open();
       } catch (openError) {
-        setStatus("error", "Could not open checkout", "Popup was blocked or checkout failed to launch.");
-        setButtonState(false, "Retry Donation");
+        if (isReusableOrderValid()) {
+          setStatus("warning", "Checkout blocked", "Popup was blocked. You can retry payment.");
+          setButtonState(false, "Retry Payment");
+          await reportPaymentStatus(order.id, "retryable", "Checkout popup blocked");
+        } else {
+          setStatus("error", "Could not open checkout", "Payment popup blocked and order expired.");
+          setButtonState(false, "Donate Now");
+          await reportPaymentStatus(order.id, "failed", "Checkout popup blocked and expired");
+          reusableOrder = null;
+        }
         await window.showUiAlert("Could not open payment window. Please allow popups and retry.", "error", "Checkout Error");
       }
     } catch (err) {
       const message = err?.message || "Payment initiation failed.";
       setStatus("error", "Order creation failed", message);
-      setButtonState(false, "Retry Donation");
+      setButtonState(false, isReusableOrderValid() ? "Retry Payment" : "Donate Now");
+      if (lastOrderId && !isReusableOrderValid()) {
+        await reportPaymentStatus(lastOrderId, "failed", message);
+      }
       await window.showUiAlert(message, "error", "Payment Failed");
     }
   });

@@ -20,11 +20,11 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div class="bg-white rounded-2xl shadow border p-5">
                 <p class="text-sm text-slate-500">Total Donated</p>
-                <p class="text-3xl font-black text-emerald-600">₹{{ "{:,.2f}".format(total_donated) }}</p>
+                <p class="text-3xl font-black text-emerald-600">Rs {{ "{:,.2f}".format(total_donated) }}</p>
             </div>
             <div class="bg-white rounded-2xl shadow border p-5">
-                <p class="text-sm text-slate-500">Donation Records</p>
-                <p class="text-3xl font-black text-blue-600">{{ recent_donations|length }}</p>
+                <p class="text-sm text-slate-500">Total Donations</p>
+                <p class="text-3xl font-black text-blue-600">{{ donation_records_count or 0 }}</p>
             </div>
             <div class="bg-white rounded-2xl shadow border p-5">
                 <p class="text-sm text-slate-500">Volunteer Status</p>
@@ -48,7 +48,7 @@
                     {% for item in notifications %}
                     <div class="border rounded-xl p-4">
                         <p class="font-semibold text-slate-900">{{ item.title or 'Notification' }}</p>
-                        <p class="text-slate-700">{{ item.body or '-' }}</p>
+                        <p class="text-slate-700">{{ item.body_display or item.body or '-' }}</p>
                         <p class="text-xs text-slate-500 mt-2">{{ item.created_at[:19] if item.created_at else '' }}</p>
                     </div>
                     {% endfor %}
@@ -60,7 +60,7 @@
 
             <div class="bg-white rounded-2xl shadow border p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-slate-900">Recent Donations</h2>
+                    <h2 class="text-2xl font-bold text-slate-900">Recent Donations (Last 4)</h2>
                     <a href="{{ url_for('user_donations') }}" class="text-sm font-semibold text-blue-600">View All</a>
                 </div>
                 {% if recent_donations %}
@@ -74,7 +74,7 @@
                             </p>
                         </div>
                         <div class="text-right">
-                            <p class="font-black text-emerald-600">₹{{ "{:,.2f}".format((d.amount or 0) / 100) }}</p>
+                            <p class="font-black text-emerald-600">Rs {{ "{:,.2f}".format((d.amount or 0) / 100) }}</p>
                             {% if d.status == 'paid' %}
                             <a href="{{ url_for('donation_receipt', donation_id=d.id) }}" class="text-xs text-blue-600 font-semibold">Receipt</a>
                             {% endif %}

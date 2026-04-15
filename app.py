@@ -169,7 +169,7 @@ def create_razorpay_order(amount, currency, receipt, notes=None):
     response = httpx.post(
         "https://api.razorpay.com/v1/orders",
         auth=(RAZOR_KEY, RAZOR_SECRET),
-        data=payload,
+        json=payload,
         timeout=15.0,
     )
     if response.status_code not in (200, 201):
@@ -957,7 +957,10 @@ def create_order():
         })
 
     except RuntimeError as e:
-        app.logger.error(f"Razorpay error: {e}")
+        error_text = str(e)
+        app.logger.error(f"Razorpay error: {error_text}")
+        if "BAD_REQUEST_ERROR" in error_text or "input_validation_failed" in error_text:
+            return jsonify({"error": "Payment order was rejected by gateway. Please verify details and retry."}), 400
         return jsonify({"error": "Payment service unavailable"}), 503
     except Exception as e:
         app.logger.error(f"Order creation failed: {e}")

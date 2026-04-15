@@ -396,6 +396,16 @@
         </div>
     </div>
 
+    <div id="global-loader" class="hidden fixed inset-0 z-[10000] bg-slate-950/60 backdrop-blur-sm">
+        <div class="h-full w-full flex items-center justify-center px-4">
+            <div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200 text-center min-w-[260px]">
+                <img src="{{ url_for('static', filename='images/favicon.png') }}" alt="Think.4U" class="w-16 h-16 mx-auto mb-4">
+                <div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-cyan-200 border-t-cyan-600 animate-spin"></div>
+                <p id="global-loader-message" class="text-sm font-semibold text-slate-700">Loading, please wait...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -462,6 +472,32 @@
             return !!result.isConfirmed;
         };
 
+        const loaderElement = document.getElementById('global-loader');
+        const loaderMessageElement = document.getElementById('global-loader-message');
+        let loaderTimer = null;
+
+        window.showGlobalLoader = (message = 'Loading, please wait...', delayMs = 120) => {
+            if (!loaderElement) return;
+            if (loaderMessageElement) {
+                loaderMessageElement.textContent = message;
+            }
+            if (loaderTimer) {
+                clearTimeout(loaderTimer);
+            }
+            loaderTimer = setTimeout(() => {
+                loaderElement.classList.remove('hidden');
+            }, Math.max(0, Number(delayMs) || 0));
+        };
+
+        window.hideGlobalLoader = () => {
+            if (!loaderElement) return;
+            if (loaderTimer) {
+                clearTimeout(loaderTimer);
+                loaderTimer = null;
+            }
+            loaderElement.classList.add('hidden');
+        };
+
         // Auto-attach CSRF token to all same-origin non-GET fetch calls.
         const originalFetch = window.fetch.bind(window);
         window.fetch = (resource, init = {}) => {
@@ -491,6 +527,8 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
+            window.hideGlobalLoader();
+
             if (window.lucide) {
                 lucide.createIcons();
             }
@@ -608,6 +646,32 @@
                     }
                 });
             });
+
+            document.addEventListener('click', (event) => {
+                const anchor = event.target.closest('a');
+                if (!anchor) return;
+                if (anchor.hasAttribute('data-no-loader')) return;
+                if (anchor.target && anchor.target.toLowerCase() === '_blank') return;
+                if (anchor.hasAttribute('download')) return;
+                if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+                const href = anchor.getAttribute('href') || '';
+                if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+                if (href.includes('#') && (href.startsWith('/') || href.startsWith(window.location.pathname))) return;
+
+                window.showGlobalLoader('Opening page...');
+            }, true);
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) return;
+                if (form.hasAttribute('data-no-loader')) return;
+                window.showGlobalLoader('Processing request...');
+            }, true);
+        });
+
+        window.addEventListener('pageshow', () => {
+            window.hideGlobalLoader();
         });
     </script>
 

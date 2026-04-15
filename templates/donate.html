@@ -243,6 +243,10 @@
       return;
     }
 
+    if (window.showGlobalLoader) {
+      window.showGlobalLoader("Preparing secure checkout...");
+    }
+
     let order = null;
     const amountInPaise = Math.round(amountValue * 100);
 
@@ -329,6 +333,9 @@
         theme: { color: "#0d9488" }
       };
 
+      if (window.hideGlobalLoader) {
+        window.hideGlobalLoader();
+      }
       const rzp = new Razorpay(options);
       rzp.on("payment.failed", async function (response) {
         const reason = response?.error?.description || "Payment failed. Please retry.";
@@ -351,6 +358,9 @@
       try {
         rzp.open();
       } catch (openError) {
+        if (window.hideGlobalLoader) {
+          window.hideGlobalLoader();
+        }
         if (isReusableOrderValid()) {
           setStatus("warning", "Checkout blocked", "Popup was blocked. You can retry payment.");
           setButtonState(false, "Retry Payment");
@@ -367,6 +377,9 @@
       const message = err?.message || "Payment initiation failed.";
       setStatus("error", "Order creation failed", message);
       setButtonState(false, isReusableOrderValid() ? "Retry Payment" : "Donate Now");
+      if (window.hideGlobalLoader) {
+        window.hideGlobalLoader();
+      }
       if (lastOrderId && !isReusableOrderValid()) {
         await reportPaymentStatus(lastOrderId, "failed", message);
       }

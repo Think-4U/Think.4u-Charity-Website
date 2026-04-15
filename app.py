@@ -657,7 +657,14 @@ def set_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), "
+        "microphone=(), "
+        "geolocation=(), "
+        "accelerometer=(self \"https://checkout.razorpay.com\"), "
+        "gyroscope=(self \"https://checkout.razorpay.com\"), "
+        "magnetometer=(self \"https://checkout.razorpay.com\")"
+    )
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     if ENFORCE_HTTPS:
@@ -666,8 +673,8 @@ def set_security_headers(response):
         "default-src 'self'; "
         "frame-ancestors 'none'; "
         "img-src 'self' data: https:; "
-        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
-        "script-src-elem 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
+        "script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "

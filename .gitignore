@@ -6,3 +6,4 @@ __pycache__/
 .pytest_cache/
 .dist/
 static/uploads/
+node_modules/

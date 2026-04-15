@@ -16,6 +16,13 @@
   - `vercel.json`
   - `api/index.py` (Python serverless function)
 
+### Frontend CSS Build (Tailwind)
+- This project uses compiled Tailwind CSS (no CDN in production).
+- After template/class changes, run:
+  - `npm install`
+  - `npm run build:css`
+- Ensure [static/css/tailwind.css](F:\LAPTOP\think4u\static\css\tailwind.css) is committed.
+
 ## 4) Add Vercel Environment Variables
 Set these in Vercel Project Settings -> Environment Variables:
 

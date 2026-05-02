@@ -4,679 +4,322 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="user-authenticated" content="{{ 'true' if current_user.is_authenticated else 'false' }}">
+    <meta name="inactivity-timeout" content="{{ inactivity_timeout_minutes|int }}">
     <title>{% block title %}{{ get_cms('site_title', 'Think.4U - Community Charity Foundation') }}{% endblock %}</title>
-    
-    <!-- Meta Tags -->
     <meta name="description" content="{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through compassion and action.') }}">
     <meta name="keywords" content="charity, donation, volunteer, community, help, support">
-    
-    <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
-
-    <!-- Tailwind CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <style>
         :root {
-            /* Charity Color Palette */
-            --primary-blue: #1e40af;
-            --secondary-sky: #0ea5e9;
-            --accent-emerald: #10b981;
-            --warm-orange: #f97316;
-            --gold-amber: #f59e0b;
-            
-            /* Gradients */
-            --hero-gradient: linear-gradient(135deg, #1e3a8a 0%, #1e40af 25%, #0ea5e9 75%, #38bdf8 100%);
-            --cta-gradient: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-            --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --charity-dark: #1f0606;
+            --charity-gold: #d58d4b;
+            --charity-gold-hover: #c97835;
         }
-
+        * { margin:0; padding:0; box-sizing:border-box; }
         body {
-            font-family: 'Inter', sans-serif;
-            background: #f8fafc;
+            font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;
+            line-height:1.6;
+            color:#0f172a;
+            overflow-x:hidden;
+            background:#f8fafc;
         }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Poppins', sans-serif;
+        /* HEADER */
+        header {
+            background:var(--charity-dark);
+            color:white;
+            padding:0.5rem 2rem;
+            position:sticky;
+            top:0;
+            z-index:1000;
+            box-shadow:0 8px 32px rgba(0,0,0,0.15);
+            backdrop-filter:blur(10px);
         }
-
-        /* Animated Background */
-        #canvas-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            opacity: 0.15;
-            pointer-events: none;
+        .header-container {
+            max-width:1200px;
+            margin:0 auto;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
         }
-
-        /* Logo Animation */
-        .logo-pulse {
-            animation: logoPulse 3s ease-in-out infinite;
+        .logo img {
+            height:70px;
+            width:auto;
+            object-fit:contain;
+            filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            transition:transform 0.3s ease;
         }
-
-        @keyframes logoPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        .logo img:hover { transform:scale(1.05); }
+        .nav-menu {
+            display:flex;
+            gap:2rem;
+            align-items:center;
+            list-style:none;
         }
-
-        /* Gradient Text */
-        .gradient-text {
-            background: linear-gradient(135deg, #1e40af, #0ea5e9, #10b981);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .nav-menu a {
+            color:rgba(255,255,255,0.9);
+            text-decoration:none;
+            font-weight:500;
+            transition:color 0.3s;
+            text-shadow:0 1px 1px rgba(0,0,0,0.3);
         }
-
-        /* Glassmorphism */
-        .glass {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        .nav-menu a:hover { color:var(--charity-gold); }
+        .btn-header {
+            background:var(--charity-gold);
+            color:white;
+            padding:0.75rem 1.5rem;
+            border:none;
+            border-radius:4px;
+            cursor:pointer;
+            font-weight:600;
+            transition:background 0.3s;
+            text-shadow:0 1px 1px rgba(0,0,0,0.2);
         }
-
-        /* Floating Animation */
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
+        .btn-header:hover { background:var(--charity-gold-hover); }
+        /* FOOTER */
+        footer {
+            background:var(--charity-dark);
+            color:rgba(255,255,255,0.8);
+            padding:60px 2rem 20px;
+            position:relative;
+            overflow:hidden;
+            box-shadow:0 -10px 40px rgba(0,0,0,0.3);
         }
-
-        .float {
-            animation: float 6s ease-in-out infinite;
+        footer::before {
+            content:'';
+            position:absolute;
+            top:0;
+            left:0;
+            right:0;
+            height:1px;
+            background:linear-gradient(90deg,transparent,var(--charity-gold),transparent);
         }
-
-        /* Sticky Donate Button */
-        .sticky-donate {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            z-index: 1000;
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        .footer-content {
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+            gap:2rem;
+            max-width:1200px;
+            margin:0 auto 2rem;
         }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.9; transform: scale(1.05); }
+        .footer-section h3 {
+            color:var(--charity-gold);
+            margin-bottom:1.5rem;
+            font-size:1.2rem;
+            text-shadow:0 1px 1px rgba(0,0,0,0.3);
         }
-
-        /* Smooth Scroll */
-        html {
-            scroll-behavior: smooth;
+        .footer-section ul { list-style:none; }
+        .footer-section ul li { margin-bottom:0.8rem; }
+        .footer-section a {
+            color:rgba(255,255,255,0.7);
+            text-decoration:none;
+            transition:all 0.3s ease;
+            position:relative;
+            text-shadow:0 1px 1px rgba(0,0,0,0.2);
         }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 10px;
+        .footer-section a::after {
+            content:'';
+            position:absolute;
+            bottom:-2px;
+            left:0;
+            width:0;
+            height:2px;
+            background:var(--charity-gold);
+            transition:width 0.3s ease;
         }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
+        .footer-section a:hover::after { width:100%; }
+        .footer-section a:hover { color:var(--charity-gold); }
+        .footer-bottom {
+            border-top:1px solid rgba(255,255,255,0.1);
+            padding-top:2rem;
+            text-align:center;
+            max-width:1200px;
+            margin:0 auto;
+            color:rgba(255,255,255,0.6);
+            font-size:0.9rem;
+            text-shadow:0 1px 1px rgba(0,0,0,0.2);
         }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #1e40af, #0ea5e9);
-            border-radius: 10px;
+        @keyframes fadeIn {
+            from{opacity:0;transform:translateY(20px);}
+            to{opacity:1;transform:translateY(0);}
         }
+        .animate-fadeIn { animation:fadeIn 0.6s ease-out forwards; }
+        ::-webkit-scrollbar { width:10px; }
+        ::-webkit-scrollbar-track { background:#f1f5f9; }
+        ::-webkit-scrollbar-thumb { background:var(--charity-dark); border-radius:10px; }
+        ::-webkit-scrollbar-thumb:hover { background:var(--charity-gold); }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #1e3a8a, #0284c7);
+        /* ========== GLOBAL CONTRAST & COLOR RULES ========== */
+        /* All light backgrounds get dark text */
+        body, .bg-white, .bg-slate-50, .bg-gray-50, .bg-gray-100,
+        .program-card, .impact-card, .glass, .bg-gradient-to-br,
+        .bg-white\/10, .bg-white\/20, .bg-gray-50, .bg-white {
+            color: #0f172a !important;
         }
-
-        /* Nav Hover Effect */
-        .nav-link {
-            position: relative;
-            transition: color 0.3s ease;
+        h1, h2, h3, h4, h5, h6, p, li, a, span, button, .btn, .section-title {
+            color: inherit;
         }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 3px;
-            bottom: -5px;
-            left: 50%;
-            background: linear-gradient(90deg, #f59e0b, #f97316);
-            transition: all 0.3s ease;
-            transform: translateX(-50%);
+        /* Headings on light backgrounds get a darker shade */
+        .section-title { color: #1e293b !important; }
+        /* Dark backgrounds force white text */
+        .bg-charity-dark, .bg-black, .bg-slate-900, header, footer,
+        .bg-charity-dark * {
+            color: white !important;
         }
+        .text-white { color: white !important; }
+        .text-slate-800 { color: #1e293b !important; }
 
-        .nav-link:hover::after {
-            width: 100%;
+        /* Subtle drop shadow for all text */
+        body, p, li, a, span, h1, h2, h3, h4, h5, h6, button, .btn {
+            text-shadow: 0 1px 1px rgba(0,0,0,0.05);
         }
-
-        /* Trust Badges */
-        .trust-badge {
-            transition: transform 0.3s ease;
+        h1, h2, h3, .section-title {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.15);
         }
-
-        .trust-badge:hover {
-            transform: translateY(-5px);
+        .impact-card .number {
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
     </style>
-
     {% block extra_css %}{% endblock %}
 </head>
-<body class="relative min-h-screen">
-    <!-- Animated Background Canvas -->
-    <canvas id="canvas-bg"></canvas>
-
-    <!-- Navigation -->
-    <nav class="glass sticky top-0 z-50 shadow-lg">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <!-- Logo -->
-                <a href="{{ url_for('index') }}" class="flex items-center gap-3 group">
-                        <img src="{{ url_for('static', filename='images/logo-white.png') }}" 
-                            alt="Think.4U Logo" 
-                            class="h-20 w-auto object-contain logo-pulse group-hover:scale-105 transition-transform">
-                    <span class="text-2xl font-black">
-                    Think<span class="text-amber-500">.4</span><span class="text-blue-600">U</span>
-                    </span>
-                </a>
-
-
-                <!-- Desktop Navigation -->
-                <div class="hidden md:flex items-center gap-8">
-                    <a href="{{ url_for('index') }}" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Home</a>
-                    <a href="{{ url_for('index') }}#programs" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Programs</a>
-                    <a href="{{ url_for('volunteer') }}" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Volunteer</a>
-                    <a href="{{ url_for('fundraising') }}" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Fundraising</a>
-                    <a href="{{ url_for('index') }}#impact" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Impact</a>
-
-                    {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}"
-                       class="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-full shadow hover:shadow-lg transition-all">
-                        Dashboard
-                    </a>
-                    <a href="{{ url_for('donate') }}"
-                       class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2">
-                        <i data-lucide="heart" class="w-4 h-4"></i>
-                        Donate
-                    </a>
-                    <a href="{{ url_for('logout') }}" class="nav-link text-slate-700 font-semibold hover:text-blue-600">Logout</a>
-                    {% else %}
-                    <a href="{{ url_for('login') }}"
-                       class="px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-full shadow hover:shadow-lg transition-all">
-                        Login
-                    </a>
-                    <a href="{{ url_for('signup') }}"
-                       class="px-6 py-3 bg-gradient-to-r from-blue-600 to-sky-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                        Sign Up
-                    </a>
-                    {% endif %}
-                </div>
-
-                <!-- Mobile Menu Button -->
-                <button id="mobile-menu-btn" class="md:hidden text-slate-700 hover:text-blue-600 transition">
-                    <i data-lucide="menu" class="w-6 h-6"></i>
-                </button>
-            </div>
-
-            <!-- Mobile Menu -->
-            <div id="mobile-menu" class="hidden md:hidden mt-6 pb-4 space-y-4">
-                <a href="{{ url_for('index') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Home</a>
-                <a href="{{ url_for('index') }}#programs" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Programs</a>
-                <a href="{{ url_for('volunteer') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Volunteer</a>
-                <a href="{{ url_for('fundraising') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Fundraising</a>
-                <a href="{{ url_for('index') }}#impact" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Impact</a>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo"><a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U Logo"></a></div>
+            <ul class="nav-menu hidden md:flex">
+                <li><a href="{{ url_for('index') }}#about">About</a></li>
+                <li><a href="{{ url_for('index') }}#programs">Programs</a></li>
+                <li><a href="{{ url_for('fundraising') }}">Fundraising</a></li>
+                <li><a href="{{ url_for('index') }}#impact">Impact</a></li>
                 {% if current_user.is_authenticated %}
-                <a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Dashboard</a>
-                <a href="{{ url_for('donate') }}"
-                   class="block text-center px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg">
-                    Donate Now
-                </a>
-                <a href="{{ url_for('logout') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Logout</a>
+                <li><a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                <li><a href="{{ url_for('donate') }}"><button class="btn-header">Donate</button></a></li>
                 {% else %}
-                <a href="{{ url_for('login') }}" class="block text-slate-700 font-semibold hover:text-blue-600 py-2">Login</a>
-                <a href="{{ url_for('signup') }}"
-                   class="block text-center px-6 py-3 bg-gradient-to-r from-blue-600 to-sky-600 text-white font-bold rounded-full shadow-lg">
-                    Sign Up
-                </a>
+                <li><a href="{{ url_for('login') }}">Login</a></li>
+                <li><a href="{{ url_for('signup') }}"><button class="btn-header">Sign Up</button></a></li>
                 {% endif %}
-            </div>
+            </ul>
+            <button id="mobile-menu-btn" class="md:hidden text-white hover:text-charity-gold transition"><i data-lucide="menu" class="w-8 h-8"></i></button>
         </div>
-    </nav>
+        <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 space-y-4 text-center">
+            <a href="{{ url_for('index') }}#about" class="block text-white hover:text-charity-gold py-2">About</a>
+            <a href="{{ url_for('index') }}#programs" class="block text-white hover:text-charity-gold py-2">Programs</a>
+            <a href="{{ url_for('fundraising') }}" class="block text-white hover:text-charity-gold py-2">Fundraising</a>
+            <a href="{{ url_for('index') }}#impact" class="block text-white hover:text-charity-gold py-2">Impact</a>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}" class="block text-white hover:text-charity-gold py-2">Dashboard</a>
+            <a href="{{ url_for('logout') }}" class="block text-white hover:text-charity-gold py-2">Logout</a>
+            <a href="{{ url_for('donate') }}" class="block"><button class="btn-header w-full">Donate</button></a>
+            {% else %}
+            <a href="{{ url_for('login') }}" class="block text-white hover:text-charity-gold py-2">Login</a>
+            <a href="{{ url_for('signup') }}" class="block"><button class="btn-header w-full">Sign Up</button></a>
+            {% endif %}
+        </div>
+    </header>
 
-    <!-- Trust Badges Bar -->
     <div class="bg-gradient-to-r from-blue-50 via-sky-50 to-emerald-50 py-4 border-b border-blue-100">
         <div class="container mx-auto px-4">
             <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
-                <div class="flex items-center gap-2 text-slate-700 trust-badge">
-                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
-                    <span class="font-semibold">{{ get_cms('trust_badge_1', '100% Secure') }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-slate-700 trust-badge">
-                    <i data-lucide="award" class="w-5 h-5 text-blue-600"></i>
-                    <span class="font-semibold">{{ get_cms('trust_badge_2', 'Tax Deductible') }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-slate-700 trust-badge">
-                    <i data-lucide="users" class="w-5 h-5 text-amber-600"></i>
-                    <span class="font-semibold">{{ get_cms('trust_badge_3', '10,000+ Supporters') }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-slate-700 trust-badge">
-                    <i data-lucide="heart" class="w-5 h-5 text-rose-500"></i>
-                    <span class="font-semibold">{{ get_cms('trust_badge_4', 'Transparent Impact') }}</span>
-                </div>
+                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i><span class="font-semibold">100% Secure</span></div>
+                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="award" class="w-5 h-5 text-blue-600"></i><span class="font-semibold">Tax Deductible</span></div>
+                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="users" class="w-5 h-5 text-amber-600"></i><span class="font-semibold">10,000+ Supporters</span></div>
+                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="heart" class="w-5 h-5 text-rose-500"></i><span class="font-semibold">Transparent Impact</span></div>
             </div>
         </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <script>
-        window.__flashMessages = {{ messages|tojson }};
-    </script>
-    {% endif %}
+    <meta name="flash-messages" content="{{ messages|tojson|forceescape }}">
     {% endwith %}
 
-    <!-- Main Content -->
-    <main class="relative z-10">
-        {% block content %}{% endblock %}
-    </main>
+    <main class="relative z-10">{% block content %}{% endblock %}</main>
 
-    <!-- Footer -->
-    <footer class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white py-16 mt-20">
-        <div class="container mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-                <!-- About Column -->
-                <div>
-                    <div class="flex items-center gap-3 mb-6">
-                        <img src="{{ url_for('static', filename='images/logo-white.png') }}" 
-                            alt="Think.4U Logo" 
-                            class="h-20 w-auto object-contain">
-                            <span class="text-xl font-black">Think<span class="text-amber-400">.4</span>U</span>
-                    </div>
-                    <p class="text-white/80 leading-relaxed">
-                        {{ get_cms('footer_about', 'Making a difference in our community through compassion, dedication, and meaningful action.') }}
-                    </p>
-                </div>
-
-                <!-- Quick Links -->
-                <div>
-                    <h3 class="text-lg font-bold mb-4 text-amber-400">Quick Links</h3>
-                    <ul class="space-y-3">
-                        <li><a href="{{ url_for('index') }}" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
-                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Home
-                        </a></li>
-                        <li><a href="{{ url_for('index') }}#programs" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
-                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Programs
-                        </a></li>
-                        <li><a href="{{ url_for('volunteer') }}" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
-                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Volunteer
-                        </a></li>
-                        <li><a href="{{ url_for('donate') }}" class="text-white/80 hover:text-amber-400 transition flex items-center gap-2">
-                            <i data-lucide="chevron-right" class="w-4 h-4"></i>Donate
-                        </a></li>
-                    </ul>
-                </div>
-
-                <!-- Contact Info -->
-                <div>
-                    <h3 class="text-lg font-bold mb-4 text-amber-400">Contact Us</h3>
-                    <ul class="space-y-3">
-                        <li class="flex items-start gap-3 text-white/80">
-                            <i data-lucide="mail" class="w-5 h-5 mt-1 text-sky-400"></i>
-                            <span>{{ get_cms('contact_email', 'hello@think4u.org') }}</span>
-                        </li>
-                        <li class="flex items-start gap-3 text-white/80">
-                            <i data-lucide="phone" class="w-5 h-5 mt-1 text-emerald-400"></i>
-                            <span>{{ get_cms('contact_phone', '+91 1234567890') }}</span>
-                        </li>
-                        <li class="flex items-start gap-3 text-white/80">
-                            <i data-lucide="map-pin" class="w-5 h-5 mt-1 text-orange-400"></i>
-                            <span>{{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Social Media -->
-                <div>
-                    <h3 class="text-lg font-bold mb-4 text-amber-400">Follow Us</h3>
-                    <div class="flex gap-4 mb-6">
-                        <a href="{{ get_cms('social_facebook', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-blue-600 rounded-full flex items-center justify-center transition-all hover:scale-110">
-                            <i data-lucide="users" class="w-5 h-5"></i>
-                        </a>
-                        <a href="{{ get_cms('social_twitter', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-sky-500 rounded-full flex items-center justify-center transition-all hover:scale-110">
-                            <i data-lucide="message-circle" class="w-5 h-5"></i>
-                        </a>
-                        <a href="{{ get_cms('social_instagram', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all hover:scale-110">
-                            <i data-lucide="camera" class="w-5 h-5"></i>
-                        </a>
-                        <a href="{{ get_cms('social_linkedin', '#') }}" class="w-10 h-10 bg-white/10 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all hover:scale-110">
-                            <i data-lucide="briefcase" class="w-5 h-5"></i>
-                        </a>
-                    </div>
-                    <p class="text-white/60 text-sm">
-                        {{ get_cms('footer_social_text', 'Stay connected and join our community of supporters making a real difference.') }}
-                    </p>
-                </div>
-            </div>
-
-            <!-- Bottom Bar -->
-            <div class="border-t border-white/20 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p class="text-white/60 text-sm">
-                    {{ get_cms('footer_copyright', '© ' ~ current_year ~ ' Think.4U. All rights reserved.') }}
-                </p>
-                <p class="text-white/50 text-xs">Version {{ app_version }}</p>
-                <div class="flex gap-6 text-sm">
-                    <a href="{{ url_for('policy_terms') }}" class="text-white/60 hover:text-amber-400 transition">Policy & Terms</a>
-                    <a href="{{ url_for('error_help') }}" class="text-white/60 hover:text-amber-400 transition">Error Help</a>
-                    <a href="{{ url_for('grievance_feedback') if current_user.is_authenticated else url_for('login') }}" class="text-white/60 hover:text-amber-400 transition">Grievance & Feedback</a>
-                </div>
-            </div>
+    <footer id="contact">
+        <div class="footer-content">
+            <div class="footer-section"><h3>Think.4U</h3><p>Making a positive impact through education, empowerment, and community development.</p></div>
+            <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('index') }}#about">About Us</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
+            <div class="footer-section"><h3>Contact</h3><ul><li>Email: hello@think4u.org</li><li>Phone: +91 9876543210</li><li>Address: Hyderabad, Telangana, India</li><li><a href="{{ url_for('grievance_feedback') if current_user.is_authenticated else url_for('login') }}">Contact Form</a></li></ul></div>
+            <div class="footer-section"><h3>Follow Us</h3><ul><li><a href="#">Facebook</a></li><li><a href="#">Instagram</a></li><li><a href="#">Twitter</a></li><li><a href="#">LinkedIn</a></li></ul></div>
         </div>
+        <div class="footer-bottom"><p>© {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Version {{ app_version }}</p></div>
     </footer>
 
-    <!-- Sticky Donate Button -->
-    <a href="{{ url_for('donate') if current_user.is_authenticated else url_for('login') }}"
-       class="sticky-donate hidden lg:flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-2xl hover:shadow-3xl group">
-        <i data-lucide="heart" class="w-5 h-5 group-hover:scale-125 transition-transform"></i>
-        <span>{{ get_cms('sticky_donate_text', 'Donate Now') }}</span>
-    </a>
-
-    <!-- Cookie Consent -->
     <div id="cookie-banner" class="hidden fixed bottom-4 left-4 right-4 z-[9999] max-w-3xl mx-auto bg-slate-900 text-white rounded-2xl p-4 shadow-2xl">
-        <div class="flex flex-col md:flex-row md:items-center gap-4">
-            <p class="text-sm text-white/90">
-                We use cookies to keep your session secure and improve your experience.
-                By continuing, you agree to our <a href="{{ url_for('policy_terms') }}" class="underline font-semibold">Policy & Terms</a>.
-            </p>
-            <button id="cookie-accept-btn" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-semibold text-sm">
-                Accept Cookies
-            </button>
-        </div>
+        <div class="flex flex-col md:flex-row md:items-center gap-4"><p class="text-sm text-white/90">We use cookies to keep your session secure and improve your experience. By continuing, you agree to our <a href="{{ url_for('policy_terms') }}" class="underline font-semibold">Policy & Terms</a>.</p><button id="cookie-accept-btn" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-semibold text-sm">Accept Cookies</button></div>
     </div>
+    <div id="global-loader" class="hidden fixed inset-0 z-[10000] bg-slate-950/60 backdrop-blur-sm"><div class="h-full w-full flex items-center justify-center px-4"><div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200 text-center min-w-[260px]"><img src="{{ url_for('static', filename='images/favicon.png') }}" alt="Think.4U" class="w-16 h-16 mx-auto mb-4"><div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-cyan-200 border-t-cyan-600 animate-spin"></div><p id="global-loader-message" class="text-sm font-semibold text-slate-700">Loading, please wait...</p></div></div></div>
 
-    <div id="global-loader" class="hidden fixed inset-0 z-[10000] bg-slate-950/60 backdrop-blur-sm">
-        <div class="h-full w-full flex items-center justify-center px-4">
-            <div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200 text-center min-w-[260px]">
-                <img src="{{ url_for('static', filename='images/favicon.png') }}" alt="Think.4U" class="w-16 h-16 mx-auto mb-4">
-                <div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-cyan-200 border-t-cyan-600 animate-spin"></div>
-                <p id="global-loader-message" class="text-sm font-semibold text-slate-700">Loading, please wait...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
     <script>
+        /* eslint-disable */
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         window.CSRF_TOKEN = csrfToken;
-        const userIsAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
-        const inactivityTimeoutMinutes = {{ inactivity_timeout_minutes|int }};
-        const inactivityTimeoutMs = inactivityTimeoutMinutes * 60 * 1000;
+        const userIsAuthenticated = document.querySelector('meta[name="user-authenticated"]')?.content === 'true';
+        const inactivityTimeoutMinutes = parseInt(document.querySelector('meta[name="inactivity-timeout"]')?.content || '15', 10);
+        const flashRaw = document.querySelector('meta[name="flash-messages"]')?.content || '[]';
+        let __flashMessages = [];
+        try { __flashMessages = JSON.parse(flashRaw); } catch(e) { __flashMessages = []; }
+        window.__flashMessages = __flashMessages;
+        const inactivityMs = inactivityTimeoutMinutes * 60 * 1000;
 
-        const categoryToIcon = {
-            success: 'success',
-            warning: 'warning',
-            error: 'error',
-            info: 'info'
+        window.showUiAlert = (msg, cat='info', title='Notice') => Swal?.fire({title, text:msg, icon:cat}) || alert(msg);
+        window.showUiToast = (msg, cat='info') => Swal?.fire({toast:true, position:'top-end', timer:3500, showConfirmButton:false, icon:cat, title:msg});
+        window.showUiConfirm = async ({title='Confirm', text='Are you sure?', confirmText='Yes', cancelText='Cancel', icon='warning'}) => {
+            if(!Swal) return confirm(text);
+            const res = await Swal.fire({title, text, icon, showCancelButton:true, confirmButtonText:confirmText, cancelButtonText:cancelText});
+            return res.isConfirmed;
         };
-
-        window.showUiAlert = (message, category = 'info', title = 'Notice') => {
-            if (!window.Swal) {
-                alert(message);
-                return Promise.resolve();
-            }
-            return Swal.fire({
-                title,
-                text: message,
-                icon: categoryToIcon[category] || 'info',
-                confirmButtonColor: '#1e40af'
-            });
+        const loader = document.getElementById('global-loader'), loaderMsg = document.getElementById('global-loader-message');
+        let timer = null;
+        window.showGlobalLoader = (msg='Loading...', delay=120) => { if(loader){ if(loaderMsg) loaderMsg.textContent=msg; if(timer) clearTimeout(timer); timer=setTimeout(()=>loader.classList.remove('hidden'), Math.max(0,delay)); } };
+        window.hideGlobalLoader = () => { if(loader){ if(timer) clearTimeout(timer); loader.classList.add('hidden'); } };
+        const origFetch = window.fetch;
+        window.fetch = (res, init={}) => {
+            const opts = {...init}; const h = new Headers(opts.headers||{});
+            if(opts.method && opts.method!=='GET' && opts.method!=='HEAD' && opts.method!=='OPTIONS') h.set('X-CSRF-Token', csrfToken);
+            opts.headers = h;
+            return origFetch(res, opts);
         };
-
-        window.showUiToast = (message, category = 'info') => {
-            if (!window.Swal) {
-                return Promise.resolve();
-            }
-            return Swal.fire({
-                toast: true,
-                position: 'top-end',
-                timer: 3500,
-                timerProgressBar: true,
-                showConfirmButton: false,
-                icon: categoryToIcon[category] || 'info',
-                title: message
-            });
-        };
-
-        window.showUiConfirm = async ({
-            title = 'Please Confirm',
-            text = 'Are you sure?',
-            confirmText = 'Yes',
-            cancelText = 'Cancel',
-            icon = 'warning'
-        } = {}) => {
-            if (!window.Swal) {
-                return Promise.resolve(confirm(text));
-            }
-            const result = await Swal.fire({
-                title,
-                text,
-                icon,
-                showCancelButton: true,
-                confirmButtonText: confirmText,
-                cancelButtonText: cancelText,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#475569'
-            });
-            return !!result.isConfirmed;
-        };
-
-        const loaderElement = document.getElementById('global-loader');
-        const loaderMessageElement = document.getElementById('global-loader-message');
-        let loaderTimer = null;
-
-        window.showGlobalLoader = (message = 'Loading, please wait...', delayMs = 120) => {
-            if (!loaderElement) return;
-            if (loaderMessageElement) {
-                loaderMessageElement.textContent = message;
-            }
-            if (loaderTimer) {
-                clearTimeout(loaderTimer);
-            }
-            loaderTimer = setTimeout(() => {
-                loaderElement.classList.remove('hidden');
-            }, Math.max(0, Number(delayMs) || 0));
-        };
-
-        window.hideGlobalLoader = () => {
-            if (!loaderElement) return;
-            if (loaderTimer) {
-                clearTimeout(loaderTimer);
-                loaderTimer = null;
-            }
-            loaderElement.classList.add('hidden');
-        };
-
-        // Auto-attach CSRF token to all same-origin non-GET fetch calls.
-        const originalFetch = window.fetch.bind(window);
-        window.fetch = (resource, init = {}) => {
-            const options = { ...init };
-            const method = (options.method || 'GET').toUpperCase();
-            const headers = new Headers(options.headers || {});
-            if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-                headers.set('X-CSRF-Token', csrfToken);
-            }
-            options.headers = headers;
-            return originalFetch(resource, options);
-        };
-
-        // Auto-attach CSRF token to forms.
-        document.addEventListener('submit', (event) => {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement)) return;
-            const method = (form.method || 'GET').toUpperCase();
-            if (method === 'GET') return;
-            if (!form.querySelector('input[name="csrf_token"]')) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'csrf_token';
-                input.value = csrfToken;
-                form.appendChild(input);
+        document.addEventListener('submit', e => {
+            const form = e.target;
+            if(!form?.querySelector('input[name="csrf_token"]')) {
+                const inp = document.createElement('input');
+                inp.type='hidden'; inp.name='csrf_token'; inp.value=csrfToken;
+                form.appendChild(inp);
             }
         });
-
         document.addEventListener('DOMContentLoaded', () => {
             window.hideGlobalLoader();
-
-            if (window.lucide) {
-                lucide.createIcons();
-            }
-
-            const flashMessages = Array.isArray(window.__flashMessages) ? window.__flashMessages : [];
-            flashMessages.forEach(([category, message], index) => {
-                setTimeout(() => window.showUiToast(message, category), index * 220);
-            });
-
-            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-            const mobileMenu = document.getElementById('mobile-menu');
-            if (mobileMenuBtn && mobileMenu) {
-                mobileMenuBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
-            }
-
-            const cookieBanner = document.getElementById('cookie-banner');
-            const cookieAcceptBtn = document.getElementById('cookie-accept-btn');
-            if (cookieBanner && !localStorage.getItem('cookie_consent_accepted')) {
-                cookieBanner.classList.remove('hidden');
-            }
-            if (cookieAcceptBtn) {
-                cookieAcceptBtn.addEventListener('click', () => {
-                    localStorage.setItem('cookie_consent_accepted', 'true');
-                    cookieBanner?.classList.add('hidden');
-                });
-            }
-
-            if (userIsAuthenticated) {
+            if(window.lucide) lucide.createIcons();
+            const fm = window.__flashMessages;
+            if(Array.isArray(fm)) fm.forEach(([cat,msg],i)=>setTimeout(()=>window.showUiToast(msg,cat), i*220));
+            const btn = document.getElementById('mobile-menu-btn'), menu = document.getElementById('mobile-menu');
+            if(btn && menu) btn.addEventListener('click',()=>menu.classList.toggle('hidden'));
+            const cookieBanner = document.getElementById('cookie-banner'), acceptBtn = document.getElementById('cookie-accept-btn');
+            if(cookieBanner && !localStorage.getItem('cookie_consent_accepted')) cookieBanner.classList.remove('hidden');
+            if(acceptBtn) acceptBtn.addEventListener('click',()=>{ localStorage.setItem('cookie_consent_accepted','true'); cookieBanner?.classList.add('hidden'); });
+            if(userIsAuthenticated) {
                 let inactivityTimer = null;
-                const resetInactivityTimer = () => {
-                    if (inactivityTimer) clearTimeout(inactivityTimer);
-                    inactivityTimer = setTimeout(() => {
-                        window.showUiAlert(
-                            `You were inactive for ${inactivityTimeoutMinutes} minute(s). We will log you out for security.`,
-                            'warning',
-                            'Session Expired'
-                        ).then(() => {
-                            window.location.assign('{{ url_for("logout") }}?reason=inactive');
-                        });
-                    }, inactivityTimeoutMs);
-                };
-                ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach((eventName) => {
-                    window.addEventListener(eventName, resetInactivityTimer);
-                });
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible') {
-                        resetInactivityTimer();
-                    }
-                });
-                resetInactivityTimer();
+                const reset = () => { if(inactivityTimer) clearTimeout(inactivityTimer); inactivityTimer = setTimeout(()=> window.showUiAlert(`Inactive for ${inactivityTimeoutMinutes} minute(s). Logging out.`,'warning','Session Expired').then(()=>window.location.assign('{{ url_for("logout") }}?reason=inactive')), inactivityMs); };
+                ['mousemove','keydown','click','scroll','touchstart'].forEach(ev=>window.addEventListener(ev,reset));
+                document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') reset(); });
+                reset();
             }
-
-            const canvas = document.getElementById('canvas-bg');
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-
-                class Particle {
-                    constructor() {
-                        this.x = Math.random() * canvas.width;
-                        this.y = Math.random() * canvas.height;
-                        this.size = Math.random() * 3 + 1;
-                        this.speedX = Math.random() * 2 - 1;
-                        this.speedY = Math.random() * 2 - 1;
-                        this.color = ['#1e40af', '#0ea5e9', '#10b981', '#f59e0b'][Math.floor(Math.random() * 4)];
-                    }
-                    update() {
-                        this.x += this.speedX;
-                        this.y += this.speedY;
-                        if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
-                        if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
-                    }
-                    draw() {
-                        ctx.fillStyle = this.color;
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
+            document.querySelectorAll('a[href*="#"]').forEach(a=>a.addEventListener('click',function(e){
+                const href=this.getAttribute('href'); if(!href?.includes('#')) return;
+                const hash=href.substring(href.indexOf('#')), path=href.substring(0,href.indexOf('#'));
+                if(!path || path===window.location.pathname || path==='/') {
+                    const t=document.querySelector(hash); if(t){ e.preventDefault(); menu?.classList.add('hidden'); window.scrollTo({top:t.offsetTop - (document.querySelector('nav')?.offsetHeight||0)-20, behavior:'smooth'}); }
                 }
-
-                const particles = [];
-                for (let i = 0; i < 50; i++) particles.push(new Particle());
-                const animate = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    particles.forEach((particle) => {
-                        particle.update();
-                        particle.draw();
-                    });
-                    requestAnimationFrame(animate);
-                };
-                animate();
-                window.addEventListener('resize', () => {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                });
-            }
-
-            document.querySelectorAll('a[href*="#"]').forEach((anchor) => {
-                anchor.addEventListener('click', function (e) {
-                    const href = this.getAttribute('href') || '';
-                    if (!href.includes('#')) return;
-
-                    const hashIndex = href.indexOf('#');
-                    const hash = href.substring(hashIndex);
-                    const path = href.substring(0, hashIndex);
-                    if (!path || path === window.location.pathname || path === '/') {
-                        const target = document.querySelector(hash);
-                        if (!target) return;
-                        e.preventDefault();
-                        mobileMenu?.classList.add('hidden');
-                        const navHeight = document.querySelector('nav')?.offsetHeight || 0;
-                        const targetPosition = target.offsetTop - navHeight - 20;
-                        window.scrollTo({ top: targetPosition, behavior: 'smooth' });
-                    }
-                });
-            });
-
-            document.addEventListener('click', (event) => {
-                const anchor = event.target.closest('a');
-                if (!anchor) return;
-                if (anchor.hasAttribute('data-no-loader')) return;
-                if (anchor.target && anchor.target.toLowerCase() === '_blank') return;
-                if (anchor.hasAttribute('download')) return;
-                if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-
-                const href = anchor.getAttribute('href') || '';
-                if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-                if (href.includes('#') && (href.startsWith('/') || href.startsWith(window.location.pathname))) return;
-
-                window.showGlobalLoader('Opening page...');
-            }, true);
-
-            document.addEventListener('submit', (event) => {
-                const form = event.target;
-                if (!(form instanceof HTMLFormElement)) return;
-                if (form.hasAttribute('data-no-loader')) return;
-                window.showGlobalLoader('Processing request...');
-            }, true);
+            }));
+            document.addEventListener('click', ev=>{ const a=ev.target.closest('a'); if(a && !a.hasAttribute('data-no-loader') && a.target!=='_blank' && !a.hasAttribute('download') && !ev.defaultPrevented && !ev.metaKey && !ev.ctrlKey && !ev.shiftKey && !ev.altKey){ const href=a.getAttribute('href'); if(href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !(href.includes('#') && (href.startsWith('/')||href.startsWith(window.location.pathname)))) window.showGlobalLoader('Opening page...'); } }, true);
+            document.addEventListener('submit', e=>{ if(!e.target.hasAttribute('data-no-loader')) window.showGlobalLoader('Processing...'); }, true);
         });
-
-        window.addEventListener('pageshow', () => {
-            window.hideGlobalLoader();
-        });
+        window.addEventListener('pageshow',()=>window.hideGlobalLoader());
     </script>
-
-{% block extra_js %}{% endblock %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
-
-

@@ -1,67 +1,95 @@
 {% extends "base.html" %}
-{% block title %}Book Appointment - Think.4U{% endblock %}
+{% block title %}Appointments - Think.4U{% endblock %}
 
 {% block content %}
-<section class="px-4 py-10">
-    <div class="max-w-5xl mx-auto">
-        <h1 class="text-4xl font-black text-slate-900 mb-2">Book Appointment</h1>
-        <p class="text-slate-600 mb-8">Schedule a call/meeting with our team.</p>
+<section class="px-4 py-10 bg-[#f4eadf] min-h-screen">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-black text-slate-900 mb-2">Appointments</h1>
+        <p class="text-slate-700 mb-8">Request a meeting or book an available coordinator slot. Meeting links use Jitsi.</p>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white rounded-2xl shadow border p-6">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">New Appointment</h2>
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Request Appointment</h2>
                 <form method="POST" action="{{ url_for('appointments') }}" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Date</label>
-                        <input type="date" name="appointment_date" required
-                               class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Time</label>
-                        <input type="time" name="appointment_time" required
-                               class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Preferred Date</label>
+                            <input type="date" name="appointment_date"
+                                   class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Preferred Time</label>
+                            <input type="time" name="appointment_time"
+                                   class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Purpose</label>
                         <input type="text" name="purpose" required
-                               class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none"
-                               placeholder="Counseling / Donation support / Volunteer discussion">
+                               class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none"
+                               placeholder="Donation support / Volunteer discussion / Program meeting">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
                         <textarea name="notes" rows="4"
-                                  class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none"
+                                  class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none"
                                   placeholder="Additional context"></textarea>
                     </div>
-                    <button type="submit"
-                            class="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 text-white font-bold hover:from-blue-700 hover:to-sky-700 transition">
-                        Submit Request
-                    </button>
+                    <button type="submit" class="px-6 py-3 rounded-lg bg-amber-800 text-white font-bold hover:bg-amber-900">Submit Request</button>
                 </form>
             </div>
 
-            <div class="bg-white rounded-2xl shadow border p-6">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">Previous Requests</h2>
-                {% if appointments %}
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Available Slots</h2>
+                {% if slots %}
                 <div class="space-y-3">
-                    {% for a in appointments %}
-                    <div class="border rounded-xl p-4">
-                        <div class="flex items-center justify-between">
-                            <p class="font-semibold text-slate-900">{{ a.appointment_date }} {{ a.appointment_time }}</p>
-                            <span class="text-xs font-bold {% if a.status == 'approved' %}text-green-600{% elif a.status == 'rejected' %}text-red-600{% else %}text-amber-600{% endif %}">
-                                {{ a.status|title if a.status else 'Pending' }}
-                            </span>
+                    {% for slot in slots %}
+                    <form method="POST" action="{{ url_for('book_appointment_slot', slot_id=slot.id) }}" class="border rounded-lg p-4 space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="font-bold text-slate-900">{{ slot.slot_date }} at {{ slot.slot_time }}</p>
+                                <p class="text-sm text-slate-500">{{ slot.duration_minutes or 30 }} minutes{% if slot.auto_accept %} - auto accepted{% endif %}</p>
+                            </div>
+                            <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold">Book</button>
                         </div>
-                        <p class="text-slate-700 mt-1">{{ a.purpose }}</p>
-                        {% if a.notes %}<p class="text-sm text-slate-500 mt-1">{{ a.notes }}</p>{% endif %}
-                    </div>
+                        <input type="text" name="purpose" required placeholder="Purpose for this slot"
+                               class="w-full px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:border-amber-700">
+                        <textarea name="notes" rows="2" placeholder="Notes"
+                                  class="w-full px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:border-amber-700"></textarea>
+                    </form>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-slate-600">No appointment requests yet.</p>
+                <p class="text-slate-600">No available slots right now. Submit a request and a coordinator will schedule one.</p>
                 {% endif %}
             </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow border border-stone-200 p-6 mt-6">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">My Requests & Meetings</h2>
+            {% if appointments %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for a in appointments %}
+                <div class="border rounded-lg p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="font-semibold text-slate-900">{{ a.scheduled_date or a.appointment_date }} {{ a.scheduled_time or a.appointment_time }}</p>
+                        <span class="text-xs font-bold {% if a.status in ['scheduled','booked','completed'] %}text-green-700{% elif a.status == 'cancelled' %}text-red-700{% else %}text-amber-700{% endif %}">
+                            {{ a.status|replace('_',' ')|title if a.status else 'Requested' }}
+                        </span>
+                    </div>
+                    <p class="text-slate-700 mt-1">{{ a.purpose }}</p>
+                    {% if a.notes %}<p class="text-sm text-slate-500 mt-1">{{ a.notes }}</p>{% endif %}
+                    {% if a.meet_url %}
+                    <a href="{{ url_for('meeting_room', appointment_id=a.id) }}" target="_blank" rel="noopener" class="inline-flex mt-3 text-sm font-bold text-blue-700">Open secure meeting</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-slate-600">No appointment requests yet.</p>
+            {% endif %}
         </div>
     </div>
 </section>

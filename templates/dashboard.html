@@ -9,6 +9,7 @@
             <p class="text-slate-600">Recent notifications, donations, and your volunteer status.</p>
             <div class="flex flex-wrap gap-3 mt-4">
                 <a href="{{ url_for('user_donations') }}" class="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 font-semibold">Previous Donations</a>
+                <a href="{{ url_for('profile') }}" class="px-4 py-2 rounded-xl bg-stone-100 text-stone-800 font-semibold">Profile</a>
                 <a href="{{ url_for('appointments') }}" class="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 font-semibold">Book Appointment</a>
                 <a href="{{ url_for('events_page') }}" class="px-4 py-2 rounded-xl bg-amber-50 text-amber-700 font-semibold">Events</a>
                 <a href="{{ url_for('certificates_page') }}" class="px-4 py-2 rounded-xl bg-violet-50 text-violet-700 font-semibold">Certificates</a>
@@ -23,7 +24,7 @@
                 <p class="text-3xl font-black text-emerald-600">Rs {{ "{:,.2f}".format(total_donated) }}</p>
             </div>
             <div class="bg-white rounded-2xl shadow border p-5">
-                <p class="text-sm text-slate-500">Total Donations</p>
+                <p class="text-sm text-slate-500">Successful Donations</p>
                 <p class="text-3xl font-black text-blue-600">{{ donation_records_count or 0 }}</p>
             </div>
             <div class="bg-white rounded-2xl shadow border p-5">
@@ -44,7 +45,7 @@
                     <h2 class="text-2xl font-bold text-slate-900">Recent Notifications</h2>
                 </div>
                 {% if notifications %}
-                <div class="space-y-3">
+                <div id="notification-list" class="space-y-3">
                     {% for item in notifications %}
                     <div class="border rounded-xl p-4">
                         <p class="font-semibold text-slate-900">{{ item.title or 'Notification' }}</p>
@@ -54,7 +55,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-slate-600">No notifications yet.</p>
+                <div id="notification-list"><p class="text-slate-600">No notifications yet.</p></div>
                 {% endif %}
             </div>
 
@@ -108,4 +109,33 @@
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function refreshNotifications() {
+        const list = document.getElementById('notification-list');
+        if (!list) return;
+        try {
+            const response = await fetch('{{ url_for("latest_notifications") }}');
+            const data = await response.json();
+            const items = data.notifications || [];
+            if (!items.length) {
+                list.innerHTML = '<p class="text-slate-600">No notifications yet.</p>';
+                return;
+            }
+            list.innerHTML = items.map((item) => `
+                <div class="border rounded-xl p-4">
+                    <p class="font-semibold text-slate-900">${item.title || 'Notification'}</p>
+                    <p class="text-slate-700">${item.body_display || item.body || '-'}</p>
+                    <p class="text-xs text-slate-500 mt-2">${item.created_at ? item.created_at.slice(0, 19) : ''}</p>
+                </div>
+            `).join('');
+        } catch (_) {}
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshNotifications();
+        setInterval(refreshNotifications, 60000);
+    });
+</script>
 {% endblock %}

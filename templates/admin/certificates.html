@@ -70,6 +70,10 @@
                                     </button>
                                 </div>
                             </form>
+                            <a href="{{ url_for('admin_certificate_preview', event_id=item.event_id, user_id=item.user_id) }}" target="_blank"
+                               class="inline-flex mt-3 px-4 py-2 rounded-lg bg-violet-50 text-violet-700 font-semibold text-sm">
+                                Preview Certificate
+                            </a>
                         </div>
                     </div>
                 </div>

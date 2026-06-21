@@ -179,15 +179,15 @@
                             <table role="presentation" class="details" width="100%">
                                 <tr>
                                     <td class="label">Receipt Number</td>
-                                    <td class="value">T4U-{{ donation.id }}</td>
+                                    <td class="value">{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</td>
                                 </tr>
                                 <tr>
-                                    <td class="label">Transaction ID</td>
-                                    <td class="value">{{ donation.razorpay_payment_id or donation.razorpay_order_id or 'Processing' }}</td>
+                                    <td class="label">Purpose</td>
+                                    <td class="value">{{ donation.purpose_label or 'Self donation' }}</td>
                                 </tr>
                                 <tr>
-                                    <td class="label">Payment Method</td>
-                                    <td class="value">{{ donation.payment_method or 'Online' }}</td>
+                                    <td class="label">Payment Type</td>
+                                    <td class="value">Online donation</td>
                                 </tr>
                                 <tr>
                                     <td class="label">Date</td>

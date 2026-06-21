@@ -15,7 +15,7 @@
           <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-xs text-slate-500 uppercase tracking-wide">Receipt Number</p>
-              <p class="text-lg font-black text-slate-900 mt-1">T4U-{{ donation.id }}</p>
+              <p class="text-lg font-black text-slate-900 mt-1">{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-xs text-slate-500 uppercase tracking-wide">Status</p>
@@ -51,12 +51,20 @@
                 <td class="px-4 py-3 text-slate-900 break-all">{{ donation.email or 'N/A' }}</td>
               </tr>
               <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Transaction ID</th>
-                <td class="px-4 py-3 text-slate-900 break-all">{{ donation.razorpay_payment_id or donation.razorpay_order_id or 'Processing' }}</td>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Phone</th>
+                <td class="px-4 py-3 text-slate-900 break-all">{{ donation.phone or 'N/A' }}</td>
               </tr>
               <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Payment Method</th>
-                <td class="px-4 py-3 text-slate-900">{{ donation.payment_method or 'Online' }}</td>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Address</th>
+                <td class="px-4 py-3 text-slate-900">{{ donation.address or 'N/A' }}</td>
+              </tr>
+              <tr>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Purpose</th>
+                <td class="px-4 py-3 text-slate-900">{{ donation.purpose_label or 'Self donation' }}</td>
+              </tr>
+              <tr>
+                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Payment Type</th>
+                <td class="px-4 py-3 text-slate-900">Online donation</td>
               </tr>
             </tbody>
           </table>

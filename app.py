@@ -8,15 +8,19 @@ import csv
 import secrets
 import re
 import threading
+import logging
 import hashlib
 import hmac
 import html
 import json as pyjson
+import uuid
 from collections import defaultdict, deque
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort
+from urllib.parse import urlparse
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, Response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -28,6 +32,7 @@ import qrcode
 import httpx
 from io import BytesIO
 import base64
+import sys
 from num2words import num2words
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
 from reportlab.lib.styles import getSampleStyleSheet
@@ -36,8 +41,19 @@ from reportlab.lib.units import mm
 from io import BytesIO
 from PIL import Image, ImageDraw
 
+try:
+    import jwt as pyjwt
+except ImportError:
+    pyjwt = None
+
 # Load environment variables
 load_dotenv()
+
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    stream=sys.stdout,
+)
 
 
 class _NoOpResponse:
@@ -86,8 +102,33 @@ RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "90"))
 AUTH_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("AUTH_RATE_LIMIT_MAX_REQUESTS", "20"))
 INACTIVITY_TIMEOUT_SECONDS = int(os.getenv("INACTIVITY_TIMEOUT_SECONDS", "900"))
 ALLOW_DEV_OTP_FALLBACK = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == "true"
+DEV_OTP_FALLBACK_ENABLED = ALLOW_DEV_OTP_FALLBACK and not ENFORCE_HTTPS
 PAYMENT_PENDING_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_PENDING_TIMEOUT_MINUTES", "15"))
-APP_VERSION = "2.3.4"
+JITSI_MEET_DOMAIN = os.getenv("JITSI_MEET_DOMAIN", "meet.domain.com").strip()
+JITSI_APP_ID = os.getenv("JITSI_APP_ID", "").strip().strip("/")
+JITSI_API_SCRIPT_URL = os.getenv("JITSI_API_SCRIPT_URL", "").strip()
+JITSI_ROOM_PREFIX = os.getenv("JITSI_ROOM_PREFIX", "Think4U").strip() or "Think4U"
+JITSI_JWT_KID = os.getenv("JITSI_JWT_KID", "").strip()
+JITSI_JWT_PRIVATE_KEY = os.getenv("JITSI_JWT_PRIVATE_KEY", "").strip()
+JITSI_JWT_PRIVATE_KEY_FILE = os.getenv("JITSI_JWT_PRIVATE_KEY_FILE", "").strip()
+JITSI_JWT_KEY_ID = os.getenv("JITSI_JWT_KEY_ID", "").strip()
+JITSI_JWT_ISSUER = os.getenv("JITSI_JWT_ISSUER", "chat").strip()
+JITSI_JWT_AUDIENCE = os.getenv("JITSI_JWT_AUDIENCE", "jitsi").strip()
+JITSI_JWT_SUBJECT = os.getenv("JITSI_JWT_SUBJECT", "").strip()
+JITSI_JWT_ROOM_CLAIM = os.getenv("JITSI_JWT_ROOM_CLAIM", "").strip()
+JITSI_JWT_TTL_SECONDS = int(os.getenv("JITSI_JWT_TTL_SECONDS", "7200"))
+JITSI_DEFAULT_USER_ID = os.getenv("JITSI_DEFAULT_USER_ID", "").strip()
+JITSI_DEFAULT_AVATAR_URL = os.getenv("JITSI_DEFAULT_AVATAR_URL", "").strip()
+JITSI_FEATURE_LIVESTREAMING = os.getenv("JITSI_FEATURE_LIVESTREAMING", "true").lower() == "true"
+JITSI_FEATURE_FILE_UPLOAD = os.getenv("JITSI_FEATURE_FILE_UPLOAD", "true").lower() == "true"
+JITSI_FEATURE_OUTBOUND_CALL = os.getenv("JITSI_FEATURE_OUTBOUND_CALL", "true").lower() == "true"
+JITSI_FEATURE_SIP_OUTBOUND_CALL = os.getenv("JITSI_FEATURE_SIP_OUTBOUND_CALL", "false").lower() == "true"
+JITSI_FEATURE_TRANSCRIPTION = os.getenv("JITSI_FEATURE_TRANSCRIPTION", "true").lower() == "true"
+JITSI_FEATURE_LIST_VISITORS = os.getenv("JITSI_FEATURE_LIST_VISITORS", "false").lower() == "true"
+JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "true").lower() == "true"
+JITSI_FEATURE_FLIP = os.getenv("JITSI_FEATURE_FLIP", "false").lower() == "true"
+SITE_MEDIA_BUCKET = os.getenv("SITE_MEDIA_BUCKET", "site-media")
+APP_VERSION = "2.4.0"
 
 REQUEST_RATE_STATE = defaultdict(deque)
 FAILED_LOGIN_STATE = {}
@@ -96,6 +137,7 @@ CMS_CACHE_EXPIRY = {}
 CMS_FAILURE_UNTIL = 0
 CMS_CACHE_TTL_SECONDS = int(os.getenv("CMS_CACHE_TTL_SECONDS", "300"))
 CMS_FAILURE_BACKOFF_SECONDS = int(os.getenv("CMS_FAILURE_BACKOFF_SECONDS", "30"))
+SUPABASE_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_TIMEOUT_SECONDS", "4"))
 
 # ------------------------------
 # Flask-Login Setup
@@ -110,11 +152,19 @@ login_manager.session_protection = "strong"
 # ------------------------------
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_HOST = urlparse(SUPABASE_URL or "").hostname or ""
 
 SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
 if SUPABASE_ENABLED:
     try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        supabase = create_client(
+            SUPABASE_URL,
+            SUPABASE_KEY,
+            options=ClientOptions(
+                postgrest_client_timeout=SUPABASE_TIMEOUT_SECONDS,
+                storage_client_timeout=SUPABASE_TIMEOUT_SECONDS,
+            ),
+        )
     except Exception as supabase_init_error:
         app.logger.error(f"Supabase initialization failed: {supabase_init_error}")
         supabase = _NoOpSupabase()
@@ -224,8 +274,12 @@ else:
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-app.config['MAX_FORM_MEMORY_SIZE'] = 2 * 1024 * 1024
+MAX_IMAGE_UPLOAD_MB = int(os.getenv("MAX_IMAGE_UPLOAD_MB", "15"))
+MAX_VIDEO_UPLOAD_MB = int(os.getenv("MAX_VIDEO_UPLOAD_MB", "150"))
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", str(max(MAX_IMAGE_UPLOAD_MB, MAX_VIDEO_UPLOAD_MB))))
+MAX_FORM_MEMORY_MB = int(os.getenv("MAX_FORM_MEMORY_MB", "16"))
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_MB * 1024 * 1024
+app.config['MAX_FORM_MEMORY_SIZE'] = MAX_FORM_MEMORY_MB * 1024 * 1024
 app.config['MAX_FORM_PARTS'] = 1000
 
 
@@ -237,12 +291,15 @@ def allowed_file(filename):
 # User Model for Flask-Login
 # ------------------------------
 class User(UserMixin):
-    def __init__(self, id, email, name=None, is_admin=False, role="donor"):
+    def __init__(self, id, email, name=None, is_admin=False, role="donor", phone=None, address=None):
         self.id = id
         self.email = email
         self.name = name or 'User'
         self.is_admin = bool(is_admin)
         self.role = role or "donor"
+        self.is_coordinator = self.role == "coordinator"
+        self.phone = phone or ""
+        self.address = address or ""
         self.username = name or email.split('@')[0]  # Extract username from email if no name
     
     def get_display_name(self):
@@ -263,7 +320,8 @@ class User(UserMixin):
 def load_user(user_id):
     """Load user from Supabase"""
     try:
-        response = supabase.table('users').select('*').eq('id', int(user_id)).execute()
+        lookup_id = int(user_id) if str(user_id).isdigit() else user_id
+        response = supabase.table('users').select('*').eq('id', lookup_id).execute()
         if response.data:
             u = response.data[0]
             return User(
@@ -271,7 +329,9 @@ def load_user(user_id):
                 email=u['email'],
                 name=u.get('name'),
                 is_admin=u.get('is_admin', False),
-                role=u.get('role', 'donor')
+                role=u.get('role', 'donor'),
+                phone=u.get('phone'),
+                address=u.get('address')
             )
         return None
     except Exception as e:
@@ -293,7 +353,7 @@ def get_client_ip():
 
 
 def clean_text(value, max_length=255, keep_new_lines=False):
-    text = (value or "").strip()
+    text = "" if value is None else str(value).strip()
     if not keep_new_lines:
         text = text.replace("\n", " ").replace("\r", " ")
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
@@ -321,6 +381,40 @@ def normalize_phone(value):
     return digits if len(digits) == 10 else None
 
 
+def normalize_url(value, max_length=800):
+    url = clean_text(value, max_length)
+    if not url:
+        return ""
+    if not re.match(r"^https://", url, flags=re.IGNORECASE):
+        return ""
+    return url
+
+
+def db_id(value):
+    """Return int ids for the existing schema while tolerating UUID strings."""
+    if value is None:
+        return None
+    text = str(value)
+    return int(text) if text.isdigit() else text
+
+
+def current_db_user_id():
+    if not current_user.is_authenticated:
+        return None
+    return db_id(current_user.id)
+
+
+def coordinator_required(view_func):
+    @wraps(view_func)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if current_user.is_admin or getattr(current_user, "role", "") == "coordinator":
+            return view_func(*args, **kwargs)
+        flash("Coordinator access required.", "error")
+        return redirect(url_for("dashboard"))
+    return wrapper
+
+
 def validate_password_strength(password):
     if not password or len(password) < 8:
         return False, "Password must be at least 8 characters."
@@ -344,6 +438,10 @@ def validate_image_upload(file_obj):
     if extension not in {"png", "jpg", "jpeg", "gif", "webp"}:
         return False, "Invalid file type. Use PNG, JPG, JPEG, GIF, or WEBP"
 
+    file_size = get_upload_size(file_obj)
+    if file_size and file_size > MAX_IMAGE_UPLOAD_MB * 1024 * 1024:
+        return False, f"Image is too large. Maximum image size is {MAX_IMAGE_UPLOAD_MB} MB"
+
     if not (file_obj.content_type or "").startswith("image/"):
         return False, "Invalid image content type"
 
@@ -355,6 +453,612 @@ def validate_image_upload(file_obj):
         return False, "Uploaded file is not a valid image"
 
     return True, filename
+
+
+def get_upload_size(file_obj):
+    try:
+        current_pos = file_obj.stream.tell()
+        file_obj.stream.seek(0, os.SEEK_END)
+        size = file_obj.stream.tell()
+        file_obj.stream.seek(current_pos)
+        return size
+    except Exception:
+        return int(file_obj.content_length or 0)
+
+
+def validate_media_upload(file_obj, media_type):
+    if not file_obj or not file_obj.filename:
+        return False, "No file selected"
+
+    filename = secure_filename(file_obj.filename)
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if media_type == "video":
+        if extension not in {"mp4", "webm", "mov"}:
+            return False, "Invalid video type. Use MP4, WEBM, or MOV"
+        file_size = get_upload_size(file_obj)
+        if file_size and file_size > MAX_VIDEO_UPLOAD_MB * 1024 * 1024:
+            return False, f"Video is too large. Maximum video size is {MAX_VIDEO_UPLOAD_MB} MB"
+        if not (file_obj.content_type or "").startswith("video/"):
+            return False, "Invalid video content type"
+        return True, filename
+
+    return validate_image_upload(file_obj)
+
+
+def upload_site_media(file_obj, media_type, folder="home"):
+    is_valid, validation_message = validate_media_upload(file_obj, media_type)
+    if not is_valid:
+        raise ValueError(validation_message)
+
+    safe_filename = secure_filename(file_obj.filename)
+    name, ext = os.path.splitext(safe_filename)
+    unique_filename = f"{folder}/{media_type}/{name}_{uuid.uuid4().hex[:12]}{ext.lower()}"
+    file_obj.stream.seek(0)
+    file_data = file_obj.read()
+
+    try:
+        supabase.storage.from_(SITE_MEDIA_BUCKET).list()
+    except Exception:
+        try:
+            supabase.storage.create_bucket(SITE_MEDIA_BUCKET, options={"public": True})
+        except Exception as create_error:
+            app.logger.warning(f"Could not create {SITE_MEDIA_BUCKET} bucket: {create_error}")
+
+    supabase.storage.from_(SITE_MEDIA_BUCKET).upload(
+        unique_filename,
+        file_data,
+        file_options={"content-type": file_obj.content_type}
+    )
+    return supabase.storage.from_(SITE_MEDIA_BUCKET).get_public_url(unique_filename)
+
+
+def is_allowed_supabase_media_url(media_url):
+    parsed = urlparse((media_url or "").strip())
+    return (
+        bool(SUPABASE_HOST)
+        and parsed.scheme.lower() == "https"
+        and parsed.hostname == SUPABASE_HOST
+        and "/storage/v1/object/" in parsed.path
+    )
+
+
+def attach_media_display_urls(media_rows):
+    for row in media_rows:
+        media_id = row.get("id")
+        if media_id is not None and is_allowed_supabase_media_url(row.get("url")):
+            row["display_url"] = url_for("site_media_proxy", media_id=media_id)
+        else:
+            row["display_url"] = row.get("url")
+    return media_rows
+
+
+def attach_program_image_display_urls(program_rows):
+    for row in program_rows:
+        program_id = row.get("id")
+        if program_id is not None and is_allowed_supabase_media_url(row.get("image_url")):
+            row["image_display_url"] = url_for("program_image_proxy", program_id=program_id)
+        else:
+            row["image_display_url"] = row.get("image_url")
+    return program_rows
+
+
+def stream_remote_media(media_url, fallback_mime="application/octet-stream"):
+    if not is_allowed_supabase_media_url(media_url):
+        abort(404)
+
+    client = httpx.Client(
+        timeout=httpx.Timeout(30.0, connect=10.0),
+        follow_redirects=True,
+    )
+    upstream_headers = {"Accept-Encoding": "identity"}
+    if request.headers.get("Range"):
+        upstream_headers["Range"] = request.headers["Range"]
+
+    try:
+        upstream_request = client.build_request("GET", media_url, headers=upstream_headers)
+        upstream_response = client.send(upstream_request, stream=True)
+    except httpx.HTTPError as exc:
+        client.close()
+        app.logger.warning("Media proxy fetch failed: %s", exc)
+        abort(502)
+
+    if upstream_response.status_code in {401, 403, 404} or upstream_response.status_code >= 500:
+        status_code = upstream_response.status_code
+        upstream_response.close()
+        client.close()
+        abort(404 if status_code in {401, 403, 404} else 502)
+
+    response_headers = {}
+    for header_name in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"):
+        value = upstream_response.headers.get(header_name)
+        if value:
+            response_headers[header_name] = value
+    response_headers.setdefault("Content-Type", fallback_mime)
+    response_headers["Cache-Control"] = "public, max-age=3600"
+
+    def generate():
+        try:
+            for chunk in upstream_response.iter_bytes():
+                if chunk:
+                    yield chunk
+        finally:
+            upstream_response.close()
+            client.close()
+
+    return Response(
+        generate(),
+        status=upstream_response.status_code,
+        headers=response_headers,
+        direct_passthrough=True,
+    )
+
+
+@app.route("/site-media/<media_id>")
+def site_media_proxy(media_id):
+    try:
+        response = supabase.table("media_assets").select("*").eq("id", db_id(media_id)).limit(1).execute()
+        media = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Media proxy lookup failed: %s", exc)
+        abort(404)
+
+    if not media:
+        abort(404)
+    if not media.get("is_published") and not (current_user.is_authenticated and getattr(current_user, "is_admin", False)):
+        abort(404)
+
+    fallback_mime = "video/mp4" if media.get("media_type") == "video" else "image/jpeg"
+    return stream_remote_media(media.get("url"), fallback_mime=fallback_mime)
+
+
+@app.route("/program-image/<program_id>")
+def program_image_proxy(program_id):
+    try:
+        response = supabase.table("programs").select("id,status,image_url").eq("id", db_id(program_id)).limit(1).execute()
+        program = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Program image proxy lookup failed: %s", exc)
+        abort(404)
+
+    if not program:
+        abort(404)
+    if (program.get("status") or "").lower() != "active" and not (current_user.is_authenticated and getattr(current_user, "is_admin", False)):
+        abort(404)
+    return stream_remote_media(program.get("image_url"), fallback_mime="image/jpeg")
+
+
+def fetch_media_assets(placement=None, media_type=None, limit=12):
+    try:
+        query = supabase.table("media_assets").select("*").eq("is_published", True)
+        if placement:
+            query = query.eq("placement", placement)
+        if media_type:
+            query = query.eq("media_type", media_type)
+        response = query.order("sort_order").order("created_at", desc=True).limit(limit).execute()
+        return attach_media_display_urls(response.data or [])
+    except Exception as e:
+        app.logger.warning(f"Media assets lookup skipped: {e}")
+        return []
+
+
+CMS_DEFAULTS = {
+    "site_title": "Think.4U - Community Charity Platform",
+    "meta_description": "Think.4U supports education, empowerment, health, and community impact programs.",
+    "hero_subtitle": "Making a Difference in Our Community",
+    "mission_text": "Think.4U is a community charity platform dedicated to education, empowerment, health, and measurable social impact.",
+    "impact_people": "10K+",
+    "impact_education": "2K+",
+    "impact_families": "5K+",
+    "cta_title": "Ready to Make a Difference?",
+    "cta_subtitle": "Support a program, fundraiser, or event and track your contribution securely.",
+    "org_name": "Think.4U Trust",
+    "reg_number": "",
+    "tax_id": "",
+    "cert_80g": "",
+    "contact_email": "hello@think4u.org",
+    "contact_phone": "+91 9876543210",
+    "contact_whatsapp": "+91 9876543210",
+    "contact_address": "Hyderabad, Telangana, India",
+    "geo_latitude": "17.3850",
+    "geo_longitude": "78.4867",
+    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Hyderabad%2C%20Telangana%2C%20India",
+    "google_maps_embed_url": "https://www.google.com/maps?q=Hyderabad%2C%20Telangana%2C%20India&output=embed",
+    "social_facebook": "",
+    "social_twitter": "",
+    "social_instagram": "",
+    "social_linkedin": "",
+}
+
+
+def upsert_cms_value(key, value):
+    clean_key = clean_text(key, 120)
+    if not clean_key:
+        return
+    clean_value = clean_text(value, 3000, keep_new_lines=True)
+    supabase.table("cms_content").upsert({
+        "key": clean_key,
+        "value": clean_value,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }, on_conflict="key").execute()
+    CMS_CACHE[clean_key] = clean_value
+    CMS_CACHE_EXPIRY[clean_key] = int(datetime.now(timezone.utc).timestamp()) + CMS_CACHE_TTL_SECONDS
+
+
+def ensure_cms_defaults():
+    try:
+        existing_response = supabase.table("cms_content").select("key").execute()
+        existing_keys = {item.get("key") for item in (existing_response.data or [])}
+        missing_rows = [
+            {"key": key, "value": value, "created_at": datetime.now(timezone.utc).isoformat()}
+            for key, value in CMS_DEFAULTS.items()
+            if key not in existing_keys
+        ]
+        if missing_rows:
+            supabase.table("cms_content").insert(missing_rows).execute()
+    except Exception as e:
+        app.logger.warning(f"CMS defaults could not be ensured: {e}")
+
+
+def get_recent_user_donations(user_id, email=None, limit=5):
+    try:
+        response = supabase.table("donations") \
+            .select("*") \
+            .eq("user_id", db_id(user_id)) \
+            .order("created_at", desc=True) \
+            .limit(limit) \
+            .execute()
+        rows = response.data or []
+        if rows or not email:
+            return rows
+    except Exception:
+        rows = []
+
+    try:
+        response = supabase.table("donations") \
+            .select("*") \
+            .eq("email", email) \
+            .order("created_at", desc=True) \
+            .limit(limit) \
+            .execute()
+        return response.data or []
+    except Exception:
+        return []
+
+
+def normalize_donation_purpose(data):
+    raw_type = clean_text(data.get("purpose_type") or "self", 40).lower()
+    purpose_type = raw_type if raw_type in {"self", "program", "fundraiser", "event"} else "self"
+    purpose_id = clean_text(data.get("purpose_id"), 80)
+    purpose_label = clean_text(data.get("purpose_label"), 220)
+
+    if purpose_type == "self":
+        return "self", "", purpose_label or "Self donation"
+
+    if not purpose_label and purpose_id:
+        table_name = {
+            "program": "programs",
+            "fundraiser": "fundraisers",
+            "event": "volunteer_events",
+        }.get(purpose_type)
+        try:
+            response = supabase.table(table_name).select("title").eq("id", db_id(purpose_id)).limit(1).execute()
+            row = (response.data or [None])[0]
+            purpose_label = row.get("title") if row else ""
+        except Exception:
+            purpose_label = ""
+
+    return purpose_type, purpose_id, purpose_label or f"{purpose_type.title()} donation"
+
+
+def donation_context_from_args(args):
+    data = {
+        "purpose_type": args.get("purpose_type") or "self",
+        "purpose_id": args.get("purpose_id") or "",
+        "purpose_label": args.get("purpose_label") or "",
+    }
+    for key, purpose_type in (("program_id", "program"), ("fundraiser_id", "fundraiser"), ("event_id", "event")):
+        if args.get(key):
+            data["purpose_type"] = purpose_type
+            data["purpose_id"] = args.get(key)
+    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
+    return {
+        "purpose_type": purpose_type,
+        "purpose_id": purpose_id,
+        "purpose_label": purpose_label,
+    }
+
+
+def get_next_donation_number(user_id=None, email=None):
+    try:
+        query = supabase.table("donations").select("id", count="exact")
+        if user_id is not None:
+            query = query.eq("user_id", db_id(user_id))
+        elif email:
+            query = query.eq("email", email)
+        response = query.execute()
+        return (response.count or len(response.data or [])) + 1
+    except Exception:
+        return secrets.randbelow(900000) + 100000
+
+
+def make_donation_ref(user_id=None, email=None):
+    donation_number = get_next_donation_number(user_id=user_id, email=email)
+    user_part = str(user_id or "SELF").replace("-", "").upper()
+    if len(user_part) > 12:
+        user_part = user_part[-12:]
+    return f"T4U-U{user_part}-D{donation_number:06d}-{secrets.token_hex(2).upper()}", donation_number
+
+
+def generated_password():
+    return f"{secrets.token_urlsafe(12)}A1!"
+
+
+def send_generated_password_email(email, name, password):
+    safe_name = html.escape(clean_text(name, 120) or "Supporter")
+    safe_password = html.escape(password)
+    send_email_async(
+        subject="Think.4U account created",
+        recipients=[email],
+        html=f"""
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+            <h2 style="color:#7c2d12;">Your Think.4U account is ready</h2>
+            <p>Hello {safe_name},</p>
+            <p>Your email was verified for donation checkout. We created an account so you can access donation receipts securely.</p>
+            <p><strong>Login email:</strong> {html.escape(email)}</p>
+            <p><strong>Temporary password:</strong> {safe_password}</p>
+            <p>Please log in and update your password/profile details after donation.</p>
+        </div>
+        """
+    )
+
+
+def get_or_create_public_donor(name, email, phone, address=""):
+    generated = None
+    try:
+        existing_response = supabase.table("users").select("*").eq("email", email).limit(1).execute()
+        existing_row = (existing_response.data or [None])[0]
+        if existing_row:
+            update_payload = {
+                "name": clean_text(name, 120) or existing_row.get("name"),
+                "phone": phone or existing_row.get("phone"),
+                "address": clean_text(address, 500) or existing_row.get("address"),
+                "email_verified": True,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            try:
+                updated = supabase.table("users").update(update_payload).eq("id", existing_row["id"]).execute()
+                return (updated.data or [existing_row])[0], generated
+            except Exception:
+                return existing_row, generated
+
+        generated = generated_password()
+        payload = {
+            "email": email,
+            "name": clean_text(name, 120) or email.split("@")[0],
+            "phone": phone,
+            "address": clean_text(address, 500),
+            "password_hash": generate_password_hash(generated),
+            "is_admin": False,
+            "role": "donor",
+            "email_verified": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            created = supabase.table("users").insert(payload).execute()
+        except Exception:
+            payload.pop("phone", None)
+            payload.pop("address", None)
+            payload.pop("email_verified", None)
+            created = supabase.table("users").insert(payload).execute()
+        return (created.data or [None])[0], generated
+    except Exception as e:
+        app.logger.error(f"Public donor create failed: {e}")
+        return None, None
+
+
+def update_fundraiser_raised(donation):
+    if donation.get("purpose_type") != "fundraiser" or not donation.get("purpose_id"):
+        return
+    try:
+        fundraiser_id = db_id(donation.get("purpose_id"))
+        response = supabase.table("fundraisers").select("raised_amount").eq("id", fundraiser_id).limit(1).execute()
+        row = (response.data or [None])[0]
+        current_raised = float((row or {}).get("raised_amount") or 0)
+        amount_rupees = float(donation.get("amount") or 0) / 100
+        supabase.table("fundraisers").update({
+            "raised_amount": current_raised + amount_rupees,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", fundraiser_id).execute()
+    except Exception as e:
+        app.logger.warning(f"Fundraiser raised amount update skipped: {e}")
+
+
+def apply_paid_donation_effects(donation):
+    user_id = donation.get("user_id")
+    if user_id:
+        create_notification_for_user(
+            user_id,
+            "Donation successful",
+            f"Your donation of Rs {donation.get('amount', 0)/100:.2f} for {donation.get('purpose_label') or 'Think.4U'} was received successfully."
+        )
+    update_fundraiser_raised(donation)
+
+
+def jitsi_domain():
+    domain = (JITSI_MEET_DOMAIN or "meet.domain.com").strip()
+    domain = re.sub(r"^https?://", "", domain, flags=re.IGNORECASE).strip("/")
+    return domain or "meet.domain.com"
+
+
+def jitsi_origin():
+    return f"https://{jitsi_domain()}"
+
+
+def jitsi_app_id():
+    return (JITSI_APP_ID or "").strip().strip("/")
+
+
+def jitsi_api_script_url():
+    if JITSI_API_SCRIPT_URL:
+        return JITSI_API_SCRIPT_URL
+    app_id = jitsi_app_id()
+    if app_id and jitsi_domain() == "8x8.vc":
+        return f"{jitsi_origin()}/{app_id}/external_api.js"
+    return f"{jitsi_origin()}/external_api.js"
+
+
+def jitsi_room_slug(seed_text):
+    slug = re.sub(r"[^A-Za-z0-9-]+", "-", seed_text or "").strip("-")
+    if not slug:
+        slug = uuid.uuid4().hex[:12]
+    prefix = re.sub(r"[^A-Za-z0-9-]+", "-", JITSI_ROOM_PREFIX).strip("-") or "Think4U"
+    if not slug.lower().startswith(prefix.lower()):
+        slug = f"{prefix}-{slug}"
+    return slug[:96]
+
+
+def jitsi_room_name(seed_text):
+    slug = jitsi_room_slug(seed_text)
+    app_id = jitsi_app_id()
+    return f"{app_id}/{slug}" if app_id else slug
+
+
+def jitsi_room_slug_from_name(room_name):
+    room_name = (room_name or "").strip("/")
+    app_id = jitsi_app_id()
+    if app_id and room_name.startswith(f"{app_id}/"):
+        return room_name.split("/", 1)[1]
+    return room_name.rsplit("/", 1)[-1] if "/" in room_name else room_name
+
+
+def jitsi_room_from_url_or_seed(meet_url, seed_text):
+    parsed = urlparse((meet_url or "").strip())
+    path = parsed.path.strip("/") if parsed.scheme and parsed.netloc else ""
+    if path:
+        app_id = jitsi_app_id()
+        if app_id and path.startswith(f"{app_id}/"):
+            return path
+        return jitsi_room_name(path.rsplit("/", 1)[-1])
+    return jitsi_room_name(seed_text)
+
+
+def build_meet_url(seed_text):
+    return f"{jitsi_origin()}/{jitsi_room_name(seed_text)}"
+
+
+def read_jitsi_private_key():
+    if JITSI_JWT_PRIVATE_KEY:
+        return JITSI_JWT_PRIVATE_KEY.replace("\\n", "\n")
+    if JITSI_JWT_PRIVATE_KEY_FILE:
+        try:
+            with open(JITSI_JWT_PRIVATE_KEY_FILE, "r", encoding="utf-8") as key_file:
+                return key_file.read()
+        except OSError as exc:
+            app.logger.warning("Unable to read Jitsi private key file: %s", exc)
+    return ""
+
+
+def jitsi_jwt_kid():
+    raw_kid = (JITSI_JWT_KID or JITSI_JWT_KEY_ID or "").strip()
+    if not raw_kid:
+        return ""
+    if "/" in raw_kid:
+        return raw_kid
+    app_id = jitsi_app_id()
+    return f"{app_id}/{raw_kid}" if app_id else raw_kid
+
+
+def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_id=None, avatar_url=None):
+    private_key = read_jitsi_private_key()
+    app_id = jitsi_app_id()
+    jwt_kid = jitsi_jwt_kid()
+    if not private_key or not jwt_kid or not pyjwt:
+        if private_key and not pyjwt:
+            app.logger.warning("Jitsi JWT private key is configured but PyJWT is not installed.")
+        return ""
+
+    now = int(datetime.now(timezone.utc).timestamp())
+    room_slug = jitsi_room_slug_from_name(room_name)
+    room_claim = JITSI_JWT_ROOM_CLAIM.replace("{room}", room_slug) if JITSI_JWT_ROOM_CLAIM else room_slug
+    payload = {
+        "aud": JITSI_JWT_AUDIENCE or "jitsi",
+        "iss": JITSI_JWT_ISSUER or "chat",
+        "sub": JITSI_JWT_SUBJECT or app_id or jitsi_domain(),
+        "room": room_claim,
+        "nbf": now - 10,
+        "iat": now,
+        "exp": now + max(300, JITSI_JWT_TTL_SECONDS),
+        "context": {
+            "features": {
+                "livestreaming": JITSI_FEATURE_LIVESTREAMING,
+                "file-upload": JITSI_FEATURE_FILE_UPLOAD,
+                "outbound-call": JITSI_FEATURE_OUTBOUND_CALL,
+                "sip-outbound-call": JITSI_FEATURE_SIP_OUTBOUND_CALL,
+                "transcription": JITSI_FEATURE_TRANSCRIPTION,
+                "list-visitors": JITSI_FEATURE_LIST_VISITORS,
+                "recording": JITSI_FEATURE_RECORDING,
+                "flip": JITSI_FEATURE_FLIP,
+            },
+            "user": {
+                "hidden-from-recorder": False,
+                "id": clean_text(user_id or JITSI_DEFAULT_USER_ID or email or display_name, 160),
+                "name": clean_text(display_name, 120) or "Think.4U User",
+                "avatar": normalize_url(avatar_url or JITSI_DEFAULT_AVATAR_URL),
+                "email": normalize_email(email) or "",
+                "moderator": bool(moderator),
+            }
+        },
+    }
+    return pyjwt.encode(
+        payload,
+        private_key,
+        algorithm="RS256",
+        headers={"kid": jwt_kid},
+    )
+
+
+def appointment_join_url(appointment, external=False):
+    appointment_id = appointment.get("id") if appointment else None
+    if appointment_id:
+        try:
+            return url_for("meeting_room", appointment_id=appointment_id, _external=external)
+        except RuntimeError:
+            pass
+    return (appointment or {}).get("meet_url") or ""
+
+
+def send_meeting_update_email(recipient, name, appointment, subject="Think.4U meeting update"):
+    if not recipient:
+        return
+    meet_url = appointment_join_url(appointment, external=True)
+    scheduled_date = appointment.get("scheduled_date") or appointment.get("appointment_date") or "TBA"
+    scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time") or "TBA"
+    send_email_async(
+        subject=subject,
+        recipients=[recipient],
+        html=f"""
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+            <h2 style="color:#7c2d12;">Think.4U Meeting Schedule</h2>
+            <p>Hello {html.escape(clean_text(name, 120) or 'Supporter')},</p>
+            <p>Your meeting is scheduled for <strong>{html.escape(str(scheduled_date))}</strong> at <strong>{html.escape(str(scheduled_time))}</strong>.</p>
+            {'<p><strong>Meeting link:</strong> <a href="' + html.escape(meet_url) + '">' + html.escape(meet_url) + '</a></p>' if meet_url else ''}
+            <p>You can also view this inside your Think.4U appointment page.</p>
+        </div>
+        """
+    )
+
+
+class SimplePagination:
+    def __init__(self, items, total, page, per_page):
+        self.items = items
+        self.total = total
+        self.page = page
+        self.per_page = per_page
+        self.pages = (total + per_page - 1) // per_page if total else 1
+        self.has_prev = page > 1
+        self.has_next = page < self.pages
+        self.prev_num = page - 1 if self.has_prev else None
+        self.next_num = page + 1 if self.has_next else None
 
 
 def generate_csrf_token():
@@ -501,7 +1205,7 @@ def trim_user_notifications(user_id, max_keep=4):
     try:
         rows_response = supabase.table("notifications") \
             .select("id") \
-            .eq("user_id", int(user_id)) \
+            .eq("user_id", db_id(user_id)) \
             .order("created_at", desc=True) \
             .execute()
         rows = rows_response.data or []
@@ -671,13 +1375,28 @@ def apply_security_controls():
 
 @app.after_request
 def set_security_headers(response):
+    jitsi_src_values = [
+        jitsi_origin(),
+        "https://8x8.vc",
+        "https://*.8x8.vc",
+        "https://meet.jit.si",
+        "https://meet.domain.com",
+    ]
+    jitsi_src = " ".join(dict.fromkeys(jitsi_src_values))
+    jitsi_permission_origins = [
+        jitsi_origin(),
+        "https://8x8.vc",
+        "https://meet.jit.si",
+        "https://meet.domain.com",
+    ]
+    jitsi_permissions = " ".join(f'"{origin}"' for origin in dict.fromkeys(jitsi_permission_origins))
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = (
-        "camera=(), "
-        "microphone=(), "
+        f"camera=(self {jitsi_permissions}), "
+        f"microphone=(self {jitsi_permissions}), "
         "geolocation=(), "
         "accelerometer=*, "
         "gyroscope=*, "
@@ -693,13 +1412,14 @@ def set_security_headers(response):
         "default-src 'self'; "
         "frame-ancestors 'none'; "
         "img-src 'self' data: https:; "
-        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
-        "script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
+        "media-src 'self' blob: data:; "
+        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {jitsi_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com; "
-        "frame-src https://*.razorpay.com; "
+        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com {jitsi_src}; "
+        f"frame-src https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com {jitsi_src}; "
         "base-uri 'self'; "
         "form-action 'self'; "
         "object-src 'none'"
@@ -732,9 +1452,10 @@ def send_email_sync(subject, recipients, html):
         with app.app_context():
             msg = Message(subject=subject, recipients=recipients, html=html)
             mail.send(msg)
+        app.logger.info("Email sent to %s", recipients)
         return True, None
     except Exception as e:
-        app.logger.warning(f"Email failed: {e}")
+        app.logger.warning("Email failed for %s: %s", recipients, e, exc_info=True)
         return False, str(e)
 
 # ===================================
@@ -743,13 +1464,47 @@ def send_email_sync(subject, recipients, html):
 @app.route("/")
 def index():
     """Homepage with stats"""
-    # Fetch programs
     try:
-        response = supabase.table('programs').select('*').execute()
-        programs = response.data if response.data else []
+        response = supabase.table('programs').select('*').eq("status", "active").order("created_at", desc=True).execute()
+        programs = attach_program_image_display_urls(response.data if response.data else [])
     except Exception as e:
         app.logger.warning(f"Error fetching programs: {e}")
         programs = []
+
+    available_events = []
+    try:
+        today = datetime.now(timezone.utc).date().isoformat()
+        response = supabase.table("volunteer_events") \
+            .select("*") \
+            .gte("event_date", today) \
+            .order("event_date") \
+            .limit(6) \
+            .execute()
+        available_events = response.data or []
+    except Exception:
+        try:
+            response = supabase.table("volunteer_events").select("*").order("event_date").limit(6).execute()
+            available_events = response.data or []
+        except Exception as e:
+            app.logger.warning(f"Error fetching events for home: {e}")
+            available_events = []
+
+    fundraisers = []
+    try:
+        response = supabase.table("fundraisers") \
+            .select("*") \
+            .eq("status", "active") \
+            .order("created_at", desc=True) \
+            .limit(3) \
+            .execute()
+        fundraisers = response.data or []
+    except Exception as e:
+        app.logger.warning(f"Error fetching fundraisers for home: {e}")
+        fundraisers = []
+
+    hero_media = fetch_media_assets(placement="home_hero", media_type="image", limit=8)
+    gallery_photos = fetch_media_assets(placement="home_gallery", media_type="image", limit=12)
+    gallery_videos = fetch_media_assets(placement="home_video", media_type="video", limit=6)
     
     # Calculate stats
     stats = {
@@ -758,9 +1513,9 @@ def index():
         'total_programs': len(programs)
     }
     
-    # Get donation count
+    # Get successful donation count only. Pending/failed/cancelled attempts are records, not donated totals.
     try:
-        donations_response = supabase.table('donations').select('*', count='exact').execute()
+        donations_response = supabase.table('donations').select('*', count='exact').eq("status", "paid").execute()
         stats['total_donations'] = donations_response.count if hasattr(donations_response, 'count') else len(donations_response.data)
     except Exception as e:
         app.logger.warning(f"Error fetching donation count: {e}")
@@ -773,9 +1528,14 @@ def index():
         app.logger.warning(f"Error fetching volunteer count: {e}")
     
     return render_template("index.html", 
-                         programs=programs, 
-                         razor_key=RAZOR_KEY,
-                         stats=stats)
+                          programs=programs, 
+                          available_events=available_events,
+                          fundraisers=fundraisers,
+                          hero_media=hero_media,
+                          gallery_photos=gallery_photos,
+                          gallery_videos=gallery_videos,
+                          razor_key=RAZOR_KEY,
+                          stats=stats)
 
 
 @app.route("/favicon.ico")
@@ -798,9 +1558,8 @@ def healthz():
 
 
 @app.route("/donate")
-@login_required
 def donate():
-    """Donation page (logged-in users only)"""
+    """Public donation page. Anonymous donors verify email before payment."""
     amount_rupees = request.args.get("amount", "")
     amount_paise = None
     if amount_rupees:
@@ -809,15 +1568,129 @@ def donate():
         except Exception:
             amount_paise = None
 
+    donation_context = donation_context_from_args(request.args)
+
+    donor_name = ""
+    donor_email = ""
+    donor_phone = ""
+    donor_address = ""
+    if current_user.is_authenticated:
+        donor_name = current_user.name
+        donor_email = current_user.email
+        donor_phone = getattr(current_user, "phone", "") or ""
+        donor_address = getattr(current_user, "address", "") or ""
+
     return render_template(
         "donate.html",
         amount_display=amount_rupees,
         amount_paise=amount_paise,
         razor_key=RAZOR_KEY,
-        donor_name=current_user.name,
-        donor_email=current_user.email,
+        donor_name=donor_name,
+        donor_email=donor_email,
+        donor_phone=donor_phone,
+        donor_address=donor_address,
+        donation_context=donation_context,
+        is_donation_verified=current_user.is_authenticated,
         payment_retry_window_minutes=PAYMENT_PENDING_TIMEOUT_MINUTES,
     )
+
+
+@app.route("/donation/start", methods=["POST"])
+def start_public_donation_verification():
+    """Send OTP for anonymous/public donation checkout."""
+    if current_user.is_authenticated:
+        return jsonify({"ok": True, "verified": True}), 200
+
+    data = request.get_json(silent=True) or {}
+    name = clean_text(data.get("name"), 120)
+    email = normalize_email(data.get("email"))
+    phone = normalize_phone(data.get("phone", ""))
+    address = clean_text(data.get("address"), 500)
+
+    try:
+        amount = int(data.get("amount", 0))
+    except (TypeError, ValueError):
+        amount = 0
+
+    if not name or not email or not phone:
+        return jsonify({"error": "Name, valid email, and 10 digit phone are required"}), 400
+    if amount < 1000:
+        return jsonify({"error": "Minimum donation is Rs 10"}), 400
+
+    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
+    otp = set_pending_otp("donation_public", email, {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "address": address,
+        "purpose_type": purpose_type,
+        "purpose_id": purpose_id,
+        "purpose_label": purpose_label,
+    })
+    email_sent = send_otp_email(email, otp, "Donation Verification")
+    if not email_sent:
+        if DEV_OTP_FALLBACK_ENABLED:
+            app.logger.warning(f"DEV OTP fallback (donation) for {email}: {otp}")
+            return jsonify({"ok": True, "message": "OTP email failed; development OTP printed in server terminal"}), 200
+        session.pop("pending_donation_public", None)
+        return jsonify({"error": "Unable to send OTP email right now"}), 503
+
+    return jsonify({"ok": True, "message": "OTP sent to donor email"}), 200
+
+
+@app.route("/donation/verify", methods=["POST"])
+def verify_public_donation():
+    """Verify public donation OTP and create/login donor account."""
+    if current_user.is_authenticated:
+        return jsonify({"ok": True, "verified": True}), 200
+
+    data = request.get_json(silent=True) or {}
+    otp_code = clean_text(data.get("otp"), 10)
+    ok, payload_or_message = validate_pending_otp("donation_public", otp_code)
+    if not ok:
+        return jsonify({"error": payload_or_message}), 400
+
+    payload = payload_or_message.get("payload", {})
+    email = payload_or_message.get("email")
+    user_row, temp_password = get_or_create_public_donor(
+        name=payload.get("name"),
+        email=email,
+        phone=payload.get("phone"),
+        address=payload.get("address"),
+    )
+    if not user_row:
+        return jsonify({"error": "Unable to prepare donor account"}), 500
+
+    user = User(
+        id=user_row["id"],
+        email=user_row["email"],
+        name=user_row.get("name", "User"),
+        is_admin=user_row.get("is_admin", False),
+        role=user_row.get("role", "donor"),
+        phone=user_row.get("phone"),
+        address=user_row.get("address"),
+    )
+    login_user(user)
+    session.pop("pending_donation_public", None)
+
+    if temp_password:
+        send_generated_password_email(email, user.name, temp_password)
+        create_notification_for_user(
+            user.id,
+            "Account created",
+            "Your Think.4U account was created after email verification. A temporary password was mailed to you."
+        )
+
+    return jsonify({
+        "ok": True,
+        "verified": True,
+        "donor": {
+            "name": user.name,
+            "email": user.email,
+            "phone": user.phone,
+            "address": user.address,
+        }
+    }), 200
 
 
 @app.route("/donate-upi")
@@ -859,7 +1732,7 @@ def donate_upi_verify():
 
     try:
         supabase.table("donations").insert({
-            "user_id": int(current_user.id),
+            "user_id": current_db_user_id(),
             "name": clean_text(current_user.name or current_user.email.split("@")[0], 120),
             "email": current_user.email,
             "phone": phone,
@@ -872,7 +1745,7 @@ def donate_upi_verify():
         }).execute()
 
         create_notification_for_user(
-            int(current_user.id),
+            current_user.id,
             "UPI verification submitted",
             "Your UPI payment details were submitted. Admin verification is pending."
         )
@@ -918,6 +1791,8 @@ def create_order():
     donor_name = clean_text(data.get("name") or current_user.name or current_user.email.split("@")[0], 120)
     donor_email = current_user.email
     donor_phone = normalize_phone(data.get("phone", ""))
+    donor_address = clean_text(data.get("address"), 500)
+    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
 
     if amount < 1000:
         return jsonify({"error": "Minimum donation is Rs 10"}), 400
@@ -925,7 +1800,8 @@ def create_order():
     if not donor_name or not donor_phone:
         return jsonify({"error": "Missing donor details"}), 400
 
-    receipt = f"rcpt_{int(datetime.now(timezone.utc).timestamp())}_{current_user.id}"
+    donation_ref, donation_number = make_donation_ref(user_id=current_user.id, email=donor_email)
+    receipt = donation_ref[:40]
 
     try:
         order = create_razorpay_order(
@@ -935,25 +1811,41 @@ def create_order():
             notes={
                 "user_id": str(current_user.id),
                 "email": donor_email,
+                "donation_ref": donation_ref,
+                "purpose": purpose_label,
             }
         )
 
-        supabase.table("donations").insert({
-            "user_id": int(current_user.id),
+        donation_payload = {
+            "user_id": db_id(current_user.id),
             "name": donor_name,
             "email": donor_email,
             "phone": donor_phone,
+            "address": donor_address,
             "amount": amount,
+            "donation_ref": donation_ref,
+            "donation_number": donation_number,
+            "purpose_type": purpose_type,
+            "purpose_id": purpose_id or None,
+            "purpose_label": purpose_label,
             "razorpay_order_id": order["id"],
             "status": "pending",
             "created_at": datetime.now(timezone.utc).isoformat()
-        }).execute()
+        }
+        try:
+            supabase.table("donations").insert(donation_payload).execute()
+        except Exception:
+            for key in ["address", "donation_ref", "donation_number", "purpose_type", "purpose_id", "purpose_label"]:
+                donation_payload.pop(key, None)
+            supabase.table("donations").insert(donation_payload).execute()
 
         return jsonify({
             "id": order["id"],
             "amount": order["amount"],
             "currency": order["currency"],
-            "key_id": RAZOR_KEY
+            "key_id": RAZOR_KEY,
+            "donation_ref": donation_ref,
+            "purpose_label": purpose_label,
         })
 
     except RuntimeError as e:
@@ -991,14 +1883,14 @@ def payment_status_update():
         response = supabase.table("donations") \
             .update(update_payload) \
             .eq("razorpay_order_id", order_id) \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .eq("status", "pending") \
             .execute()
         updated = bool(response.data)
 
         if updated:
             create_notification_for_user(
-                int(current_user.id),
+                current_user.id,
                 "Donation attempt incomplete",
                 "Your last payment attempt was not completed. You can retry safely."
             )
@@ -1017,9 +1909,9 @@ def payment_success_redirect():
         return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
     params = request.values
-    payment_id = clean_text(params.get("razorpay_payment_id"), 120)
-    order_id = clean_text(params.get("razorpay_order_id"), 120)
-    signature = clean_text(params.get("razorpay_signature"), 180)
+    payment_id = clean_text(params.get("payment_token") or params.get("razorpay_payment_id"), 120)
+    order_id = clean_text(params.get("order_token") or params.get("razorpay_order_id"), 120)
+    signature = clean_text(params.get("checkout_signature") or params.get("razorpay_signature"), 180)
     error_code = clean_text(params.get("error_code"), 80)
     error_description = clean_text(params.get("error_description"), 250)
 
@@ -1029,7 +1921,7 @@ def payment_success_redirect():
                 supabase.table("donations") \
                     .update({"status": "failed", "payment_method": "Razorpay"}) \
                     .eq("razorpay_order_id", order_id) \
-                    .eq("user_id", int(current_user.id)) \
+                    .eq("user_id", current_db_user_id()) \
                     .eq("status", "pending") \
                     .execute()
             except Exception as e:
@@ -1053,6 +1945,14 @@ def payment_success_redirect():
             flash('Payment verification failed', 'error')
             return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
+        existing_response = supabase.table('donations') \
+            .select("*") \
+            .eq('razorpay_order_id', order_id) \
+            .limit(1) \
+            .execute()
+        existing_donation = (existing_response.data or [None])[0]
+        was_already_paid = bool(existing_donation and existing_donation.get("status") == "paid")
+
         response = supabase.table('donations') \
             .update({
                 "razorpay_payment_id": payment_id,
@@ -1066,18 +1966,14 @@ def payment_success_redirect():
         if response.data:
             donation = response.data[0]
             user_id = donation.get("user_id")
-            if user_id:
+            if not was_already_paid:
                 try:
-                    create_notification_for_user(
-                        int(user_id),
-                        "Donation successful",
-                        f"Your donation of Rs {donation.get('amount', 0)/100:.2f} was received successfully."
-                    )
-                except Exception:
-                    pass
+                    apply_paid_donation_effects(donation)
+                except Exception as effect_error:
+                    app.logger.warning(f"Donation side effects skipped: {effect_error}")
             flash('Thank you for your donation!', 'success')
             if current_user.is_authenticated:
-                if donation.get("user_id") == int(current_user.id) or donation.get("email") == current_user.email:
+                if str(donation.get("user_id")) == str(current_user.id) or donation.get("email") == current_user.email:
                     return redirect(url_for('donation_receipt', donation_id=donation['id']))
                 return redirect(url_for("dashboard"))
             return redirect(url_for("login", next=url_for("user_donations")))
@@ -1114,7 +2010,10 @@ def razorpay_webhook():
             order_id = payment.get('order_id')
             payment_id = payment.get('id')
             if order_id and payment_id:
-                supabase.table('donations') \
+                existing_response = supabase.table('donations').select("*").eq('razorpay_order_id', order_id).limit(1).execute()
+                existing_donation = (existing_response.data or [None])[0]
+                was_already_paid = bool(existing_donation and existing_donation.get("status") == "paid")
+                update_response = supabase.table('donations') \
                     .update({
                         "razorpay_payment_id": payment_id,
                         "status": "paid",
@@ -1122,6 +2021,8 @@ def razorpay_webhook():
                     }) \
                     .eq('razorpay_order_id', order_id) \
                     .execute()
+                if update_response.data and not was_already_paid:
+                    apply_paid_donation_effects(update_response.data[0])
         elif event_type == 'payment.failed':
             payment = event.get('payload', {}).get('payment', {}).get('entity', {})
             order_id = payment.get('order_id')
@@ -1314,7 +2215,7 @@ def volunteer():
     try:
         existing_response = supabase.table('volunteers') \
             .select('*') \
-            .eq('user_id', int(current_user.id)) \
+            .eq('user_id', current_db_user_id()) \
             .order('created_at', desc=True) \
             .limit(1) \
             .execute()
@@ -1348,7 +2249,7 @@ def volunteer():
 
         try:
             supabase.table('volunteers').insert({
-                "user_id": int(current_user.id),
+                "user_id": current_db_user_id(),
                 "name": clean_text(current_user.name, 120),
                 "email": current_user.email,
                 "phone": phone,
@@ -1359,7 +2260,7 @@ def volunteer():
             }).execute()
 
             create_notification_for_user(
-                int(current_user.id),
+                current_user.id,
                 "Volunteer request submitted",
                 "Your volunteer application is pending admin review."
             )
@@ -1460,7 +2361,7 @@ def signup():
             if email_sent:
                 flash("Signup OTP sent to your email.", "success")
             else:
-                if app.debug and ALLOW_DEV_OTP_FALLBACK:
+                if DEV_OTP_FALLBACK_ENABLED:
                     app.logger.warning(f"DEV OTP fallback (signup) for {email}: {otp}")
                     flash("Email OTP failed. In dev mode, use the OTP shown in server logs.", "warning")
                 else:
@@ -1609,7 +2510,7 @@ def login():
             if email_sent:
                 flash("OTP sent to your email.", "success")
             else:
-                if app.debug and ALLOW_DEV_OTP_FALLBACK:
+                if DEV_OTP_FALLBACK_ENABLED:
                     app.logger.warning(f"DEV OTP fallback (login) for {email}: {otp}")
                     flash("Email OTP failed. In dev mode, use the OTP shown in server logs.", "warning")
                 else:
@@ -1654,6 +2555,8 @@ def verify_login():
         next_page = payload.get("next_page")
         if next_page:
             return redirect(next_page)
+        if user.role == "coordinator":
+            return redirect(url_for("coordinator_portal"))
         return redirect(url_for("admin_dashboard" if user.is_admin else "dashboard"))
 
     return render_template("verify_otp.html", flow="login")
@@ -1681,6 +2584,8 @@ def logout():
 def dashboard():
     if current_user.is_admin:
         return redirect(url_for("admin_dashboard"))
+    if getattr(current_user, "role", "") == "coordinator":
+        return redirect(url_for("coordinator_portal"))
 
     recent_donations = []
     all_donations = []
@@ -1695,7 +2600,7 @@ def dashboard():
     try:
         recent_response = supabase.table("donations") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .limit(4) \
             .execute()
@@ -1703,7 +2608,7 @@ def dashboard():
 
         full_response = supabase.table("donations") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .execute()
         all_donations = full_response.data or []
@@ -1729,10 +2634,10 @@ def dashboard():
         all_donations = []
 
     try:
-        trim_user_notifications(user_id=int(current_user.id), max_keep=4)
+        trim_user_notifications(user_id=current_user.id, max_keep=4)
         notifications_response = supabase.table("notifications") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .limit(4) \
             .execute()
@@ -1745,7 +2650,7 @@ def dashboard():
     try:
         volunteer_response = supabase.table("volunteers") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .limit(1) \
             .execute()
@@ -1764,15 +2669,16 @@ def dashboard():
     try:
         cert_response = supabase.table("event_certificates") \
             .select("id") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .eq("status", "approved") \
             .execute()
         approved_certificates_count = len(cert_response.data or [])
     except Exception:
         approved_certificates_count = 0
 
-    total_donated = sum((d.get("amount") or 0) for d in all_donations if d.get("status") == "paid") / 100
-    donation_records_count = len(all_donations)
+    paid_donations = [d for d in all_donations if d.get("status") == "paid"]
+    total_donated = sum((d.get("amount") or 0) for d in paid_donations) / 100
+    donation_records_count = len(paid_donations)
 
     return render_template(
         "dashboard.html",
@@ -1795,7 +2701,7 @@ def user_donations():
     try:
         response = supabase.table("donations") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .execute()
         donations = response.data or []
@@ -1819,6 +2725,143 @@ def previous_donations():
     return redirect(url_for("user_donations"))
 
 
+@app.route("/profile")
+@login_required
+def profile():
+    user_profile = {
+        "name": current_user.name,
+        "email": current_user.email,
+        "phone": getattr(current_user, "phone", ""),
+        "address": getattr(current_user, "address", ""),
+    }
+    try:
+        response = supabase.table("users").select("*").eq("id", current_db_user_id()).limit(1).execute()
+        row = (response.data or [None])[0]
+        if row:
+            user_profile.update({
+                "name": row.get("name") or user_profile["name"],
+                "email": row.get("email") or user_profile["email"],
+                "phone": row.get("phone") or "",
+                "address": row.get("address") or "",
+            })
+    except Exception as e:
+        app.logger.warning(f"Profile lookup failed: {e}")
+    return render_template("profile.html", user_profile=user_profile)
+
+
+@app.route("/profile/request-update", methods=["POST"])
+@login_required
+def request_profile_update():
+    name = clean_text(request.form.get("name"), 120)
+    email = normalize_email(request.form.get("email"))
+    phone = normalize_phone(request.form.get("phone"))
+    address = clean_text(request.form.get("address"), 500, keep_new_lines=True)
+
+    if not name or not email or not phone:
+        flash("Name, valid email, and 10 digit phone are required.", "error")
+        return redirect(url_for("profile"))
+
+    try:
+        if email != current_user.email:
+            existing = supabase.table("users").select("id").eq("email", email).limit(1).execute()
+            existing_row = (existing.data or [None])[0]
+            if existing_row and str(existing_row.get("id")) != str(current_user.id):
+                flash("That email is already used by another account.", "error")
+                return redirect(url_for("profile"))
+    except Exception as e:
+        app.logger.warning(f"Profile email uniqueness check failed: {e}")
+
+    otp = set_pending_otp("profile_update", current_user.email, {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "address": address,
+    })
+    if send_otp_email(current_user.email, otp, "Profile Update Verification"):
+        flash("Profile update OTP sent to your current email.", "success")
+    elif DEV_OTP_FALLBACK_ENABLED:
+        app.logger.warning(f"DEV OTP fallback (profile) for {current_user.email}: {otp}")
+        flash("Email OTP failed. In dev mode, use the OTP shown in server logs.", "warning")
+    else:
+        session.pop("pending_profile_update", None)
+        flash("Unable to send OTP email right now.", "error")
+        return redirect(url_for("profile"))
+    return redirect(url_for("verify_profile_update"))
+
+
+@app.route("/profile/verify", methods=["GET", "POST"])
+@login_required
+def verify_profile_update():
+    pending = session.get("pending_profile_update")
+    if not pending:
+        flash("Profile update session expired. Please try again.", "error")
+        return redirect(url_for("profile"))
+
+    if request.method == "POST":
+        ok, payload_or_message = validate_pending_otp("profile_update", request.form.get("otp"))
+        if not ok:
+            flash(payload_or_message, "error")
+            return redirect(url_for("verify_profile_update"))
+
+        payload = payload_or_message.get("payload", {})
+        update_payload = {
+            "name": clean_text(payload.get("name"), 120),
+            "email": normalize_email(payload.get("email")) or current_user.email,
+            "phone": normalize_phone(payload.get("phone")) or "",
+            "address": clean_text(payload.get("address"), 500, keep_new_lines=True),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            try:
+                response = supabase.table("users").update(update_payload).eq("id", current_db_user_id()).execute()
+            except Exception:
+                fallback_payload = {
+                    "name": update_payload["name"],
+                    "email": update_payload["email"],
+                    "updated_at": update_payload["updated_at"],
+                }
+                response = supabase.table("users").update(fallback_payload).eq("id", current_db_user_id()).execute()
+
+            row = (response.data or [None])[0] or {}
+            login_user(User(
+                id=row.get("id", current_user.id),
+                email=row.get("email", update_payload["email"]),
+                name=row.get("name", update_payload["name"]),
+                is_admin=row.get("is_admin", current_user.is_admin),
+                role=row.get("role", current_user.role),
+                phone=row.get("phone", update_payload["phone"]),
+                address=row.get("address", update_payload["address"]),
+            ))
+            session.pop("pending_profile_update", None)
+            create_notification_for_user(current_user.id, "Profile updated", "Your profile details were updated after OTP verification.")
+            flash("Profile updated successfully.", "success")
+            return redirect(url_for("profile"))
+        except Exception as e:
+            app.logger.error(f"Profile update failed: {e}")
+            flash("Unable to update profile right now.", "error")
+
+    return render_template("verify_otp.html", flow="profile_update")
+
+
+@app.route("/api/notifications/latest")
+@login_required
+def latest_notifications():
+    try:
+        response = supabase.table("notifications") \
+            .select("*") \
+            .eq("user_id", current_db_user_id()) \
+            .order("created_at", desc=True) \
+            .limit(4) \
+            .execute()
+        notifications = response.data or []
+        for item in notifications:
+            item["body_display"] = normalize_currency_text(item.get("body", ""))
+        return jsonify({"notifications": notifications})
+    except Exception as e:
+        app.logger.warning(f"Notification API failed: {e}")
+        return jsonify({"notifications": []})
+
+
 @app.route("/appointments", methods=["GET", "POST"])
 @login_required
 def appointments():
@@ -1828,27 +2871,35 @@ def appointments():
         purpose = clean_text(request.form.get("purpose"), 120)
         notes = clean_text(request.form.get("notes"), 1000, keep_new_lines=True)
 
-        if not appointment_date or not appointment_time or not purpose:
-            flash("Please fill all required appointment fields.", "error")
+        if not purpose:
+            flash("Please enter the appointment purpose.", "error")
             return redirect(url_for("appointments"))
 
         try:
-            supabase.table("appointments").insert({
-                "user_id": int(current_user.id),
+            payload = {
+                "user_id": current_db_user_id(),
                 "name": clean_text(current_user.name, 120),
                 "email": current_user.email,
-                "appointment_date": appointment_date,
-                "appointment_time": appointment_time,
+                "appointment_date": appointment_date or datetime.now(timezone.utc).date().isoformat(),
+                "appointment_time": appointment_time or "TBA",
                 "purpose": purpose,
                 "notes": notes,
-                "status": "pending",
+                "status": "requested",
                 "created_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
+            }
+            try:
+                payload["requested_date"] = appointment_date or None
+                payload["requested_time"] = appointment_time or None
+                supabase.table("appointments").insert(payload).execute()
+            except Exception:
+                payload.pop("requested_date", None)
+                payload.pop("requested_time", None)
+                supabase.table("appointments").insert(payload).execute()
 
             create_notification_for_user(
-                int(current_user.id),
+                current_user.id,
                 "Appointment submitted",
-                "Your appointment request has been submitted and is awaiting confirmation."
+                "Your appointment request was submitted. A coordinator will schedule or share available slots."
             )
             flash("Appointment request submitted.", "success")
             return redirect(url_for("appointments"))
@@ -1857,10 +2908,11 @@ def appointments():
             flash("Could not save appointment. Please contact support.", "error")
 
     items = []
+    slots = []
     try:
         response = supabase.table("appointments") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .limit(20) \
             .execute()
@@ -1868,7 +2920,168 @@ def appointments():
     except Exception:
         items = []
 
-    return render_template("appointments.html", appointments=items)
+    try:
+        response = supabase.table("appointment_slots") \
+            .select("*") \
+            .eq("status", "available") \
+            .order("slot_date") \
+            .order("slot_time") \
+            .limit(30) \
+            .execute()
+        slots = response.data or []
+    except Exception:
+        slots = []
+
+    return render_template("appointments.html", appointments=items, slots=slots)
+
+
+@app.route("/appointments/slot/<int:slot_id>/book", methods=["POST"])
+@login_required
+def book_appointment_slot(slot_id):
+    purpose = clean_text(request.form.get("purpose"), 120) or "Coordinator meeting"
+    notes = clean_text(request.form.get("notes"), 1000, keep_new_lines=True)
+
+    try:
+        slot_response = supabase.table("appointment_slots").select("*").eq("id", slot_id).limit(1).execute()
+        slot = (slot_response.data or [None])[0]
+        if not slot or slot.get("status") != "available":
+            flash("This appointment slot is no longer available.", "warning")
+            return redirect(url_for("appointments"))
+
+        meet_url = slot.get("meet_url") or build_meet_url(f"{slot.get('slot_date')}-{slot.get('slot_time')}-{slot_id}")
+        appointment_payload = {
+            "user_id": current_db_user_id(),
+            "name": clean_text(current_user.name, 120),
+            "email": current_user.email,
+            "appointment_date": slot.get("slot_date"),
+            "appointment_time": slot.get("slot_time"),
+            "requested_date": slot.get("slot_date"),
+            "requested_time": slot.get("slot_time"),
+            "scheduled_date": slot.get("slot_date"),
+            "scheduled_time": slot.get("slot_time"),
+            "coordinator_id": slot.get("coordinator_id"),
+            "slot_id": slot_id,
+            "purpose": purpose,
+            "notes": notes,
+            "meet_url": meet_url,
+            "status": "booked" if slot.get("auto_accept") else "scheduled",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            appointment_response = supabase.table("appointments").insert(appointment_payload).execute()
+        except Exception:
+            for key in ["requested_date", "requested_time", "scheduled_date", "scheduled_time", "coordinator_id", "slot_id", "meet_url"]:
+                appointment_payload.pop(key, None)
+            appointment_response = supabase.table("appointments").insert(appointment_payload).execute()
+
+        supabase.table("appointment_slots").update({
+            "status": "booked",
+            "booked_by_user_id": current_db_user_id(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", slot_id).execute()
+
+        appointment = (appointment_response.data or [appointment_payload])[0]
+        create_notification_for_user(
+            current_user.id,
+            "Appointment booked",
+            f"Your meeting is scheduled for {slot.get('slot_date')} at {slot.get('slot_time')}."
+        )
+        send_meeting_update_email(current_user.email, current_user.name, appointment, "Think.4U appointment booked")
+        flash("Appointment slot booked successfully.", "success")
+    except Exception as e:
+        app.logger.error(f"Appointment slot booking failed: {e}")
+        flash("Unable to book this appointment slot.", "error")
+
+    return redirect(url_for("appointments"))
+
+
+def can_join_appointment(appointment):
+    if not appointment or not current_user.is_authenticated:
+        return False
+    if getattr(current_user, "is_admin", False):
+        return True
+    if getattr(current_user, "role", "") == "coordinator":
+        coordinator_id = appointment.get("coordinator_id")
+        return coordinator_id in {None, "", current_db_user_id(), str(current_db_user_id())}
+    return (
+        str(appointment.get("user_id")) == str(current_db_user_id())
+        or normalize_email(appointment.get("email")) == current_user.email
+    )
+
+
+def render_jitsi_room(record, seed_text, title, return_url):
+    room_name = jitsi_room_from_url_or_seed((record or {}).get("meet_url"), seed_text)
+    is_moderator = bool(getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator")
+    jwt_token = build_jitsi_jwt(
+        room_name,
+        current_user.name or current_user.email,
+        email=current_user.email,
+        moderator=is_moderator,
+        user_id=getattr(current_user, "id", "") or JITSI_DEFAULT_USER_ID,
+    )
+    return render_template(
+        "meeting_room.html",
+        title=title,
+        domain=jitsi_domain(),
+        api_script_url=jitsi_api_script_url(),
+        room_name=room_name,
+        jwt_token=jwt_token,
+        display_name=current_user.name or current_user.email,
+        user_email=current_user.email,
+        direct_meet_url=f"{jitsi_origin()}/{room_name}",
+        return_url=return_url,
+        jwt_required=bool(read_jitsi_private_key()),
+        jwt_enabled=bool(jwt_token),
+    )
+
+
+@app.route("/meeting/<int:appointment_id>")
+@login_required
+def meeting_room(appointment_id):
+    try:
+        response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
+        appointment = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Meeting lookup failed: %s", exc)
+        appointment = None
+
+    if not appointment or not can_join_appointment(appointment):
+        flash("You do not have access to this meeting.", "error")
+        return redirect(url_for("appointments"))
+
+    seed_text = f"appointment-{appointment_id}-{appointment.get('scheduled_date') or appointment.get('appointment_date')}"
+    return render_jitsi_room(
+        appointment,
+        seed_text,
+        title=f"Think.4U Meeting - {appointment.get('purpose') or 'Appointment'}",
+        return_url=url_for("coordinator_portal") if getattr(current_user, "role", "") == "coordinator" else url_for("appointments"),
+    )
+
+
+@app.route("/meeting/slot/<int:slot_id>")
+@coordinator_required
+def meeting_slot_room(slot_id):
+    try:
+        response = supabase.table("appointment_slots").select("*").eq("id", slot_id).limit(1).execute()
+        slot = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Meeting slot lookup failed: %s", exc)
+        slot = None
+
+    if not slot:
+        flash("Meeting slot not found.", "error")
+        return redirect(url_for("coordinator_portal"))
+    if not current_user.is_admin and slot.get("coordinator_id") not in {None, "", current_db_user_id(), str(current_db_user_id())}:
+        flash("You do not have access to this meeting slot.", "error")
+        return redirect(url_for("coordinator_portal"))
+
+    seed_text = f"slot-{slot_id}-{slot.get('slot_date')}-{slot.get('slot_time')}"
+    return render_jitsi_room(
+        slot,
+        seed_text,
+        title=f"Think.4U Slot - {slot.get('slot_date')} {slot.get('slot_time')}",
+        return_url=url_for("coordinator_portal"),
+    )
 
 
 @app.route("/fundraising")
@@ -1901,7 +3114,6 @@ def fundraising():
 
 
 @app.route("/events")
-@login_required
 def events_page():
     events = []
     registration_map = {}
@@ -1920,36 +3132,37 @@ def events_page():
     except Exception:
         events = []
 
-    try:
-        registration_response = supabase.table("event_participants") \
-            .select("*") \
-            .eq("user_id", int(current_user.id)) \
-            .execute()
-        registrations = registration_response.data or []
-        if not registrations:
-            fallback_response = supabase.table("event_participants") \
+    if current_user.is_authenticated:
+        try:
+            registration_response = supabase.table("event_participants") \
                 .select("*") \
-                .eq("email", current_user.email) \
+                .eq("user_id", current_db_user_id()) \
                 .execute()
-            registrations = fallback_response.data or []
-        for item in registrations:
-            event_id = item.get("event_id")
-            if event_id is not None:
-                registration_map[int(event_id)] = item
-    except Exception:
-        registration_map = {}
+            registrations = registration_response.data or []
+            if not registrations:
+                fallback_response = supabase.table("event_participants") \
+                    .select("*") \
+                    .eq("email", current_user.email) \
+                    .execute()
+                registrations = fallback_response.data or []
+            for item in registrations:
+                event_id = item.get("event_id")
+                if event_id is not None:
+                    registration_map[int(event_id)] = item
+        except Exception:
+            registration_map = {}
 
-    try:
-        certificate_response = supabase.table("event_certificates") \
-            .select("*") \
-            .eq("user_id", int(current_user.id)) \
-            .execute()
-        for item in (certificate_response.data or []):
-            event_id = item.get("event_id")
-            if event_id is not None:
-                certificate_map[int(event_id)] = item
-    except Exception:
-        certificate_map = {}
+        try:
+            certificate_response = supabase.table("event_certificates") \
+                .select("*") \
+                .eq("user_id", current_db_user_id()) \
+                .execute()
+            for item in (certificate_response.data or []):
+                event_id = item.get("event_id")
+                if event_id is not None:
+                    certificate_map[int(event_id)] = item
+        except Exception:
+            certificate_map = {}
 
     return render_template(
         "events.html",
@@ -1972,7 +3185,7 @@ def register_for_event(event_id):
         existing_response = supabase.table("event_participants") \
             .select("id") \
             .eq("event_id", event_id) \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .limit(1) \
             .execute()
         existing_data = existing_response.data or []
@@ -1991,7 +3204,7 @@ def register_for_event(event_id):
 
         supabase.table("event_participants").insert({
             "event_id": event_id,
-            "user_id": int(current_user.id),
+            "user_id": current_db_user_id(),
             "name": clean_text(current_user.name, 120),
             "email": current_user.email,
             "role": current_user.role if current_user.role in {"donor", "volunteer", "both", "admin"} else "donor",
@@ -2002,7 +3215,7 @@ def register_for_event(event_id):
         try:
             supabase.table("event_certificates").upsert({
                 "event_id": event_id,
-                "user_id": int(current_user.id),
+                "user_id": current_db_user_id(),
                 "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }, on_conflict="event_id,user_id").execute()
@@ -2010,7 +3223,7 @@ def register_for_event(event_id):
             app.logger.warning(f"Certificate request upsert skipped: {cert_error}")
 
         create_notification_for_user(
-            int(current_user.id),
+            current_user.id,
             "Event registration confirmed",
             f"You are registered for {event_row.get('title', 'the event')}. Certificate status will update after admin review."
         )
@@ -2034,7 +3247,7 @@ def certificates_page():
     try:
         response = supabase.table("event_participants") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .execute()
         participation_rows = response.data or []
@@ -2067,7 +3280,7 @@ def certificates_page():
         try:
             cert_response = supabase.table("event_certificates") \
                 .select("*") \
-                .eq("user_id", int(current_user.id)) \
+                .eq("user_id", current_db_user_id()) \
                 .in_("event_id", event_ids) \
                 .execute()
             certificate_rows = cert_response.data or []
@@ -2121,14 +3334,15 @@ def grievance_feedback():
         issue_type = clean_text(request.form.get("issue_type"), 40)
         subject = clean_text(request.form.get("subject"), 120)
         message = clean_text(request.form.get("message"), 2000, keep_new_lines=True)
+        related_donation_id = clean_text(request.form.get("related_donation_id"), 80)
 
         if not issue_type or not subject or not message:
             flash("Please fill all grievance fields.", "error")
             return redirect(url_for("grievance_feedback"))
 
         try:
-            supabase.table("grievances").insert({
-                "user_id": int(current_user.id),
+            payload = {
+                "user_id": current_db_user_id(),
                 "name": clean_text(current_user.name, 120),
                 "email": current_user.email,
                 "issue_type": issue_type,
@@ -2136,10 +3350,17 @@ def grievance_feedback():
                 "message": message,
                 "status": "open",
                 "created_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
+            }
+            if issue_type == "donation" and related_donation_id:
+                payload["related_donation_id"] = db_id(related_donation_id)
+            try:
+                supabase.table("grievances").insert(payload).execute()
+            except Exception:
+                payload.pop("related_donation_id", None)
+                supabase.table("grievances").insert(payload).execute()
 
             create_notification_for_user(
-                int(current_user.id),
+                current_user.id,
                 "Grievance submitted",
                 "Your grievance/feedback has been submitted. Our team will follow up soon."
             )
@@ -2164,10 +3385,11 @@ def grievance_feedback():
             flash("Unable to submit grievance right now.", "error")
 
     items = []
+    recent_donations = []
     try:
         response = supabase.table("grievances") \
             .select("*") \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
             .limit(20) \
             .execute()
@@ -2175,12 +3397,91 @@ def grievance_feedback():
     except Exception:
         items = []
 
-    return render_template("grievance.html", grievances=items)
+    recent_donations = get_recent_user_donations(current_user.id, current_user.email, limit=5)
+    return render_template("grievance.html", grievances=items, recent_donations=recent_donations)
 
 
 @app.route("/policy-terms")
 def policy_terms():
     return render_template("policy_terms.html")
+
+
+@app.route("/contact", methods=["GET", "POST"])
+def contact():
+    if request.method == "POST":
+        name = clean_text(request.form.get("name"), 120)
+        email = normalize_email(request.form.get("email"))
+        phone = normalize_phone(request.form.get("phone"))
+        subject = clean_text(request.form.get("subject"), 160)
+        message = clean_text(request.form.get("message"), 2000, keep_new_lines=True)
+
+        if not name or not email or not subject or not message:
+            flash("Name, valid email, subject, and message are required.", "error")
+            return redirect(url_for("contact"))
+
+        try:
+            supabase.table("contact_messages").insert({
+                "user_id": current_db_user_id() if current_user.is_authenticated else None,
+                "name": name,
+                "email": email,
+                "phone": phone,
+                "subject": subject,
+                "message": message,
+                "status": "open",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+
+            admin_email = get_cms_content("contact_email", app.config.get("MAIL_USERNAME") or "")
+            if admin_email:
+                send_email_async(
+                    subject=f"Think.4U Contact: {subject}",
+                    recipients=[admin_email],
+                    html=f"""
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+                        <h2 style="color:#7c2d12;">New Contact Message</h2>
+                        <p><strong>Name:</strong> {html.escape(name)}</p>
+                        <p><strong>Email:</strong> {html.escape(email)}</p>
+                        <p><strong>Phone:</strong> {html.escape(phone or '-')}</p>
+                        <p><strong>Subject:</strong> {html.escape(subject)}</p>
+                        <p>{html.escape(message).replace(chr(10), '<br>')}</p>
+                    </div>
+                    """
+                )
+            flash("Thanks. Your message has been submitted.", "success")
+            return redirect(url_for("contact"))
+        except Exception as e:
+            app.logger.error(f"Contact message save failed: {e}")
+            flash("Unable to submit contact message right now.", "error")
+
+    return render_template("contact.html")
+
+
+@app.route("/api/cookie-consent", methods=["POST"])
+def cookie_consent():
+    payload = request.get_json(silent=True) or {}
+    anon_id = session.get("anon_session_id")
+    if not anon_id:
+        anon_id = uuid.uuid4().hex
+        session["anon_session_id"] = anon_id
+
+    ip_hash = hmac.new(
+        app.secret_key.encode("utf-8"),
+        get_client_ip().encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()
+    try:
+        supabase.table("cookie_consents").insert({
+            "user_id": current_db_user_id() if current_user.is_authenticated else None,
+            "anon_session_id": anon_id,
+            "accepted": bool(payload.get("accepted", True)),
+            "policy_version": clean_text(payload.get("policy_version") or APP_VERSION, 40),
+            "ip_hash": ip_hash,
+            "user_agent": clean_text(request.headers.get("User-Agent"), 500),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+    except Exception as e:
+        app.logger.warning(f"Cookie consent DB store skipped: {e}")
+    return jsonify({"ok": True})
 
 
 @app.route("/error-help")
@@ -2211,6 +3512,16 @@ def handle_403(_error):
 @app.errorhandler(400)
 def handle_400(_error):
     return _render_error(400, "Bad request", "The request could not be understood. Please try again.")
+
+
+@app.errorhandler(413)
+def handle_413(_error):
+    max_mb = app.config.get("MAX_CONTENT_LENGTH", 0) // (1024 * 1024)
+    message = f"The uploaded file is too large. Maximum upload size is {max_mb} MB."
+    if request.path.startswith("/admin/media"):
+        flash(message, "error")
+        return redirect(url_for("admin_media"))
+    return _render_error(413, "Upload too large", message)
 
 
 @app.errorhandler(404)
@@ -2361,12 +3672,373 @@ def chart_volunteers():
         })
 
 
+@app.route("/admin/media", methods=["GET", "POST"])
+@login_required
+def admin_media():
+    if request.method == "POST":
+        media_type = clean_text(request.form.get("media_type"), 20).lower()
+        placement = clean_text(request.form.get("placement"), 40).lower()
+        title = clean_text(request.form.get("title"), 160)
+        media_url = normalize_url(request.form.get("media_url"))
+        media_file = request.files.get("media_file")
+        is_published = request.form.get("is_published") == "on"
+        try:
+            sort_order = int(request.form.get("sort_order", "100"))
+        except ValueError:
+            sort_order = 100
+
+        if media_type not in {"image", "video"}:
+            flash("Choose image or video media type.", "error")
+            return redirect(url_for("admin_media"))
+        if placement not in {"home_hero", "home_gallery", "home_video"}:
+            flash("Choose a valid home placement.", "error")
+            return redirect(url_for("admin_media"))
+
+        try:
+            final_url = media_url
+            if media_file and media_file.filename:
+                final_url = upload_site_media(media_file, media_type, folder=placement)
+            if not final_url:
+                flash("Upload a file or enter a secure media URL.", "error")
+                return redirect(url_for("admin_media"))
+
+            supabase.table("media_assets").insert({
+                "media_type": media_type,
+                "placement": placement,
+                "title": title or placement.replace("_", " ").title(),
+                "url": final_url,
+                "is_published": is_published,
+                "sort_order": sort_order,
+                "created_by_user_id": current_db_user_id(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+            flash("Media asset saved.", "success")
+        except Exception as e:
+            app.logger.error(f"Media save failed: {e}")
+            flash("Unable to save media asset.", "error")
+        return redirect(url_for("admin_media"))
+
+    media_items = []
+    try:
+        response = supabase.table("media_assets").select("*").order("placement").order("sort_order").execute()
+        media_items = attach_media_display_urls(response.data or [])
+    except Exception as e:
+        app.logger.warning(f"Media list failed: {e}")
+    return render_template(
+        "admin/media.html",
+        media_items=media_items,
+        max_image_upload_mb=MAX_IMAGE_UPLOAD_MB,
+        max_video_upload_mb=MAX_VIDEO_UPLOAD_MB,
+    )
+
+
+@app.route("/admin/media/<int:media_id>/toggle", methods=["POST"])
+@login_required
+def admin_media_toggle(media_id):
+    is_published = request.form.get("is_published") == "on"
+    try:
+        supabase.table("media_assets").update({
+            "is_published": is_published,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", media_id).execute()
+        flash("Media visibility updated.", "success")
+    except Exception as e:
+        app.logger.error(f"Media toggle failed: {e}")
+        flash("Unable to update media visibility.", "error")
+    return redirect(url_for("admin_media"))
+
+
+@app.route("/admin/events", methods=["GET", "POST"])
+@login_required
+def admin_events():
+    if request.method == "POST":
+        title = clean_text(request.form.get("title"), 200)
+        description = clean_text(request.form.get("description"), 2000, keep_new_lines=True)
+        event_date = clean_text(request.form.get("event_date"), 20)
+        location = clean_text(request.form.get("location"), 220)
+
+        if not title or not event_date:
+            flash("Event title and date are required.", "error")
+            return redirect(url_for("admin_events"))
+
+        try:
+            supabase.table("volunteer_events").insert({
+                "title": title,
+                "description": description,
+                "event_date": event_date,
+                "location": location,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+            flash("Event created.", "success")
+        except Exception as e:
+            app.logger.error(f"Event create failed: {e}")
+            flash("Unable to create event.", "error")
+        return redirect(url_for("admin_events"))
+
+    events = []
+    try:
+        response = supabase.table("volunteer_events").select("*").order("event_date", desc=True).limit(200).execute()
+        events = response.data or []
+    except Exception as e:
+        app.logger.warning(f"Admin events load failed: {e}")
+    return render_template("admin/events.html", events=events)
+
+
+@app.route("/admin/notifications", methods=["GET", "POST"])
+@login_required
+def admin_notifications():
+    if request.method == "POST":
+        target = clean_text(request.form.get("target"), 40)
+        email = normalize_email(request.form.get("email"))
+        title = clean_text(request.form.get("title"), 120)
+        body = clean_text(request.form.get("body"), 500, keep_new_lines=True)
+        send_mail = request.form.get("send_mail") == "on"
+
+        if target not in {"all", "email"} or not title or not body:
+            flash("Choose target and enter notification title/body.", "error")
+            return redirect(url_for("admin_notifications"))
+        if target == "email" and not email:
+            flash("Enter a valid recipient email.", "error")
+            return redirect(url_for("admin_notifications"))
+
+        try:
+            if target == "all":
+                users_response = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute()
+                recipients = users_response.data or []
+            else:
+                user_response = supabase.table("users").select("id,email,name").eq("email", email).limit(1).execute()
+                recipients = user_response.data or []
+
+            for user_row in recipients:
+                create_notification_for_user(user_row["id"], title, body)
+                if send_mail and user_row.get("email"):
+                    send_email_async(
+                        subject=f"Think.4U: {title}",
+                        recipients=[user_row["email"]],
+                        html=f"""
+                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+                            <h2 style="color:#7c2d12;">{html.escape(title)}</h2>
+                            <p>{html.escape(body).replace(chr(10), '<br>')}</p>
+                        </div>
+                        """
+                    )
+
+            flash(f"Notification sent to {len(recipients)} user(s).", "success")
+        except Exception as e:
+            app.logger.error(f"Admin notification failed: {e}")
+            flash("Unable to send notification.", "error")
+        return redirect(url_for("admin_notifications"))
+
+    recent_notifications = []
+    users = []
+    try:
+        recent_response = supabase.table("notifications").select("*").order("created_at", desc=True).limit(50).execute()
+        recent_notifications = recent_response.data or []
+        users_response = supabase.table("users").select("id,email,name").eq("is_admin", False).order("created_at", desc=True).limit(200).execute()
+        users = users_response.data or []
+    except Exception as e:
+        app.logger.warning(f"Admin notification page load failed: {e}")
+    return render_template("admin/notifications.html", recent_notifications=recent_notifications, users=users)
+
+
+@app.route("/admin/coordinators", methods=["GET", "POST"])
+@login_required
+def admin_coordinators():
+    if request.method == "POST":
+        name = clean_text(request.form.get("name"), 120)
+        email = normalize_email(request.form.get("email"))
+        password = request.form.get("password") or generated_password()
+        auto_generated = not request.form.get("password")
+
+        if not name or not email:
+            flash("Coordinator name and email are required.", "error")
+            return redirect(url_for("admin_coordinators"))
+        password_ok, password_error = validate_password_strength(password)
+        if not password_ok:
+            flash(password_error, "error")
+            return redirect(url_for("admin_coordinators"))
+
+        try:
+            existing = supabase.table("users").select("id").eq("email", email).limit(1).execute()
+            existing_row = (existing.data or [None])[0]
+            payload = {
+                "name": name,
+                "email": email,
+                "password_hash": generate_password_hash(password),
+                "is_admin": False,
+                "role": "coordinator",
+                "email_verified": True,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if existing_row:
+                supabase.table("users").update(payload).eq("id", existing_row["id"]).execute()
+                flash("Coordinator account updated.", "success")
+            else:
+                payload["created_at"] = datetime.now(timezone.utc).isoformat()
+                supabase.table("users").insert(payload).execute()
+                flash("Coordinator account created.", "success")
+            if auto_generated:
+                send_generated_password_email(email, name, password)
+        except Exception as e:
+            app.logger.error(f"Coordinator create failed: {e}")
+            flash("Unable to create coordinator. Make sure SQL role check allows coordinator.", "error")
+        return redirect(url_for("admin_coordinators"))
+
+    coordinators = []
+    recent_meetings = []
+    slots = []
+    try:
+        coordinators_response = supabase.table("users").select("id,email,name,created_at").eq("role", "coordinator").order("created_at", desc=True).execute()
+        coordinators = coordinators_response.data or []
+    except Exception:
+        coordinators = []
+    try:
+        meetings_response = supabase.table("appointments").select("*").order("created_at", desc=True).limit(20).execute()
+        recent_meetings = meetings_response.data or []
+    except Exception:
+        recent_meetings = []
+    try:
+        slots_response = supabase.table("appointment_slots").select("*").order("slot_date", desc=True).limit(30).execute()
+        slots = slots_response.data or []
+    except Exception:
+        slots = []
+    return render_template("admin/coordinators.html", coordinators=coordinators, recent_meetings=recent_meetings, slots=slots)
+
+
+@app.route("/coordinator")
+@coordinator_required
+def coordinator_portal():
+    requests = []
+    meetings = []
+    slots = []
+    coordinator_id = current_db_user_id()
+    try:
+        response = supabase.table("appointments").select("*").order("created_at", desc=True).limit(200).execute()
+        rows = response.data or []
+        if current_user.is_admin:
+            visible_rows = rows
+        else:
+            visible_rows = [
+                row for row in rows
+                if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
+            ]
+        requests = [row for row in visible_rows if row.get("status") in {"requested", "pending"}]
+        meetings = [row for row in visible_rows if row.get("status") not in {"requested", "pending"}]
+    except Exception as e:
+        app.logger.warning(f"Coordinator appointments load failed: {e}")
+
+    try:
+        response = supabase.table("appointment_slots").select("*").order("slot_date").order("slot_time").limit(200).execute()
+        rows = response.data or []
+        if current_user.is_admin:
+            slots = rows
+        else:
+            slots = [
+                row for row in rows
+                if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
+            ]
+    except Exception as e:
+        app.logger.warning(f"Coordinator slots load failed: {e}")
+
+    return render_template("coordinator/dashboard.html", requests=requests, meetings=meetings, slots=slots, meet_domain=jitsi_domain())
+
+
+@app.route("/coordinator/slots", methods=["POST"])
+@coordinator_required
+def coordinator_create_slot():
+    slot_date = clean_text(request.form.get("slot_date"), 20)
+    slot_time = clean_text(request.form.get("slot_time"), 20)
+    try:
+        duration_minutes = int(request.form.get("duration_minutes", "30"))
+    except ValueError:
+        duration_minutes = 30
+    auto_accept = request.form.get("auto_accept") == "on"
+    meet_url = normalize_url(request.form.get("meet_url"))
+    if not meet_url:
+        meet_url = build_meet_url(f"{current_user.id}-{slot_date}-{slot_time}")
+
+    if not slot_date or not slot_time:
+        flash("Slot date and time are required.", "error")
+        return redirect(url_for("coordinator_portal"))
+
+    try:
+        supabase.table("appointment_slots").insert({
+            "coordinator_id": current_db_user_id(),
+            "slot_date": slot_date,
+            "slot_time": slot_time,
+            "duration_minutes": max(15, min(duration_minutes, 180)),
+            "meet_url": meet_url,
+            "auto_accept": auto_accept,
+            "status": "available",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+        flash("Appointment slot created.", "success")
+    except Exception as e:
+        app.logger.error(f"Coordinator slot create failed: {e}")
+        flash("Unable to create slot.", "error")
+    return redirect(url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/appointment/<int:appointment_id>/schedule", methods=["POST"])
+@coordinator_required
+def coordinator_schedule_appointment(appointment_id):
+    scheduled_date = clean_text(request.form.get("scheduled_date"), 20)
+    scheduled_time = clean_text(request.form.get("scheduled_time"), 20)
+    meet_url = normalize_url(request.form.get("meet_url"))
+    status = clean_text(request.form.get("status") or "scheduled", 30).lower()
+    if status not in {"scheduled", "rescheduled", "booked", "completed", "cancelled"}:
+        status = "scheduled"
+    if not scheduled_date or not scheduled_time:
+        flash("Schedule date and time are required.", "error")
+        return redirect(url_for("coordinator_portal"))
+    if not meet_url:
+        meet_url = build_meet_url(f"appointment-{appointment_id}-{scheduled_date}-{scheduled_time}")
+
+    try:
+        current_response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
+        current_row = (current_response.data or [None])[0]
+        update_payload = {
+            "coordinator_id": current_db_user_id(),
+            "scheduled_date": scheduled_date,
+            "scheduled_time": scheduled_time,
+            "appointment_date": scheduled_date,
+            "appointment_time": scheduled_time,
+            "meet_url": meet_url,
+            "status": status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            response = supabase.table("appointments").update(update_payload).eq("id", appointment_id).execute()
+        except Exception:
+            fallback = {
+                "appointment_date": scheduled_date,
+                "appointment_time": scheduled_time,
+                "status": status,
+            }
+            response = supabase.table("appointments").update(fallback).eq("id", appointment_id).execute()
+        appointment = (response.data or [current_row or update_payload])[0]
+        user_id = appointment.get("user_id")
+        if user_id:
+            create_notification_for_user(
+                user_id,
+                "Appointment scheduled",
+                f"Your meeting is {status} for {scheduled_date} at {scheduled_time}."
+            )
+        send_meeting_update_email(appointment.get("email"), appointment.get("name"), appointment, "Think.4U appointment scheduled")
+        if current_user.email:
+            send_meeting_update_email(current_user.email, current_user.name, appointment, "Think.4U coordinator meeting schedule")
+        flash("Appointment schedule updated.", "success")
+    except Exception as e:
+        app.logger.error(f"Coordinator schedule failed: {e}")
+        flash("Unable to update appointment schedule.", "error")
+    return redirect(url_for("coordinator_portal"))
+
+
 @app.route("/admin")
 @login_required
 def admin_dashboard():
     """Admin dashboard"""
     try:
-        # Get recent donations
         donations_response = supabase.table('donations') \
             .select("*") \
             .eq('status', 'paid') \
@@ -2376,15 +4048,20 @@ def admin_dashboard():
         
         recent_donations = donations_response.data if donations_response.data else []
         
-        # Calculate total
-        total_donations = sum(d['amount'] for d in recent_donations) / 100
+        total_response = supabase.table('donations') \
+            .select("amount", count="exact") \
+            .eq('status', 'paid') \
+            .execute()
+        paid_rows = total_response.data or []
+        total_donations = sum(d.get('amount', 0) for d in paid_rows) / 100
+        donation_count = total_response.count or len(paid_rows)
         
         volunteers_response = supabase.table('volunteers').select("*", count='exact').execute()
         
         return render_template(
             "admin/dashboard.html",
             total_donations=total_donations,
-            donation_count=len(recent_donations),
+            donation_count=donation_count,
             volunteer_count=volunteers_response.count or 0,
             recent_donations=recent_donations
         )
@@ -2401,34 +4078,40 @@ def admin_donations():
         page = request.args.get('page', 1, type=int)
         per_page = 20
         offset = (page - 1) * per_page
-        
-        response = supabase.table('donations') \
-            .select("*", count='exact') \
-            .order('created_at', desc=True) \
-            .range(offset, offset + per_page - 1) \
-            .execute()
-        
-        # Mock pagination object
-        class Pagination:
-            def __init__(self, items, total, page, per_page):
-                self.items = items
-                self.total = total
-                self.page = page
-                self.per_page = per_page
-                self.pages = (total + per_page - 1) // per_page
-                self.has_prev = page > 1
-                self.has_next = page < self.pages
-                self.prev_num = page - 1 if self.has_prev else None
-                self.next_num = page + 1 if self.has_next else None
-        
-        donations = Pagination(
-            response.data if response.data else [],
-            response.count or 0,
-            page,
-            per_page
-        )
-        
-        return render_template("admin/donations.html", donations=donations)
+
+        filters = {
+            "search": clean_text(request.args.get("search"), 120),
+            "status": clean_text(request.args.get("status"), 30).lower(),
+            "purpose_type": clean_text(request.args.get("purpose_type"), 30).lower(),
+            "date_from": clean_text(request.args.get("date_from"), 20),
+            "date_to": clean_text(request.args.get("date_to"), 20),
+        }
+
+        query = supabase.table('donations').select("*").order('created_at', desc=True)
+        if filters["status"]:
+            query = query.eq("status", filters["status"])
+        if filters["purpose_type"]:
+            query = query.eq("purpose_type", filters["purpose_type"])
+        if filters["date_from"]:
+            query = query.gte("created_at", filters["date_from"])
+        if filters["date_to"]:
+            query = query.lte("created_at", f"{filters['date_to']}T23:59:59")
+
+        response = query.limit(1000).execute()
+        rows = response.data or []
+        if filters["search"]:
+            needle = filters["search"].lower()
+            rows = [
+                row for row in rows
+                if needle in (row.get("email") or "").lower()
+                or needle in (row.get("name") or "").lower()
+                or needle in (row.get("donation_ref") or "").lower()
+                or needle in (row.get("razorpay_payment_id") or "").lower()
+            ]
+
+        donations = SimplePagination(rows[offset:offset + per_page], len(rows), page, per_page)
+
+        return render_template("admin/donations.html", donations=donations, filters=filters)
     except Exception as e:
         app.logger.error(f"Donations page error: {e}")
         flash("Error loading donations", "error")
@@ -2439,19 +4122,45 @@ def admin_donations():
 def export_donations():
     """Export donations to CSV"""
     try:
-        response = supabase.table('donations').select("*").eq('status', 'paid').execute()
-        donations = response.data
+        status = clean_text(request.args.get("status") or "paid", 30).lower()
+        purpose_type = clean_text(request.args.get("purpose_type"), 30).lower()
+        search = clean_text(request.args.get("search"), 120).lower()
+        date_from = clean_text(request.args.get("date_from"), 20)
+        date_to = clean_text(request.args.get("date_to"), 20)
+
+        query = supabase.table('donations').select("*").order("created_at", desc=True)
+        if status:
+            query = query.eq('status', status)
+        if purpose_type:
+            query = query.eq("purpose_type", purpose_type)
+        if date_from:
+            query = query.gte("created_at", date_from)
+        if date_to:
+            query = query.lte("created_at", f"{date_to}T23:59:59")
+
+        response = query.limit(5000).execute()
+        donations = response.data or []
+        if search:
+            donations = [
+                d for d in donations
+                if search in (d.get("email") or "").lower()
+                or search in (d.get("name") or "").lower()
+                or search in (d.get("donation_ref") or "").lower()
+            ]
         
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['ID', 'Amount (Rs)', 'Payment ID', 'Email', 'Date', 'Status'])
+        writer.writerow(['Donation Ref', 'Numeric ID', 'Amount (Rs)', 'Purpose', 'Gateway Payment ID', 'Email', 'Phone', 'Date', 'Status'])
         
         for d in donations:
             writer.writerow([
-                d['id'],
+                d.get('donation_ref') or f"T4U-{d.get('id')}",
+                d.get('id'),
                 f"{d['amount']/100:.2f}",
+                d.get('purpose_label') or d.get('purpose_type') or 'Self donation',
                 d.get('razorpay_payment_id', ''),
                 d.get('email', ''),
+                d.get('phone', ''),
                 d['created_at'],
                 d['status']
             ])
@@ -2466,6 +4175,37 @@ def export_donations():
     except Exception as e:
         flash(f"Export failed: {str(e)}", "error")
         return redirect('/admin/donations')
+
+
+@app.route("/admin/donation/<int:donation_id>/status", methods=["POST"])
+@login_required
+def admin_donation_status(donation_id):
+    new_status = clean_text(request.form.get("status"), 30).lower()
+    if new_status not in {"paid", "pending", "failed", "cancelled"}:
+        flash("Invalid donation status.", "error")
+        return redirect(url_for("admin_donations"))
+    try:
+        existing_response = supabase.table("donations").select("*").eq("id", donation_id).limit(1).execute()
+        existing = (existing_response.data or [None])[0]
+        was_paid = bool(existing and existing.get("status") == "paid")
+        response = supabase.table("donations").update({
+            "status": new_status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", donation_id).execute()
+        donation = (response.data or [existing or {}])[0]
+        if new_status == "paid" and not was_paid:
+            apply_paid_donation_effects(donation)
+        if donation.get("user_id"):
+            create_notification_for_user(
+                donation["user_id"],
+                "Donation status updated",
+                f"Donation {donation.get('donation_ref') or donation.get('id')} is now {new_status}."
+            )
+        flash("Donation status updated.", "success")
+    except Exception as e:
+        app.logger.error(f"Admin donation status update failed: {e}")
+        flash("Unable to update donation status.", "error")
+    return redirect(request.referrer or url_for("admin_donations"))
 
 
 
@@ -2637,13 +4377,15 @@ def volunteer_donations(vid):
         
         donations = donations_response.data if donations_response.data else []
         
-        # Calculate total donated
-        total_donated = sum(d.get('amount', 0) for d in donations) / 100  # Convert paise to rupees
+        successful_donations = [d for d in donations if d.get("status") == "paid"]
+        total_donated = sum(d.get('amount', 0) for d in successful_donations) / 100
+        successful_donations_count = len(successful_donations)
         
         return render_template('admin/volunteer_donations.html',
                              volunteer=volunteer,
                              donations=donations,
-                             total_donated=total_donated)
+                             total_donated=total_donated,
+                             successful_donations_count=successful_donations_count)
     except Exception as e:
         app.logger.error(f"Error fetching volunteer donations: {e}")
         flash('Error loading donations', 'error')
@@ -2807,7 +4549,7 @@ def admin_certificate_action():
             "status": new_status,
             "certificate_url": certificate_url or None,
             "review_note": review_note or None,
-            "reviewed_by_user_id": int(current_user.id),
+            "reviewed_by_user_id": current_db_user_id(),
             "reviewed_at": now_iso,
             "created_at": now_iso,
         }
@@ -2857,6 +4599,38 @@ def admin_certificate_action():
         flash("Unable to update certificate status right now.", "error")
 
     return redirect(url_for("admin_certificates"))
+
+
+@app.route("/admin/certificates/preview/<int:event_id>/<int:user_id>")
+@login_required
+def admin_certificate_preview(event_id, user_id):
+    try:
+        event_response = supabase.table("volunteer_events").select("*").eq("id", event_id).limit(1).execute()
+        user_response = supabase.table("users").select("id,email,name").eq("id", user_id).limit(1).execute()
+        participant_response = supabase.table("event_participants") \
+            .select("*") \
+            .eq("event_id", event_id) \
+            .eq("user_id", user_id) \
+            .limit(1) \
+            .execute()
+        event_row = (event_response.data or [None])[0]
+        user_row = (user_response.data or [None])[0]
+        participant = (participant_response.data or [None])[0]
+        if not event_row or not user_row:
+            flash("Certificate preview record not found.", "error")
+            return redirect(url_for("admin_certificates"))
+        return render_template(
+            "admin/certificate_preview.html",
+            event=event_row,
+            user=user_row,
+            participant=participant,
+            certificate_id=f"CERT-{event_id}-{user_id}",
+            issued_date=datetime.now(timezone.utc).date().isoformat(),
+        )
+    except Exception as e:
+        app.logger.error(f"Certificate preview failed: {e}")
+        flash("Unable to preview certificate.", "error")
+        return redirect(url_for("admin_certificates"))
 
 
 # ===================================
@@ -3064,7 +4838,7 @@ def program_detail(program_id):
             flash('Program not found', 'error')
             return redirect(url_for('index'))
         
-        program = response.data[0]
+        program = attach_program_image_display_urls([response.data[0]])[0]
         linked_event = ensure_event_for_program(program)
 
         if current_user.is_authenticated and linked_event and linked_event.get("id") is not None:
@@ -3073,7 +4847,7 @@ def program_detail(program_id):
                 reg_response = supabase.table("event_participants") \
                     .select("*") \
                     .eq("event_id", event_id) \
-                    .eq("user_id", int(current_user.id)) \
+                    .eq("user_id", current_db_user_id()) \
                     .limit(1) \
                     .execute()
                 registration = (reg_response.data or [None])[0]
@@ -3092,7 +4866,7 @@ def program_detail(program_id):
                 cert_response = supabase.table("event_certificates") \
                     .select("*") \
                     .eq("event_id", event_id) \
-                    .eq("user_id", int(current_user.id)) \
+                    .eq("user_id", current_db_user_id()) \
                     .limit(1) \
                     .execute()
                 certificate = (cert_response.data or [None])[0]
@@ -3132,7 +4906,7 @@ def register_for_program(program_id):
         existing_response = supabase.table("event_participants") \
             .select("id") \
             .eq("event_id", event_id) \
-            .eq("user_id", int(current_user.id)) \
+            .eq("user_id", current_db_user_id()) \
             .limit(1) \
             .execute()
         existing_data = existing_response.data or []
@@ -3151,7 +4925,7 @@ def register_for_program(program_id):
 
         supabase.table("event_participants").insert({
             "event_id": event_id,
-            "user_id": int(current_user.id),
+            "user_id": current_db_user_id(),
             "name": clean_text(current_user.name, 120),
             "email": current_user.email,
             "role": current_user.role if current_user.role in {"donor", "volunteer", "both", "admin"} else "donor",
@@ -3162,7 +4936,7 @@ def register_for_program(program_id):
         try:
             supabase.table("event_certificates").upsert({
                 "event_id": event_id,
-                "user_id": int(current_user.id),
+                "user_id": current_db_user_id(),
                 "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }, on_conflict="event_id,user_id").execute()
@@ -3170,7 +4944,7 @@ def register_for_program(program_id):
             app.logger.warning(f"Program certificate upsert skipped: {cert_error}")
 
         create_notification_for_user(
-            int(current_user.id),
+            current_user.id,
             "Program registration confirmed",
             f"You are registered for {program_row.get('title', 'this program')}."
         )
@@ -3394,15 +5168,19 @@ def admin_cms():
             if content_id:  # Update existing
                 response = supabase.table('cms_content').update({
                 "key": key,
-                "value": value
+                "value": value,
+                "updated_at": datetime.now(timezone.utc).isoformat()
                 }).eq('id', int(content_id)).execute()
                 flash("Content updated successfully!", "success")
             else:  # Create new
-                response = supabase.table('cms_content').insert({
+                response = supabase.table('cms_content').upsert({
                 "key": key,
-                "value": value
-                }).execute()
+                "value": value,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+                }, on_conflict="key").execute()
                 flash("Content added successfully!", "success")
+            CMS_CACHE[key] = value
+            CMS_CACHE_EXPIRY[key] = int(datetime.now(timezone.utc).timestamp()) + CMS_CACHE_TTL_SECONDS
             
             return redirect(url_for('admin_cms'))
         except Exception as e:
@@ -3411,6 +5189,7 @@ def admin_cms():
     
     # GET - Fetch all content
     try:
+        ensure_cms_defaults()
         response = supabase.table('cms_content').select('*').order('created_at', desc=True).execute()
         content_items = response.data if response.data else []
     except Exception as e:
@@ -3670,73 +5449,6 @@ def generate_qr(data):
     return base64.b64encode(buf.read()).decode("utf-8")
 
 
-@app.route("/create-admin-secret-123")
-def create_admin_secret():
-    """Create admin user in Supabase - REMOVE AFTER USE!"""
-    if os.getenv("ENABLE_ADMIN_BOOTSTRAP", "false").lower() != "true":
-        abort(404)
-    bootstrap_token = os.getenv("ADMIN_BOOTSTRAP_TOKEN", "")
-    if bootstrap_token and request.args.get("token") != bootstrap_token:
-        abort(403)
-    try:
-        from datetime import datetime, timezone
-        
-        email = normalize_email(os.getenv("ADMIN_BOOTSTRAP_EMAIL", "admin@think4u.local")) or "admin@think4u.local"
-        password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD") or secrets.token_urlsafe(12)
-        password_hash = generate_password_hash(password)
-        
-        # Check if admin exists
-        response = supabase.table('users').select('*').eq('email', email).execute()
-        
-        if response.data:
-            # Update existing user
-            result = supabase.table('users').update({
-                'password_hash': password_hash,
-                'is_admin': True,
-                'role': 'admin'
-            }).eq('email', email).execute()
-            message = "Admin user UPDATED!"
-        else:
-            # Create new admin user
-            result = supabase.table('users').insert({
-                'email': email,
-                'password_hash': password_hash,
-                'is_admin': True,
-                'role': 'admin',
-                'created_at': datetime.now(timezone.utc).isoformat()
-            }).execute()
-            message = "Admin user CREATED!"
-        
-        return f"""
-        <html>
-        <body style="font-family: Arial; padding: 50px; background: #f0f9ff;">
-            <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto;">
-                <h1 style="color: #10b981;">{message}</h1>
-                <p><strong>Email:</strong> {email}</p>
-                <p><strong>Password:</strong> {password}</p>
-                <hr>
-                <p style="color: #666; font-size: 14px;"><strong>Important:</strong> Delete this route from app.py after use!
-                </p>
-                <a href="/login" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #10b981; color: white; text-decoration: none; border-radius: 8px;">
-                    Go to Login
-                </a>
-            </div>
-        </body>
-        </html>
-        """
-            
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        return f"""
-        <html>
-        <body style="font-family: monospace; padding: 50px; background: #fee;">
-            <h1 style="color: red;">Error Creating Admin</h1>
-            <pre>{error_trace}</pre>
-        </body>
-        </html>
-        """
-
 def amount_to_words(amount):
     return num2words(amount, lang='en_IN').replace('-', ' ').title()
 
@@ -3744,9 +5456,17 @@ def amount_to_words(amount):
 # RUN APP
 # ===================================
 if __name__ == "__main__":
-    app.logger.info("App configured with Supabase!")
     debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     host = os.getenv("FLASK_HOST", "0.0.0.0")
     port = int(os.getenv("PORT", os.getenv("FLASK_PORT", "5000")))
+    app.logger.info(
+        "Starting Think.4U on %s:%s | debug=%s | enforce_https=%s | secure_cookie=%s | dev_otp_fallback=%s",
+        host,
+        port,
+        debug_mode,
+        ENFORCE_HTTPS,
+        app.config.get("SESSION_COOKIE_SECURE"),
+        DEV_OTP_FALLBACK_ENABLED,
+    )
     app.run(debug=debug_mode, host=host, port=port)
 

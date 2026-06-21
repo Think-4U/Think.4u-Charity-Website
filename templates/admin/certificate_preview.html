@@ -1,0 +1,34 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Certificate Preview{% endblock %}
+{% block content %}
+<div class="min-h-screen p-6 lg:p-10 bg-slate-100">
+    <div class="max-w-5xl mx-auto mb-5 print:hidden">
+        <a href="{{ url_for('admin_certificates') }}" class="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold">Back to Certificates</a>
+        <button onclick="window.print()" class="ml-2 px-4 py-2 rounded-lg bg-violet-600 text-white font-bold">Print Preview</button>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white border-[10px] border-amber-700 p-12 shadow-2xl text-center">
+        <p class="text-sm font-bold uppercase tracking-[0.35em] text-amber-800">Think.4U</p>
+        <h1 class="text-5xl font-black text-slate-900 mt-4">Certificate of Participation</h1>
+        <p class="text-slate-600 mt-6">This certificate is presented to</p>
+        <h2 class="text-4xl font-black text-slate-900 mt-3">{{ user.name or participant.name or 'Participant' }}</h2>
+        <p class="text-lg text-slate-700 mt-8 max-w-3xl mx-auto">
+            For participation in <strong>{{ event.title }}</strong>{% if event.event_date %} held on <strong>{{ event.event_date }}</strong>{% endif %}{% if event.location %} at <strong>{{ event.location }}</strong>{% endif %}.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 text-left">
+            <div class="border-t border-slate-300 pt-3">
+                <p class="text-xs text-slate-500 uppercase">Certificate ID</p>
+                <p class="font-bold text-slate-900">{{ certificate_id }}</p>
+            </div>
+            <div class="border-t border-slate-300 pt-3">
+                <p class="text-xs text-slate-500 uppercase">Issued Date</p>
+                <p class="font-bold text-slate-900">{{ issued_date }}</p>
+            </div>
+            <div class="border-t border-slate-300 pt-3">
+                <p class="text-xs text-slate-500 uppercase">Authorized By</p>
+                <p class="font-bold text-slate-900">Think.4U Admin</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

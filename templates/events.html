@@ -9,7 +9,11 @@
                 <h1 class="text-4xl font-black text-slate-900 mb-2">Upcoming Events</h1>
                 <p class="text-slate-600">Register here to participate. Certificates are approved event-wise by admin.</p>
             </div>
+            {% if current_user.is_authenticated %}
             <a href="{{ url_for('certificates_page') }}" class="px-4 py-2 rounded-xl bg-violet-50 text-violet-700 font-semibold">My Certificates</a>
+            {% else %}
+            <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-violet-50 text-violet-700 font-semibold">Login to Register</a>
+            {% endif %}
         </div>
 
         {% if events %}
@@ -43,11 +47,20 @@
                         </span>
                         {% endif %}
                         {% else %}
+                        <a href="{{ url_for('donate', purpose_type='event', purpose_id=event_id, purpose_label=e.title) }}" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-center">
+                            Donate to Event
+                        </a>
+                        {% if current_user.is_authenticated %}
                         <form method="POST" action="{{ url_for('register_for_event', event_id=event_id) }}">
                             <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
                                 Register for Event
                             </button>
                         </form>
+                        {% else %}
+                        <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center">
+                            Login to Register
+                        </a>
+                        {% endif %}
                         <span class="text-xs text-slate-500">Register now to become eligible for certification review.</span>
                         {% endif %}
                     </div>

@@ -17,3 +17,5 @@ setuptools
 wheel
 num2words
 reportlab==4.0.8
+PyJWT==2.10.1
+cryptography==43.0.3

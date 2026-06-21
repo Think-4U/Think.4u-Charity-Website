@@ -45,12 +45,48 @@
                 </a>
             </li>
 
+            <!-- Events -->
+            <li>
+                <a href="/admin/events"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/events' in request.path %}bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="calendar-days" class="w-5 h-5"></i>
+                    <span>Events</span>
+                </a>
+            </li>
+
             <!-- Grievances -->
             <li>
                 <a href="/admin/grievances"
                    class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/grievances' in request.path %}bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
                     <i data-lucide="life-buoy" class="w-5 h-5"></i>
                     <span>Grievance Support</span>
+                </a>
+            </li>
+
+            <!-- Media -->
+            <li>
+                <a href="/admin/media"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/media' in request.path %}bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="images" class="w-5 h-5"></i>
+                    <span>Media</span>
+                </a>
+            </li>
+
+            <!-- Notifications -->
+            <li>
+                <a href="/admin/notifications"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/notifications' in request.path %}bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span>Notifications</span>
+                </a>
+            </li>
+
+            <!-- Coordinators -->
+            <li>
+                <a href="/admin/coordinators"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/coordinators' in request.path %}bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+                    <span>Coordinators</span>
                 </a>
             </li>
 
@@ -100,7 +136,7 @@
             
             <div class="p-4 rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100/50 border border-cyan-200/50">
                 <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-semibold text-cyan-700">Total Donations</span>
+                    <span class="text-xs font-semibold text-cyan-700">Successful Donations</span>
                     <i data-lucide="trending-up" class="w-4 h-4 text-cyan-600"></i>
                 </div>
                 <div class="text-2xl font-black text-cyan-700" id="sidebar-donations">-</div>
@@ -136,7 +172,7 @@
         .then(res => res.json())
         .then(data => {
             document.getElementById('sidebar-donations').textContent = 
-                '₹' + (data.total_donations || 0).toLocaleString();
+                'Rs ' + (data.total_donations || 0).toLocaleString();
             document.getElementById('sidebar-volunteers').textContent = 
                 (data.volunteer_count || 0).toLocaleString();
         })

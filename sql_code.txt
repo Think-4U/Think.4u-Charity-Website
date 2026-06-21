@@ -1,43 +1,74 @@
--- Think.4U: Full Supabase SQL Setup (Schema + RLS + Storage)
--- Safe to run multiple times.
--- Run in Supabase SQL Editor on your NEW project.
+-- Think.4U Supabase SQL Setup
+-- Schema + indexes + RLS + storage policies for the Flask app.
+-- Safe to run more than once. It keeps existing numeric IDs and adds UUIDs
+-- for safer public references without breaking current routes.
 
 begin;
 
+create extension if not exists pgcrypto with schema extensions;
+
 -- =====================================================
--- 1) TABLES
+-- 1) SHARED HELPERS
+-- =====================================================
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+    new.updated_at = now();
+    return new;
+end;
+$$;
+
+-- =====================================================
+-- 2) TABLES
 -- =====================================================
 
 create table if not exists public.users (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     email text not null unique,
     name text,
+    phone text,
+    address text,
     password_hash text not null,
     is_admin boolean not null default false,
-    role text not null default 'donor' check (role in ('donor', 'volunteer', 'both', 'admin')),
+    role text not null default 'donor',
     email_verified boolean not null default false,
+    last_login_at timestamptz,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
 
 create table if not exists public.donations (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     user_id bigint references public.users(id) on delete set null,
     name text,
     email text,
     phone text,
-    amount integer not null check (amount > 0), -- paise
+    address text,
+    amount integer not null check (amount > 0),
+    donation_ref text,
+    donation_number bigint,
+    purpose_type text not null default 'self',
+    purpose_id text,
+    purpose_label text,
     razorpay_order_id text unique,
     razorpay_payment_id text,
     razorpay_signature text,
     payment_method text,
     status text not null default 'pending',
     receipt_emailed boolean not null default false,
-    created_at timestamptz not null default now()
+    verified_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table if not exists public.volunteers (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     user_id bigint references public.users(id) on delete set null,
     name text,
     email text,
@@ -45,11 +76,13 @@ create table if not exists public.volunteers (
     interest text,
     message text,
     status text not null default 'pending',
-    created_at timestamptz not null default now()
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table if not exists public.programs (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     title text not null,
     description text,
     image_url text,
@@ -60,6 +93,7 @@ create table if not exists public.programs (
 
 create table if not exists public.cms_content (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     key text not null unique,
     value text not null,
     created_at timestamptz not null default now(),
@@ -68,28 +102,56 @@ create table if not exists public.cms_content (
 
 create table if not exists public.notifications (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     user_id bigint not null references public.users(id) on delete cascade,
     title text not null,
     body text not null,
+    is_read boolean not null default false,
     created_at timestamptz not null default now()
 );
 
 create table if not exists public.appointments (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     user_id bigint not null references public.users(id) on delete cascade,
+    coordinator_id bigint references public.users(id) on delete set null,
+    slot_id bigint,
     name text,
     email text,
-    appointment_date text not null,
-    appointment_time text not null,
+    appointment_date text,
+    appointment_time text,
+    requested_date text,
+    requested_time text,
+    scheduled_date text,
+    scheduled_time text,
     purpose text not null,
     notes text,
-    status text not null default 'pending',
-    created_at timestamptz not null default now()
+    meet_url text,
+    status text not null default 'requested',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create table if not exists public.appointment_slots (
+    id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
+    coordinator_id bigint references public.users(id) on delete set null,
+    booked_by_user_id bigint references public.users(id) on delete set null,
+    slot_date text not null,
+    slot_time text not null,
+    duration_minutes integer not null default 30,
+    meet_url text,
+    auto_accept boolean not null default true,
+    status text not null default 'available',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table if not exists public.grievances (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     user_id bigint not null references public.users(id) on delete cascade,
+    related_donation_id bigint references public.donations(id) on delete set null,
     name text,
     email text,
     issue_type text not null,
@@ -97,121 +159,443 @@ create table if not exists public.grievances (
     message text not null,
     status text not null default 'open',
     admin_note text,
-    created_at timestamptz not null default now()
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table if not exists public.volunteer_events (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     program_id bigint references public.programs(id) on delete set null,
     title text not null,
     description text,
     location text,
     event_date text,
-    created_at timestamptz not null default now()
+    status text not null default 'active',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table if not exists public.event_participants (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     event_id bigint not null references public.volunteer_events(id) on delete cascade,
     user_id bigint not null references public.users(id) on delete cascade,
     name text,
     email text,
-    role text not null default 'donor' check (role in ('donor', 'volunteer', 'both', 'admin')),
-    status text not null default 'registered' check (status in ('registered', 'attended', 'cancelled')),
+    role text not null default 'donor',
+    status text not null default 'registered',
     created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
     unique (event_id, user_id)
 );
 
 create table if not exists public.event_certificates (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     event_id bigint not null references public.volunteer_events(id) on delete cascade,
     user_id bigint not null references public.users(id) on delete cascade,
-    status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+    status text not null default 'pending',
     certificate_url text,
     review_note text,
     reviewed_by_user_id bigint references public.users(id) on delete set null,
     reviewed_at timestamptz,
     created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
     unique (event_id, user_id)
 );
 
 create table if not exists public.fundraisers (
     id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
     title text not null,
     description text,
     target_amount numeric not null default 0,
     raised_amount numeric not null default 0,
-    status text not null default 'active' check (status in ('active', 'paused', 'closed')),
-    updated_at timestamptz,
+    status text not null default 'active',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create table if not exists public.media_assets (
+    id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
+    media_type text not null,
+    placement text not null,
+    title text,
+    url text not null,
+    is_published boolean not null default false,
+    sort_order integer not null default 100,
+    metadata jsonb not null default '{}'::jsonb,
+    created_by_user_id bigint references public.users(id) on delete set null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create table if not exists public.contact_messages (
+    id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
+    user_id bigint references public.users(id) on delete set null,
+    name text not null,
+    email text not null,
+    phone text,
+    subject text not null,
+    message text not null,
+    status text not null default 'open',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create table if not exists public.cookie_consents (
+    id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
+    user_id bigint references public.users(id) on delete set null,
+    anon_session_id text,
+    accepted boolean not null default true,
+    policy_version text not null default '1',
+    ip_hash text,
+    user_agent text,
     created_at timestamptz not null default now()
 );
 
-alter table if exists public.grievances
-    add column if not exists admin_note text,
-    add column if not exists updated_at timestamptz;
+create table if not exists public.security_events (
+    id bigserial primary key,
+    uuid uuid not null default extensions.gen_random_uuid(),
+    user_id bigint references public.users(id) on delete set null,
+    event_type text not null,
+    severity text not null default 'info',
+    metadata jsonb not null default '{}'::jsonb,
+    ip_hash text,
+    user_agent text,
+    created_at timestamptz not null default now()
+);
 
-alter table if exists public.volunteer_events
-    add column if not exists program_id bigint references public.programs(id) on delete set null;
+create or replace function public.request_user_id()
+returns bigint
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select u.id
+    from public.users u
+    where u.email = auth.jwt() ->> 'email'
+    limit 1
+$$;
 
-alter table if exists public.fundraisers
+-- =====================================================
+-- 3) SAFE ALTERATIONS FOR EXISTING PROJECTS
+-- =====================================================
+
+alter table public.users
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists phone text,
+    add column if not exists address text,
+    add column if not exists last_login_at timestamptz,
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.donations
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists address text,
+    add column if not exists donation_ref text,
+    add column if not exists donation_number bigint,
+    add column if not exists purpose_type text not null default 'self',
+    add column if not exists purpose_id text,
+    add column if not exists purpose_label text,
+    add column if not exists verified_at timestamptz,
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.volunteers
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.programs
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
     add column if not exists status text not null default 'active',
-    add column if not exists updated_at timestamptz;
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.cms_content
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.notifications
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists is_read boolean not null default false;
+
+alter table public.appointments
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists coordinator_id bigint references public.users(id) on delete set null,
+    add column if not exists slot_id bigint,
+    add column if not exists requested_date text,
+    add column if not exists requested_time text,
+    add column if not exists scheduled_date text,
+    add column if not exists scheduled_time text,
+    add column if not exists meet_url text,
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.grievances
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists related_donation_id bigint references public.donations(id) on delete set null,
+    add column if not exists admin_note text,
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.volunteer_events
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists program_id bigint references public.programs(id) on delete set null,
+    add column if not exists status text not null default 'active',
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.event_participants
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.event_certificates
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists updated_at timestamptz not null default now();
+
+alter table public.fundraisers
+    add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
+    add column if not exists status text not null default 'active',
+    add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+    alter table public.appointments
+        add constraint appointments_slot_fk
+        foreign key (slot_id) references public.appointment_slots(id) on delete set null;
+exception
+    when duplicate_object then null;
+    when undefined_table then null;
+end $$;
+
+-- Replace older check constraints so new coordinator role/statuses work.
+alter table public.users drop constraint if exists users_role_check;
+alter table public.users
+    add constraint users_role_check
+    check (role in ('donor', 'volunteer', 'both', 'admin', 'coordinator')) not valid;
+
+alter table public.event_participants drop constraint if exists event_participants_role_check;
+alter table public.event_participants
+    add constraint event_participants_role_check
+    check (role in ('donor', 'volunteer', 'both', 'admin', 'coordinator')) not valid;
+
+alter table public.event_participants drop constraint if exists event_participants_status_check;
+alter table public.event_participants
+    add constraint event_participants_status_check
+    check (status in ('registered', 'attended', 'cancelled')) not valid;
+
+alter table public.event_certificates drop constraint if exists event_certificates_status_check;
+alter table public.event_certificates
+    add constraint event_certificates_status_check
+    check (status in ('pending', 'approved', 'rejected')) not valid;
+
+alter table public.donations drop constraint if exists donations_status_check;
+alter table public.donations
+    add constraint donations_status_check
+    check (status in ('pending', 'paid', 'failed', 'cancelled')) not valid;
+
+alter table public.donations drop constraint if exists donations_purpose_type_check;
+alter table public.donations
+    add constraint donations_purpose_type_check
+    check (purpose_type in ('self', 'program', 'fundraiser', 'event')) not valid;
+
+alter table public.appointments drop constraint if exists appointments_status_check;
+alter table public.appointments
+    add constraint appointments_status_check
+    check (status in ('requested', 'pending', 'scheduled', 'booked', 'rescheduled', 'completed', 'cancelled')) not valid;
+
+alter table public.appointment_slots drop constraint if exists appointment_slots_status_check;
+alter table public.appointment_slots
+    add constraint appointment_slots_status_check
+    check (status in ('available', 'booked', 'unavailable', 'cancelled')) not valid;
+
+alter table public.grievances drop constraint if exists grievances_status_check;
+alter table public.grievances
+    add constraint grievances_status_check
+    check (status in ('open', 'in_progress', 'resolved', 'closed')) not valid;
+
+alter table public.fundraisers drop constraint if exists fundraisers_status_check;
+alter table public.fundraisers
+    add constraint fundraisers_status_check
+    check (status in ('active', 'paused', 'closed')) not valid;
+
+alter table public.media_assets drop constraint if exists media_assets_media_type_check;
+alter table public.media_assets
+    add constraint media_assets_media_type_check
+    check (media_type in ('image', 'video')) not valid;
+
+alter table public.media_assets drop constraint if exists media_assets_placement_check;
+alter table public.media_assets
+    add constraint media_assets_placement_check
+    check (placement in ('home_hero', 'home_gallery', 'home_video')) not valid;
 
 -- =====================================================
--- 2) INDEXES
+-- 4) INDEXES
 -- =====================================================
 
+create unique index if not exists idx_users_uuid on public.users(uuid);
 create index if not exists idx_users_email on public.users(email);
+create index if not exists idx_users_role on public.users(role);
+
+create unique index if not exists idx_donations_uuid on public.donations(uuid);
+create unique index if not exists idx_donations_ref_unique on public.donations(donation_ref) where donation_ref is not null;
+create index if not exists idx_donations_number on public.donations(donation_number);
 create index if not exists idx_donations_user_id on public.donations(user_id);
 create index if not exists idx_donations_email on public.donations(email);
-create index if not exists idx_donations_created_at on public.donations(created_at desc);
 create index if not exists idx_donations_status on public.donations(status);
+create index if not exists idx_donations_purpose on public.donations(purpose_type, purpose_id);
+create index if not exists idx_donations_created_at on public.donations(created_at desc);
+
+create unique index if not exists idx_volunteers_uuid on public.volunteers(uuid);
 create index if not exists idx_volunteers_user_id on public.volunteers(user_id);
 create index if not exists idx_volunteers_email on public.volunteers(email);
-create index if not exists idx_notifications_user_id on public.notifications(user_id);
-create index if not exists idx_appointments_user_id on public.appointments(user_id);
-create index if not exists idx_grievances_user_id on public.grievances(user_id);
+create index if not exists idx_volunteers_status on public.volunteers(status);
+
+create unique index if not exists idx_programs_uuid on public.programs(uuid);
 create index if not exists idx_programs_status on public.programs(status);
+
+create unique index if not exists idx_cms_content_uuid on public.cms_content(uuid);
+create index if not exists idx_cms_content_key on public.cms_content(key);
+
+create unique index if not exists idx_notifications_uuid on public.notifications(uuid);
+create index if not exists idx_notifications_user_created on public.notifications(user_id, created_at desc);
+
+create unique index if not exists idx_appointments_uuid on public.appointments(uuid);
+create index if not exists idx_appointments_user_created on public.appointments(user_id, created_at desc);
+create index if not exists idx_appointments_coordinator on public.appointments(coordinator_id, scheduled_date, scheduled_time);
+create index if not exists idx_appointments_status on public.appointments(status);
+
+create unique index if not exists idx_appointment_slots_uuid on public.appointment_slots(uuid);
+create index if not exists idx_appointment_slots_availability on public.appointment_slots(status, slot_date, slot_time);
+create index if not exists idx_appointment_slots_coordinator on public.appointment_slots(coordinator_id, slot_date, slot_time);
+
+create unique index if not exists idx_grievances_uuid on public.grievances(uuid);
+create index if not exists idx_grievances_user_id on public.grievances(user_id);
+create index if not exists idx_grievances_related_donation on public.grievances(related_donation_id);
+create index if not exists idx_grievances_status on public.grievances(status);
+
+create unique index if not exists idx_volunteer_events_uuid on public.volunteer_events(uuid);
 create index if not exists idx_volunteer_events_program_id on public.volunteer_events(program_id);
+create index if not exists idx_volunteer_events_status_date on public.volunteer_events(status, event_date);
 create unique index if not exists idx_volunteer_events_program_unique
     on public.volunteer_events(program_id)
     where program_id is not null;
+
+create unique index if not exists idx_event_participants_uuid on public.event_participants(uuid);
 create index if not exists idx_event_participants_event_id on public.event_participants(event_id);
 create index if not exists idx_event_participants_user_id on public.event_participants(user_id);
+
+create unique index if not exists idx_event_certificates_uuid on public.event_certificates(uuid);
 create index if not exists idx_event_certificates_event_id on public.event_certificates(event_id);
 create index if not exists idx_event_certificates_user_id on public.event_certificates(user_id);
 create index if not exists idx_event_certificates_status on public.event_certificates(status);
 
+create unique index if not exists idx_fundraisers_uuid on public.fundraisers(uuid);
+create index if not exists idx_fundraisers_status on public.fundraisers(status);
+
+create unique index if not exists idx_media_assets_uuid on public.media_assets(uuid);
+create index if not exists idx_media_assets_public on public.media_assets(placement, media_type, is_published, sort_order);
+
+create unique index if not exists idx_contact_messages_uuid on public.contact_messages(uuid);
+create index if not exists idx_contact_messages_status_created on public.contact_messages(status, created_at desc);
+
+create unique index if not exists idx_cookie_consents_uuid on public.cookie_consents(uuid);
+create index if not exists idx_cookie_consents_user on public.cookie_consents(user_id, created_at desc);
+create index if not exists idx_cookie_consents_anon on public.cookie_consents(anon_session_id, created_at desc);
+
+create unique index if not exists idx_security_events_uuid on public.security_events(uuid);
+create index if not exists idx_security_events_type_created on public.security_events(event_type, created_at desc);
+
 -- =====================================================
--- 3) GRANTS
+-- 5) UPDATED_AT TRIGGERS
+-- =====================================================
+
+drop trigger if exists trg_users_updated_at on public.users;
+create trigger trg_users_updated_at before update on public.users
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_donations_updated_at on public.donations;
+create trigger trg_donations_updated_at before update on public.donations
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_volunteers_updated_at on public.volunteers;
+create trigger trg_volunteers_updated_at before update on public.volunteers
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_programs_updated_at on public.programs;
+create trigger trg_programs_updated_at before update on public.programs
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_cms_content_updated_at on public.cms_content;
+create trigger trg_cms_content_updated_at before update on public.cms_content
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_appointments_updated_at on public.appointments;
+create trigger trg_appointments_updated_at before update on public.appointments
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_appointment_slots_updated_at on public.appointment_slots;
+create trigger trg_appointment_slots_updated_at before update on public.appointment_slots
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_grievances_updated_at on public.grievances;
+create trigger trg_grievances_updated_at before update on public.grievances
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_volunteer_events_updated_at on public.volunteer_events;
+create trigger trg_volunteer_events_updated_at before update on public.volunteer_events
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_event_participants_updated_at on public.event_participants;
+create trigger trg_event_participants_updated_at before update on public.event_participants
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_event_certificates_updated_at on public.event_certificates;
+create trigger trg_event_certificates_updated_at before update on public.event_certificates
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_fundraisers_updated_at on public.fundraisers;
+create trigger trg_fundraisers_updated_at before update on public.fundraisers
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_media_assets_updated_at on public.media_assets;
+create trigger trg_media_assets_updated_at before update on public.media_assets
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_contact_messages_updated_at on public.contact_messages;
+create trigger trg_contact_messages_updated_at before update on public.contact_messages
+for each row execute function public.set_updated_at();
+
+-- =====================================================
+-- 6) GRANTS
 -- =====================================================
 
 grant usage on schema public to anon, authenticated, service_role;
+grant all privileges on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;
+grant usage, select on all sequences in schema public to anon, authenticated;
+grant execute on function public.request_user_id() to anon, authenticated, service_role;
 
 grant select on public.programs to anon, authenticated;
 grant select on public.cms_content to anon, authenticated;
 grant select on public.fundraisers to anon, authenticated;
 grant select on public.volunteer_events to anon, authenticated;
+grant select on public.media_assets to anon, authenticated;
+grant insert on public.contact_messages to anon, authenticated;
+grant insert on public.cookie_consents to anon, authenticated;
 
-grant all privileges on table
-    public.users,
-    public.donations,
-    public.volunteers,
-    public.programs,
-    public.cms_content,
-    public.notifications,
-    public.appointments,
-    public.grievances,
-    public.volunteer_events,
-    public.event_participants,
-    public.event_certificates,
-    public.fundraisers
-to service_role;
-
-grant usage, select on all sequences in schema public to service_role;
+grant select, insert, update on public.users to authenticated;
+grant select, insert, update on public.donations to authenticated;
+grant select, insert, update on public.volunteers to authenticated;
+grant select on public.notifications to authenticated;
+grant select, insert, update on public.appointments to authenticated;
+grant select, insert, update on public.appointment_slots to authenticated;
+grant select, insert, update on public.grievances to authenticated;
+grant select, insert, update on public.event_participants to authenticated;
+grant select on public.event_certificates to authenticated;
 
 -- =====================================================
--- 4) ENABLE RLS
+-- 7) ROW LEVEL SECURITY
 -- =====================================================
 
 alter table public.users enable row level security;
@@ -221,19 +605,22 @@ alter table public.programs enable row level security;
 alter table public.cms_content enable row level security;
 alter table public.notifications enable row level security;
 alter table public.appointments enable row level security;
+alter table public.appointment_slots enable row level security;
 alter table public.grievances enable row level security;
 alter table public.volunteer_events enable row level security;
 alter table public.event_participants enable row level security;
 alter table public.event_certificates enable row level security;
 alter table public.fundraisers enable row level security;
+alter table public.media_assets enable row level security;
+alter table public.contact_messages enable row level security;
+alter table public.cookie_consents enable row level security;
+alter table public.security_events enable row level security;
 
--- =====================================================
--- 5) DROP OLD POLICIES (idempotent)
--- =====================================================
-
+-- Drop old policies.
 drop policy if exists users_service_all on public.users;
 drop policy if exists users_self_read on public.users;
 drop policy if exists users_self_update on public.users;
+drop policy if exists users_self_insert on public.users;
 
 drop policy if exists donations_service_all on public.donations;
 drop policy if exists donations_self_read on public.donations;
@@ -247,369 +634,269 @@ drop policy if exists volunteers_self_update on public.volunteers;
 
 drop policy if exists programs_service_all on public.programs;
 drop policy if exists programs_public_read on public.programs;
-
 drop policy if exists cms_service_all on public.cms_content;
 drop policy if exists cms_public_read on public.cms_content;
-
 drop policy if exists notifications_service_all on public.notifications;
 drop policy if exists notifications_self_read on public.notifications;
-
 drop policy if exists appointments_service_all on public.appointments;
 drop policy if exists appointments_self_read on public.appointments;
 drop policy if exists appointments_self_insert on public.appointments;
 drop policy if exists appointments_self_update on public.appointments;
-
+drop policy if exists appointment_slots_service_all on public.appointment_slots;
+drop policy if exists appointment_slots_authenticated_read on public.appointment_slots;
+drop policy if exists appointment_slots_coordinator_insert on public.appointment_slots;
+drop policy if exists appointment_slots_coordinator_update on public.appointment_slots;
 drop policy if exists grievances_service_all on public.grievances;
 drop policy if exists grievances_self_read on public.grievances;
 drop policy if exists grievances_self_insert on public.grievances;
 drop policy if exists grievances_self_update on public.grievances;
-
 drop policy if exists volunteer_events_service_all on public.volunteer_events;
 drop policy if exists volunteer_events_public_read on public.volunteer_events;
-
 drop policy if exists event_participants_service_all on public.event_participants;
 drop policy if exists event_participants_self_read on public.event_participants;
 drop policy if exists event_participants_self_insert on public.event_participants;
 drop policy if exists event_participants_self_update on public.event_participants;
-
 drop policy if exists event_certificates_service_all on public.event_certificates;
 drop policy if exists event_certificates_self_read on public.event_certificates;
-
 drop policy if exists fundraisers_service_all on public.fundraisers;
 drop policy if exists fundraisers_public_read on public.fundraisers;
+drop policy if exists media_assets_service_all on public.media_assets;
+drop policy if exists media_assets_public_read on public.media_assets;
+drop policy if exists contact_messages_service_all on public.contact_messages;
+drop policy if exists contact_messages_public_insert on public.contact_messages;
+drop policy if exists cookie_consents_service_all on public.cookie_consents;
+drop policy if exists cookie_consents_public_insert on public.cookie_consents;
+drop policy if exists security_events_service_all on public.security_events;
 
--- =====================================================
--- 6) RLS POLICIES
--- =====================================================
+-- Service role owns backend operations.
+create policy users_service_all on public.users for all to service_role using (true) with check (true);
+create policy donations_service_all on public.donations for all to service_role using (true) with check (true);
+create policy volunteers_service_all on public.volunteers for all to service_role using (true) with check (true);
+create policy programs_service_all on public.programs for all to service_role using (true) with check (true);
+create policy cms_service_all on public.cms_content for all to service_role using (true) with check (true);
+create policy notifications_service_all on public.notifications for all to service_role using (true) with check (true);
+create policy appointments_service_all on public.appointments for all to service_role using (true) with check (true);
+create policy appointment_slots_service_all on public.appointment_slots for all to service_role using (true) with check (true);
+create policy grievances_service_all on public.grievances for all to service_role using (true) with check (true);
+create policy volunteer_events_service_all on public.volunteer_events for all to service_role using (true) with check (true);
+create policy event_participants_service_all on public.event_participants for all to service_role using (true) with check (true);
+create policy event_certificates_service_all on public.event_certificates for all to service_role using (true) with check (true);
+create policy fundraisers_service_all on public.fundraisers for all to service_role using (true) with check (true);
+create policy media_assets_service_all on public.media_assets for all to service_role using (true) with check (true);
+create policy contact_messages_service_all on public.contact_messages for all to service_role using (true) with check (true);
+create policy cookie_consents_service_all on public.cookie_consents for all to service_role using (true) with check (true);
+create policy security_events_service_all on public.security_events for all to service_role using (true) with check (true);
 
--- USERS
-create policy users_service_all
-on public.users
-for all
-to service_role
-using (true)
+-- Public CMS/homepage content.
+create policy programs_public_read on public.programs
+for select to anon, authenticated
+using (coalesce(status, 'active') = 'active');
+
+create policy cms_public_read on public.cms_content
+for select to anon, authenticated
+using (true);
+
+create policy volunteer_events_public_read on public.volunteer_events
+for select to anon, authenticated
+using (coalesce(status, 'active') = 'active');
+
+create policy fundraisers_public_read on public.fundraisers
+for select to anon, authenticated
+using (coalesce(status, 'active') = 'active');
+
+create policy media_assets_public_read on public.media_assets
+for select to anon, authenticated
+using (is_published = true);
+
+-- Public contact and cookie consent submissions.
+create policy contact_messages_public_insert on public.contact_messages
+for insert to anon, authenticated
 with check (true);
 
-create policy users_self_read
-on public.users
-for select
-to authenticated
+create policy cookie_consents_public_insert on public.cookie_consents
+for insert to anon, authenticated
+with check (true);
+
+-- Authenticated user-owned rows for optional direct Supabase clients.
+create policy users_self_read on public.users
+for select to authenticated
 using (email = auth.jwt() ->> 'email');
 
-create policy users_self_update
-on public.users
-for update
-to authenticated
+create policy users_self_update on public.users
+for update to authenticated
 using (email = auth.jwt() ->> 'email')
 with check (email = auth.jwt() ->> 'email');
 
--- DONATIONS
-create policy donations_service_all
-on public.donations
-for all
-to service_role
-using (true)
-with check (true);
-
-create policy donations_self_read
-on public.donations
-for select
-to authenticated
-using (email = auth.jwt() ->> 'email');
-
-create policy donations_self_insert
-on public.donations
-for insert
-to authenticated
+create policy users_self_insert on public.users
+for insert to authenticated
 with check (email = auth.jwt() ->> 'email');
 
-create policy donations_self_update
-on public.donations
-for update
-to authenticated
-using (email = auth.jwt() ->> 'email')
+create policy donations_self_read on public.donations
+for select to authenticated
+using (user_id = public.request_user_id() or email = auth.jwt() ->> 'email');
+
+create policy donations_self_insert on public.donations
+for insert to authenticated
 with check (email = auth.jwt() ->> 'email');
 
--- VOLUNTEERS
-create policy volunteers_service_all
-on public.volunteers
-for all
-to service_role
-using (true)
-with check (true);
+create policy donations_self_update on public.donations
+for update to authenticated
+using (user_id = public.request_user_id() or email = auth.jwt() ->> 'email')
+with check (user_id = public.request_user_id() or email = auth.jwt() ->> 'email');
 
-create policy volunteers_self_read
-on public.volunteers
-for select
-to authenticated
-using (email = auth.jwt() ->> 'email');
+create policy volunteers_self_read on public.volunteers
+for select to authenticated
+using (user_id = public.request_user_id() or email = auth.jwt() ->> 'email');
 
-create policy volunteers_self_insert
-on public.volunteers
-for insert
-to authenticated
+create policy volunteers_self_insert on public.volunteers
+for insert to authenticated
 with check (email = auth.jwt() ->> 'email');
 
-create policy volunteers_self_update
-on public.volunteers
-for update
-to authenticated
-using (email = auth.jwt() ->> 'email')
-with check (email = auth.jwt() ->> 'email');
+create policy volunteers_self_update on public.volunteers
+for update to authenticated
+using (user_id = public.request_user_id() or email = auth.jwt() ->> 'email')
+with check (user_id = public.request_user_id() or email = auth.jwt() ->> 'email');
 
--- PROGRAMS
-create policy programs_service_all
-on public.programs
-for all
-to service_role
-using (true)
-with check (true);
+create policy notifications_self_read on public.notifications
+for select to authenticated
+using (user_id = public.request_user_id());
 
-create policy programs_public_read
-on public.programs
-for select
-to anon, authenticated
-using (true);
-
--- CMS
-create policy cms_service_all
-on public.cms_content
-for all
-to service_role
-using (true)
-with check (true);
-
-create policy cms_public_read
-on public.cms_content
-for select
-to anon, authenticated
-using (true);
-
--- NOTIFICATIONS
-create policy notifications_service_all
-on public.notifications
-for all
-to service_role
-using (true)
-with check (true);
-
-create policy notifications_self_read
-on public.notifications
-for select
-to authenticated
+create policy appointments_self_read on public.appointments
+for select to authenticated
 using (
-    user_id in (
-        select u.id
-        from public.users u
-        where u.email = auth.jwt() ->> 'email'
-    )
+    user_id = public.request_user_id()
+    or coordinator_id = public.request_user_id()
 );
 
--- APPOINTMENTS
-create policy appointments_service_all
-on public.appointments
-for all
-to service_role
-using (true)
-with check (true);
+create policy appointments_self_insert on public.appointments
+for insert to authenticated
+with check (user_id = public.request_user_id());
 
-create policy appointments_self_read
-on public.appointments
-for select
-to authenticated
+create policy appointments_self_update on public.appointments
+for update to authenticated
+using (user_id = public.request_user_id() or coordinator_id = public.request_user_id())
+with check (user_id = public.request_user_id() or coordinator_id = public.request_user_id());
+
+create policy appointment_slots_authenticated_read on public.appointment_slots
+for select to authenticated
 using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
+    status = 'available'
+    or coordinator_id = public.request_user_id()
+    or booked_by_user_id = public.request_user_id()
 );
 
-create policy appointments_self_insert
-on public.appointments
-for insert
-to authenticated
+create policy appointment_slots_coordinator_insert on public.appointment_slots
+for insert to authenticated
 with check (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
+    coordinator_id = public.request_user_id()
+    and exists (
+        select 1 from public.users u
+        where u.id = public.request_user_id()
+        and u.role in ('coordinator', 'admin')
     )
 );
 
-create policy appointments_self_update
-on public.appointments
-for update
-to authenticated
+create policy appointment_slots_coordinator_update on public.appointment_slots
+for update to authenticated
 using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
+    coordinator_id = public.request_user_id()
+    or booked_by_user_id = public.request_user_id()
 )
 with check (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
+    coordinator_id = public.request_user_id()
+    or booked_by_user_id = public.request_user_id()
 );
 
--- GRIEVANCES
-create policy grievances_service_all
-on public.grievances
-for all
-to service_role
-using (true)
-with check (true);
+create policy grievances_self_read on public.grievances
+for select to authenticated
+using (user_id = public.request_user_id());
 
-create policy grievances_self_read
-on public.grievances
-for select
-to authenticated
-using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
+create policy grievances_self_insert on public.grievances
+for insert to authenticated
+with check (user_id = public.request_user_id());
 
-create policy grievances_self_insert
-on public.grievances
-for insert
-to authenticated
-with check (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
+create policy grievances_self_update on public.grievances
+for update to authenticated
+using (user_id = public.request_user_id())
+with check (user_id = public.request_user_id());
 
-create policy grievances_self_update
-on public.grievances
-for update
-to authenticated
-using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-)
-with check (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
+create policy event_participants_self_read on public.event_participants
+for select to authenticated
+using (user_id = public.request_user_id());
 
--- VOLUNTEER EVENTS
-create policy volunteer_events_service_all
-on public.volunteer_events
-for all
-to service_role
-using (true)
-with check (true);
+create policy event_participants_self_insert on public.event_participants
+for insert to authenticated
+with check (user_id = public.request_user_id());
 
-create policy volunteer_events_public_read
-on public.volunteer_events
-for select
-to anon, authenticated
-using (true);
+create policy event_participants_self_update on public.event_participants
+for update to authenticated
+using (user_id = public.request_user_id())
+with check (user_id = public.request_user_id());
 
--- EVENT PARTICIPANTS
-create policy event_participants_service_all
-on public.event_participants
-for all
-to service_role
-using (true)
-with check (true);
-
-create policy event_participants_self_read
-on public.event_participants
-for select
-to authenticated
-using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
-
-create policy event_participants_self_insert
-on public.event_participants
-for insert
-to authenticated
-with check (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
-
-create policy event_participants_self_update
-on public.event_participants
-for update
-to authenticated
-using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-)
-with check (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
-
--- EVENT CERTIFICATES
-create policy event_certificates_service_all
-on public.event_certificates
-for all
-to service_role
-using (true)
-with check (true);
-
-create policy event_certificates_self_read
-on public.event_certificates
-for select
-to authenticated
-using (
-    user_id in (
-        select u.id from public.users u where u.email = auth.jwt() ->> 'email'
-    )
-);
-
--- FUNDRAISERS
-create policy fundraisers_service_all
-on public.fundraisers
-for all
-to service_role
-using (true)
-with check (true);
-
-create policy fundraisers_public_read
-on public.fundraisers
-for select
-to anon, authenticated
-using (true);
+create policy event_certificates_self_read on public.event_certificates
+for select to authenticated
+using (user_id = public.request_user_id());
 
 -- =====================================================
--- 7) STORAGE BUCKET + POLICIES
+-- 8) STORAGE BUCKETS + POLICIES
 -- =====================================================
 
 insert into storage.buckets (id, name, public)
-values ('program-images', 'program-images', true)
+values
+    ('program-images', 'program-images', true),
+    ('site-media', 'site-media', true)
 on conflict (id) do update set public = excluded.public;
 
-drop policy if exists "program_images_public_read" on storage.objects;
-create policy "program_images_public_read"
+drop policy if exists "think4u_public_storage_read" on storage.objects;
+create policy "think4u_public_storage_read"
 on storage.objects
 for select
 to public
-using (bucket_id = 'program-images');
+using (bucket_id in ('program-images', 'site-media'));
 
-drop policy if exists "program_images_service_all" on storage.objects;
-create policy "program_images_service_all"
+drop policy if exists "think4u_service_storage_all" on storage.objects;
+create policy "think4u_service_storage_all"
 on storage.objects
 for all
 to service_role
-using (bucket_id = 'program-images')
-with check (bucket_id = 'program-images');
+using (bucket_id in ('program-images', 'site-media'))
+with check (bucket_id in ('program-images', 'site-media'));
+
+-- =====================================================
+-- 9) CMS DEFAULTS
+-- =====================================================
+
+insert into public.cms_content (key, value)
+values
+    ('site_title', 'Think.4U - Community Charity Platform'),
+    ('hero_subtitle', 'Making a Difference in Our Community'),
+    ('mission_text', 'Think.4U is a community charity platform dedicated to education, empowerment, health, and measurable social impact.'),
+    ('impact_people', '10K+'),
+    ('impact_education', '2K+'),
+    ('impact_families', '5K+'),
+    ('contact_email', 'hello@think4u.org'),
+    ('contact_phone', '+91 9876543210'),
+    ('contact_address', 'Hyderabad, Telangana, India'),
+    ('google_maps_url', 'https://www.google.com/maps/search/?api=1&query=Hyderabad%2C%20Telangana%2C%20India'),
+    ('google_maps_embed_url', 'https://www.google.com/maps?q=Hyderabad%2C%20Telangana%2C%20India&output=embed'),
+    ('org_name', 'Think.4U'),
+    ('reg_number', ''),
+    ('tax_id', ''),
+    ('cert_80g', '')
+on conflict (key) do nothing;
 
 commit;
 
 -- =====================================================
--- IMPORTANT APP CONFIG
+-- APP CONFIG NOTES
 -- =====================================================
--- In your .env for Flask backend, use service role key:
--- SUPABASE_URL=...
--- SUPABASE_KEY=<your service_role key>
+-- Use the Supabase service role key in the Flask backend:
+-- SUPABASE_URL=https://your-project.supabase.co
+-- SUPABASE_KEY=<service_role_key>
 --
--- If you use anon key for backend, many admin writes will fail with RLS.
+-- Storage buckets used by this app:
+-- program-images: program cards and detail images
+-- site-media: admin uploaded home hero, photo gallery, and videos
+--
+-- The backend still uses numeric ids for current Flask routes. UUID columns
+-- are present on every important table for safer future public URLs and APIs.

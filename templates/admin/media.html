@@ -1,0 +1,88 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Media{% endblock %}
+{% block content %}
+<div class="flex min-h-screen">
+    {% include 'admin/sidebar_menu.html' %}
+    <main class="flex-1 lg:ml-72 p-6 lg:p-8">
+        <div class="mb-8">
+            <h1 class="text-4xl font-black mb-2"><span class="gradient-text">Media Manager</span></h1>
+            <p class="text-slate-600">Upload and publish homepage hero photos, gallery photos, and videos.</p>
+            <p class="text-sm text-slate-500 mt-2">Upload limits: images up to {{ max_image_upload_mb or 15 }} MB, videos up to {{ max_video_upload_mb or 150 }} MB.</p>
+        </div>
+
+        <div class="glass rounded-2xl border-2 border-slate-200/50 p-6 mb-6">
+            <form method="POST" action="{{ url_for('admin_media') }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Media Type</label>
+                    <select name="media_type" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">
+                        <option value="image">Photo</option>
+                        <option value="video">Video</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Placement</label>
+                    <select name="placement" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">
+                        <option value="home_hero">Home Hero Slideshow</option>
+                        <option value="home_gallery">Home Photo Gallery</option>
+                        <option value="home_video">Home Video Gallery</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Title</label>
+                    <input type="text" name="title" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Upload File</label>
+                    <input type="file" name="media_file" accept="image/*,video/mp4,video/webm,video/quicktime" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Or Secure URL</label>
+                    <input type="url" name="media_url" placeholder="https://..." class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">
+                </div>
+                <div class="grid grid-cols-2 gap-3 items-end">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Sort</label>
+                        <input type="number" name="sort_order" value="100" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">
+                    </div>
+                    <label class="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-slate-200">
+                        <input type="checkbox" name="is_published" checked>
+                        <span class="font-semibold text-sm">Publish</span>
+                    </label>
+                </div>
+                <div class="md:col-span-2 xl:col-span-3">
+                    <button type="submit" class="px-6 py-3 rounded-xl bg-cyan-600 text-white font-bold hover:bg-cyan-700">Save Media</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {% for item in media_items %}
+            <div class="glass rounded-2xl border-2 border-slate-200/50 overflow-hidden">
+                <div class="aspect-video bg-slate-100">
+                    {% if item.media_type == 'video' %}
+                    <video src="{{ item.display_url or item.url }}" controls preload="metadata" class="w-full h-full object-cover"></video>
+                    {% else %}
+                    <img src="{{ item.display_url or item.url }}" alt="{{ item.title or 'Media' }}" class="w-full h-full object-cover">
+                    {% endif %}
+                </div>
+                <div class="p-4">
+                    <p class="font-bold text-slate-900">{{ item.title or item.placement }}</p>
+                    <p class="text-xs text-slate-500">{{ item.media_type|title }} - {{ item.placement }} - Sort {{ item.sort_order or 100 }}</p>
+                    <form method="POST" action="{{ url_for('admin_media_toggle', media_id=item.id) }}" class="mt-3 flex items-center gap-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label class="flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" name="is_published" {% if item.is_published %}checked{% endif %}>
+                            Published
+                        </label>
+                        <button type="submit" class="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-bold">Update</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-full glass rounded-2xl border-2 border-slate-200/50 p-10 text-center text-slate-500">No media uploaded yet.</div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -2,38 +2,41 @@
 {% block title %}Verify OTP - Think.4U{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
-    <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-2xl border border-gray-100 animate-fadeIn">
+<section class="min-h-screen flex items-center justify-center py-12 px-4 bg-[#f4eadf]">
+    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-2xl border border-stone-200">
         <div class="text-center">
-            <div class="mx-auto h-20 w-20 bg-charity-dark rounded-full flex items-center justify-center mb-6 shadow-lg">
-                <i data-lucide="shield-check" class="h-10 w-10 text-charity-gold"></i>
+            <div class="mx-auto h-16 w-16 bg-[#4b2618] rounded-lg flex items-center justify-center mb-5 shadow-lg">
+                <i data-lucide="shield-check" class="h-9 w-9 text-[#d58d4b]"></i>
             </div>
-            <h2 class="text-3xl font-black text-charity-dark tracking-tight">Verify OTP</h2>
-            <p class="mt-2 text-sm text-gray-500">A one-time password has been sent to your email.</p>
+            <h1 class="text-3xl font-black text-slate-900 tracking-tight">Verify OTP</h1>
+            <p class="mt-2 text-sm text-slate-600">A one-time password has been sent to your email.</p>
         </div>
 
-        <form class="mt-8 space-y-6" method="POST" action="{{ url_for("verify_" ~ flow) }}">
+        <form class="mt-8 space-y-5" method="POST" action="{{ url_for('verify_' ~ flow) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
             <div>
-                <label for="otp" class="block text-sm font-bold text-charity-dark mb-1">OTP Code</label>
-                <input id="otp" name="otp" type="text" required autofocus
-                       class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-charity-gold focus:border-transparent transition-all text-center text-xl font-bold tracking-wider"
-                       placeholder="••••••" maxlength="6">
+                <label for="otp" class="block text-sm font-bold text-slate-700 mb-2">OTP Code</label>
+                <input id="otp" name="otp" type="text" inputmode="numeric" required autofocus
+                       class="block w-full px-4 py-3 border-2 border-stone-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-700 focus:border-transparent text-center text-xl font-bold tracking-widest"
+                       placeholder="000000" maxlength="6">
             </div>
 
-            <button type="submit" 
-                    class="w-full py-4 px-4 bg-charity-dark text-white font-bold rounded-xl shadow-lg hover:bg-black transition-all hover:scale-[1.02]">
+            <button type="submit"
+                    class="w-full py-4 px-4 bg-[#4b2618] text-white font-bold rounded-lg shadow-lg hover:bg-[#30140a] transition">
                 Verify
             </button>
         </form>
 
-        <div class="text-center pt-6 border-t border-gray-100">
-            <p class="text-sm text-gray-600">
-                Didn\"t receive the OTP?
-                <a href="{{ url_for(flow) }}" class="font-bold text-charity-gold hover:underline">Resend or try again</a>
+        <div class="text-center pt-6 mt-6 border-t border-stone-100">
+            <p class="text-sm text-slate-600">
+                Didn't receive the OTP?
+                {% if flow == 'profile_update' %}
+                <a href="{{ url_for('profile') }}" class="font-bold text-amber-800 hover:underline">Start again</a>
+                {% else %}
+                <a href="{{ url_for(flow) }}" class="font-bold text-amber-800 hover:underline">Resend or try again</a>
+                {% endif %}
             </p>
         </div>
     </div>
-</div>
+</section>
 {% endblock %}

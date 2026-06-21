@@ -18,8 +18,8 @@
                 {% set percent = ((raised / target) * 100) if target else 0 %}
                 <div class="mb-3">
                     <div class="flex justify-between text-sm text-slate-600 mb-1">
-                        <span>Raised ₹{{ "{:,.0f}".format(raised) }}</span>
-                        <span>Target ₹{{ "{:,.0f}".format(target) }}</span>
+                        <span>Raised Rs {{ "{:,.0f}".format(raised) }}</span>
+                        <span>Target Rs {{ "{:,.0f}".format(target) }}</span>
                     </div>
                     <div class="w-full bg-slate-200 rounded-full h-3">
                         <div class="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" style="width: {{ [percent, 100]|min }}%"></div>
@@ -27,7 +27,7 @@
                 </div>
                 <p class="text-sm text-slate-500 mb-4">{{ "{:.1f}".format(percent) }}% complete</p>
 
-                <a href="{{ url_for('donate') if current_user.is_authenticated else url_for('login') }}" class="inline-flex px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold">
+                <a href="{{ url_for('donate', purpose_type='fundraiser', purpose_id=c.id, purpose_label=c.title) }}" class="inline-flex px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold">
                     Donate to This Cause
                 </a>
             </div>

@@ -14,13 +14,25 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Type</label>
-                        <select name="issue_type" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none">
+                        <select id="issue_type" name="issue_type" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none">
                             <option value="">Select type</option>
                             <option value="grievance">Grievance</option>
                             <option value="feedback">Feedback</option>
                             <option value="donation">Donation Issue</option>
                             <option value="volunteer">Volunteer Issue</option>
                         </select>
+                    </div>
+                    <div id="recent-donation-field" class="hidden">
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Recent Donation</label>
+                        <select name="related_donation_id" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none">
+                            <option value="">Select related donation</option>
+                            {% for d in recent_donations %}
+                            <option value="{{ d.id }}">{{ d.donation_ref or ('T4U-' ~ d.id) }} - Rs {{ "{:,.2f}".format((d.amount or 0) / 100) }} - {{ d.status|title }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not recent_donations %}
+                        <p class="text-xs text-slate-500 mt-2">No recent donations found for this account.</p>
+                        {% endif %}
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Subject</label>
@@ -65,4 +77,16 @@
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const type = document.getElementById('issue_type');
+        const donationField = document.getElementById('recent-donation-field');
+        const sync = () => donationField?.classList.toggle('hidden', type?.value !== 'donation');
+        type?.addEventListener('change', sync);
+        sync();
+    });
+</script>
 {% endblock %}

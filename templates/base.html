@@ -192,32 +192,38 @@
             <ul class="nav-menu hidden md:flex">
                 <li><a href="{{ url_for('index') }}#about">About</a></li>
                 <li><a href="{{ url_for('index') }}#programs">Programs</a></li>
+                <li><a href="{{ url_for('events_page') }}">Events</a></li>
                 <li><a href="{{ url_for('fundraising') }}">Fundraising</a></li>
                 <li><a href="{{ url_for('index') }}#impact">Impact</a></li>
+                <li><a href="{{ url_for('contact') }}">Contact</a></li>
                 {% if current_user.is_authenticated %}
+                {% if not current_user.is_admin %}<li><a href="{{ url_for('profile') }}">Profile</a></li>{% endif %}
                 <li><a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}">Dashboard</a></li>
                 <li><a href="{{ url_for('logout') }}">Logout</a></li>
-                <li><a href="{{ url_for('donate') }}"><button class="btn-header">Donate</button></a></li>
                 {% else %}
                 <li><a href="{{ url_for('login') }}">Login</a></li>
                 <li><a href="{{ url_for('signup') }}"><button class="btn-header">Sign Up</button></a></li>
                 {% endif %}
+                <li><a href="{{ url_for('donate') }}"><button class="btn-header">Donate</button></a></li>
             </ul>
             <button id="mobile-menu-btn" class="md:hidden text-white hover:text-charity-gold transition"><i data-lucide="menu" class="w-8 h-8"></i></button>
         </div>
         <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 space-y-4 text-center">
             <a href="{{ url_for('index') }}#about" class="block text-white hover:text-charity-gold py-2">About</a>
             <a href="{{ url_for('index') }}#programs" class="block text-white hover:text-charity-gold py-2">Programs</a>
+            <a href="{{ url_for('events_page') }}" class="block text-white hover:text-charity-gold py-2">Events</a>
             <a href="{{ url_for('fundraising') }}" class="block text-white hover:text-charity-gold py-2">Fundraising</a>
             <a href="{{ url_for('index') }}#impact" class="block text-white hover:text-charity-gold py-2">Impact</a>
+            <a href="{{ url_for('contact') }}" class="block text-white hover:text-charity-gold py-2">Contact</a>
             {% if current_user.is_authenticated %}
+            {% if not current_user.is_admin %}<a href="{{ url_for('profile') }}" class="block text-white hover:text-charity-gold py-2">Profile</a>{% endif %}
             <a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}" class="block text-white hover:text-charity-gold py-2">Dashboard</a>
             <a href="{{ url_for('logout') }}" class="block text-white hover:text-charity-gold py-2">Logout</a>
-            <a href="{{ url_for('donate') }}" class="block"><button class="btn-header w-full">Donate</button></a>
             {% else %}
             <a href="{{ url_for('login') }}" class="block text-white hover:text-charity-gold py-2">Login</a>
             <a href="{{ url_for('signup') }}" class="block"><button class="btn-header w-full">Sign Up</button></a>
             {% endif %}
+            <a href="{{ url_for('donate') }}" class="block"><button class="btn-header w-full">Donate</button></a>
         </div>
     </header>
 
@@ -240,12 +246,12 @@
 
     <footer id="contact">
         <div class="footer-content">
-            <div class="footer-section"><h3>Think.4U</h3><p>Making a positive impact through education, empowerment, and community development.</p></div>
-            <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('index') }}#about">About Us</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
-            <div class="footer-section"><h3>Contact</h3><ul><li>Email: hello@think4u.org</li><li>Phone: +91 9876543210</li><li>Address: Hyderabad, Telangana, India</li><li><a href="{{ url_for('grievance_feedback') if current_user.is_authenticated else url_for('login') }}">Contact Form</a></li></ul></div>
-            <div class="footer-section"><h3>Follow Us</h3><ul><li><a href="#">Facebook</a></li><li><a href="#">Instagram</a></li><li><a href="#">Twitter</a></li><li><a href="#">LinkedIn</a></li></ul></div>
+            <div class="footer-section"><h3>Think.4U</h3><p>{{ get_cms('mission_text', 'Making a positive impact through education, empowerment, and community development.') }}</p></div>
+            <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('index') }}#about">About Us</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('events_page') }}">Events</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
+            <div class="footer-section"><h3>Contact</h3><ul><li>Email: {{ get_cms('contact_email', 'hello@think4u.org') }}</li><li>Phone: {{ get_cms('contact_phone', '+91 9876543210') }}</li><li>Address: {{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</li><li><a href="{{ url_for('contact') }}">Contact Form</a></li></ul></div>
+            <div class="footer-section"><h3>Follow Us</h3><ul><li><a href="{{ get_cms('social_facebook', '#') }}">Facebook</a></li><li><a href="{{ get_cms('social_instagram', '#') }}">Instagram</a></li><li><a href="{{ get_cms('social_twitter', '#') }}">Twitter</a></li><li><a href="{{ get_cms('social_linkedin', '#') }}">LinkedIn</a></li></ul></div>
         </div>
-        <div class="footer-bottom"><p>© {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Version {{ app_version }}</p></div>
+        <div class="footer-bottom"><p>&copy; {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Version {{ app_version }}</p></div>
     </footer>
 
     <div id="cookie-banner" class="hidden fixed bottom-4 left-4 right-4 z-[9999] max-w-3xl mx-auto bg-slate-900 text-white rounded-2xl p-4 shadow-2xl">
@@ -300,7 +306,17 @@
             if(btn && menu) btn.addEventListener('click',()=>menu.classList.toggle('hidden'));
             const cookieBanner = document.getElementById('cookie-banner'), acceptBtn = document.getElementById('cookie-accept-btn');
             if(cookieBanner && !localStorage.getItem('cookie_consent_accepted')) cookieBanner.classList.remove('hidden');
-            if(acceptBtn) acceptBtn.addEventListener('click',()=>{ localStorage.setItem('cookie_consent_accepted','true'); cookieBanner?.classList.add('hidden'); });
+            if(acceptBtn) acceptBtn.addEventListener('click',async()=>{
+                localStorage.setItem('cookie_consent_accepted','true');
+                cookieBanner?.classList.add('hidden');
+                try {
+                    await fetch('{{ url_for("cookie_consent") }}', {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({accepted:true, policy_version:'{{ app_version }}'})
+                    });
+                } catch (_) {}
+            });
             if(userIsAuthenticated) {
                 let inactivityTimer = null;
                 const reset = () => { if(inactivityTimer) clearTimeout(inactivityTimer); inactivityTimer = setTimeout(()=> window.showUiAlert(`Inactive for ${inactivityTimeoutMinutes} minute(s). Logging out.`,'warning','Session Expired').then(()=>window.location.assign('{{ url_for("logout") }}?reason=inactive')), inactivityMs); };

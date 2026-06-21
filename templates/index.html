@@ -3,334 +3,374 @@
 
 {% block extra_css %}
 <style>
+    .home-page {
+        background: #f4eadf;
+        color: #24120b;
+    }
     .hero {
         position: relative;
-        height: 700px;
+        min-height: 680px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         text-align: center;
         overflow: hidden;
+        background: #4b2618;
     }
-
+    .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(48, 20, 10, 0.45), rgba(48, 20, 10, 0.72));
+        z-index: 1;
+    }
     .hero-carousel {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        inset: 0;
         background-size: cover;
         background-position: center;
-        animation: carousel 40s infinite linear;
-        filter: brightness(0.5);
         opacity: 0;
+        animation-name: carousel;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        filter: saturate(1.05) brightness(0.78);
     }
-
-    /* Only the 8 carousel images */
-    .hero-carousel:nth-child(1) { background-image: url("{{ url_for('static', filename='images/carousal/bagdonate.jpeg') }}"); animation-delay: 0s; }
-    .hero-carousel:nth-child(2) { background-image: url("{{ url_for('static', filename='images/carousal/boyfooddonate1.jpeg') }}"); animation-delay: 5s; }
-    .hero-carousel:nth-child(3) { background-image: url("{{ url_for('static', filename='images/carousal/boyfooddonate2.jpeg') }}"); animation-delay: 10s; }
-    .hero-carousel:nth-child(4) { background-image: url("{{ url_for('static', filename='images/carousal/fooddonate1.jpeg') }}"); animation-delay: 15s; }
-    .hero-carousel:nth-child(5) { background-image: url("{{ url_for('static', filename='images/carousal/fooddonate2.jpeg') }}"); animation-delay: 20s; }
-    .hero-carousel:nth-child(6) { background-image: url("{{ url_for('static', filename='images/carousal/mam+kids1.jpeg') }}"); animation-delay: 25s; }
-    .hero-carousel:nth-child(7) { background-image: url("{{ url_for('static', filename='images/carousal/orphankids.jpeg') }}"); animation-delay: 30s; }
-    .hero-carousel:nth-child(8) { background-image: url("{{ url_for('static', filename='images/carousal/orphans_group.jpeg') }}"); animation-delay: 35s; }
-
     @keyframes carousel {
-        0% { opacity: 0; transform: scale(1.05) translateX(50px); }
-        1% { opacity: 1; transform: scale(1) translateX(0); }
-        8% { opacity: 1; transform: scale(1) translateX(0); }
-        10% { opacity: 0; transform: scale(0.95) translateX(-50px); }
-        100% { opacity: 0; transform: scale(0.95) translateX(-50px); }
+        0%, 100% { opacity: 0; transform: scale(1.06); }
+        4%, 13% { opacity: 1; transform: scale(1); }
+        17% { opacity: 0; transform: scale(1.03); }
     }
-
     .hero-content {
-        max-width: 800px;
+        max-width: 840px;
         z-index: 2;
         position: relative;
+        padding: 0 1rem;
     }
-
     .hero h1 {
-        font-size: 4rem;
+        font-size: clamp(3.5rem, 9vw, 7rem);
         font-weight: 900;
+        line-height: 0.95;
         margin-bottom: 1rem;
-        line-height: 1.2;
-        text-shadow: 3px 3px 12px rgba(0,0,0,0.7);
-        letter-spacing: 2px;
+        letter-spacing: 0;
         color: white;
+        text-shadow: 0 10px 30px rgba(0,0,0,0.45);
     }
-
-    .hero h1 .accent {
-        color: var(--charity-gold);
-        font-size: 4.5rem;
-        text-shadow: 3px 3px 12px rgba(0,0,0,0.7);
-    }
-
+    .hero h1 .accent { color: var(--charity-gold); }
     .hero p {
-        font-size: 1.8rem;
-        margin-bottom: 2.5rem;
-        font-weight: 300;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
-        color: white;
+        font-size: clamp(1.2rem, 3vw, 1.9rem);
+        margin-bottom: 2rem;
+        color: rgba(255,255,255,0.92);
     }
-
     .btn-cta {
-        background: var(--charity-gold);
-        color: white;
-        padding: 1.2rem 3rem;
-        border: none;
-        border-radius: 50px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-block;
-        box-shadow: 0 8px 25px rgba(213,141,75,0.3);
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    }
-
-    .btn-cta:hover {
-        background: var(--charity-gold-hover);
-        transform: translateY(-5px);
-    }
-
-    .btn-cta-white {
-        background: white;
-        color: var(--charity-gold);
-        text-shadow: none;
-    }
-
-    .section-title {
-        font-size: 2.8rem;
-        margin-bottom: 1rem;
-        text-align: center;
-        font-weight: 800;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        color: #1e293b;
-    }
-
-    .about-content {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 3rem;
-        align-items: center;
-    }
-
-    .impact-card {
-        background: #ffffff;
-        padding: 2.5rem;
-        border-radius: 12px;
-        border-left: 6px solid var(--charity-gold);
-        text-align: center;
-        box-shadow: 0 10px 35px rgba(0,0,0,0.08);
-        transition: all 0.4s ease;
-        color: #1e293b;
-    }
-
-    .impact-card:hover {
-        transform: translateY(-10px);
-        border-left-color: var(--charity-dark);
-    }
-
-    .impact-card .number {
-        font-size: 3rem;
-        font-weight: 900;
-        color: var(--charity-gold);
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .program-card {
-        background: white;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 10px 35px rgba(0,0,0,0.1);
-        transition: all 0.4s ease;
-        color: #1e293b;
-    }
-
-    .program-card:hover {
-        transform: translateY(-15px);
-    }
-
-    .program-card-image {
-        width: 100%;
-        height: 200px;
-        background: linear-gradient(135deg, var(--charity-gold) 0%, var(--charity-dark) 100%);
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 0.5rem;
+        min-height: 48px;
+        border-radius: 8px;
+        padding: 0.95rem 1.5rem;
+        background: var(--charity-gold);
         color: white;
-        font-size: 3.5rem;
+        font-weight: 800;
+        text-decoration: none;
+        box-shadow: 0 10px 24px rgba(58, 29, 16, 0.24);
     }
-
-    .program-card h3 {
-        color: #1e293b;
+    .btn-cta:hover { background: var(--charity-gold-hover); }
+    .btn-secondary {
+        background: #fff8ef;
+        color: #4b2618;
     }
-
-    .program-card p {
-        color: #334155;
+    .section-title {
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 900;
+        line-height: 1.05;
+        color: #24120b;
+        text-align: center;
+        margin-bottom: 0.75rem;
     }
-
-    body, p, li, a, span, h1, h2, h3, h4, h5, h6, button, .btn {
-        text-shadow: 0 1px 1px rgba(0,0,0,0.05);
+    .section-subtitle {
+        color: #6b4a38;
+        text-align: center;
+        max-width: 760px;
+        margin: 0 auto 2rem;
+    }
+    .surface {
+        background: #fffaf4;
+    }
+    .warm-band {
+        background: #ead7c5;
+    }
+    .content-card {
+        border-radius: 8px;
+        background: #fffaf4;
+        border: 1px solid rgba(75, 38, 24, 0.12);
+        box-shadow: 0 10px 30px rgba(53, 28, 18, 0.08);
+        overflow: hidden;
+    }
+    .media-frame {
+        aspect-ratio: 16 / 10;
+        background: #4b2618;
+        overflow: hidden;
+    }
+    .media-frame img,
+    .media-frame video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .content-card > video {
+        width: 100%;
+        border-radius: 8px;
+        background: #24120b;
+    }
+    .photo-strip {
+        display: flex;
+        gap: 1rem;
+        overflow: hidden;
+    }
+    .photo-strip-track {
+        display: flex;
+        gap: 1rem;
+        min-width: 100%;
+        animation: photoSlide 34s linear infinite;
+    }
+    @keyframes photoSlide {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+    .map-frame {
+        width: 100%;
+        min-height: 340px;
+        border: 0;
+        border-radius: 8px;
+    }
+    .line-clamp-3 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- HERO SECTION -->
-<section class="hero animate-fadeIn">
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-carousel"></div>
-    <div class="hero-content">
-        <h1><span>Think</span><span class="accent">.4</span><span>U</span></h1>
-        <p>{{ get_cms('hero_subtitle', 'Making a Difference in Our Community') }}</p>
-        <div class="flex justify-center gap-6">
-            <a href="{{ url_for('donate') }}" class="btn-cta">Donate Now</a>
-            <a href="{{ url_for('volunteer') }}" class="btn-cta btn-cta-white">Volunteer</a>
-        </div>
-    </div>
-</section>
-
-<!-- ABOUT -->
-<section class="py-20 bg-white" id="about">
-    <div class="container mx-auto px-4">
-        <h2 class="section-title">About Think.4U</h2>
-        <div class="about-content mt-12">
-            <div class="about-image">
-                <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Community Work" class="rounded-xl shadow-2xl">
-            </div>
-            <div class="about-text">
-                <h3 class="text-3xl font-bold mb-6 text-charity-dark">Our Mission</h3>
-                <p class="text-lg text-gray-700 mb-4 italic">
-                    {{ get_cms('mission_text', 'Think.4U is a community charity platform dedicated to promoting education for underprivileged children and youth.') }}
-                </p>
-                <div class="space-y-4">
-                    <div class="flex items-start gap-4">
-                        <div class="text-charity-gold mt-1"><i data-lucide="check-circle"></i></div>
-                        <p class="text-gray-700">Empowering women and rural communities through skill development.</p>
-                    </div>
-                    <div class="flex items-start gap-4">
-                        <div class="text-charity-gold mt-1"><i data-lucide="check-circle"></i></div>
-                        <p class="text-gray-700">Supporting preventive and mental healthcare initiatives.</p>
-                    </div>
-                    <div class="flex items-start gap-4">
-                        <div class="text-charity-gold mt-1"><i data-lucide="check-circle"></i></div>
-                        <p class="text-gray-700">Fostering environmental sustainability and measurable impact.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- IMPACT -->
-<section class="py-20 bg-gray-100" id="impact">
-    <div class="container mx-auto px-4">
-        <h2 class="section-title">Our Impact Numbers</h2>
-        <p class="text-center text-gray-600 mb-12">Real numbers, real change, real lives transformed</p>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div class="impact-card">
-                <div class="number">{{ get_cms('impact_people', '10K+') }}</div>
-                <div class="font-bold text-charity-dark">People Helped</div>
-            </div>
-            <div class="impact-card">
-                <div class="number">{{ get_cms('impact_education', '2K+') }}</div>
-                <div class="font-bold text-charity-dark">Students Educated</div>
-            </div>
-            <div class="impact-card">
-                <div class="number">{{ get_cms('impact_families', '5K+') }}</div>
-                <div class="font-bold text-charity-dark">Families Supported</div>
-            </div>
-            <div class="impact-card">
-                <div class="number">{{ stats.total_programs or '50+' }}</div>
-                <div class="font-bold text-charity-dark">Active Programs</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- PROGRAMS -->
-<section class="py-20 bg-white" id="programs">
-    <div class="container mx-auto px-4">
-        <h2 class="section-title">Our Programs</h2>
-        <p class="text-center text-gray-600 mb-12">Discover the initiatives that make a real difference</p>
-        {% if programs %}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {% for program in programs %}
-            <div class="program-card">
-                <div class="program-card-image">
-                    {% if program.image_url %}
-                    <img src="{{ program.image_url }}" alt="{{ program.title }}" class="w-full h-full object-cover">
-                    {% else %}
-                    <i data-lucide="heart"></i>
-                    {% endif %}
-                </div>
-                <div class="p-8">
-                    <h3 class="text-xl font-bold mb-4">{{ program.title }}</h3>
-                    <p class="text-gray-600 mb-6 line-clamp-3">{{ program.description }}</p>
-                    <a href="{{ url_for('program_detail', program_id=program.id) }}" class="text-charity-gold font-bold hover:underline">Learn More →</a>
-                </div>
-            </div>
+<div class="home-page">
+    <section class="hero">
+        {% set slide_count = hero_media|length if hero_media else 8 %}
+        {% if hero_media %}
+            {% for slide in hero_media %}
+            <div class="hero-carousel" style="background-image:url('{{ slide.display_url or slide.url }}'); animation-delay: {{ loop.index0 * 5 }}s; animation-duration: {{ slide_count * 5 }}s;"></div>
             {% endfor %}
-        </div>
         {% else %}
-        <p class="text-center text-gray-500">No programs yet. Check back soon!</p>
+            {% set fallback_slides = [
+                'images/carousal/bagdonate.jpeg',
+                'images/carousal/boyfooddonate1.jpeg',
+                'images/carousal/boyfooddonate2.jpeg',
+                'images/carousal/fooddonate1.jpeg',
+                'images/carousal/fooddonate2.jpeg',
+                'images/carousal/mam+kids1.jpeg',
+                'images/carousal/orphankids.jpeg',
+                'images/carousal/orphans_group.jpeg'
+            ] %}
+            {% for path in fallback_slides %}
+            <div class="hero-carousel" style="background-image:url('{{ url_for('static', filename=path) }}'); animation-delay: {{ loop.index0 * 5 }}s; animation-duration: 40s;"></div>
+            {% endfor %}
         {% endif %}
-    </div>
-</section>
+        <div class="hero-content">
+            <h1><span>Think</span><span class="accent">.4</span><span>U</span></h1>
+            <p>{{ get_cms('hero_subtitle', 'Making a Difference in Our Community') }}</p>
+            <div class="flex flex-wrap justify-center gap-3">
+                <a href="{{ url_for('donate') }}" class="btn-cta"><i data-lucide="heart"></i>Donate Now</a>
+                <a href="{{ url_for('volunteer') if current_user.is_authenticated else url_for('login', next=url_for('volunteer')) }}" class="btn-cta btn-secondary"><i data-lucide="hand-heart"></i>Volunteer</a>
+            </div>
+        </div>
+    </section>
 
-<!-- CTA SECTION (light background, dark text, new buttons) -->
-<section class="py-20 bg-white" id="cta">
-    <div class="container mx-auto px-4 text-center">
-        <h2 class="text-4xl font-bold mb-6 text-charity-dark">{{ get_cms('cta_title', 'Ready to Make a Difference?') }}</h2>
-        <p class="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">{{ get_cms('cta_subtitle', 'Join thousands of supporters transforming lives through education and empowerment.') }}</p>
-        <div class="flex flex-wrap justify-center gap-6">
-            <a href="{{ url_for('donate') }}" class="btn-cta">Donate Now</a>
-            <a href="{{ url_for('volunteer') }}" class="btn-cta btn-cta-white">Become a Volunteer</a>
+    <section class="py-16 surface" id="about">
+        <div class="container mx-auto px-4">
+            <h2 class="section-title">About Think.4U</h2>
+            <p class="section-subtitle">{{ get_cms('mission_text', 'Think.4U is a community charity platform dedicated to promoting education, empowerment, health, and measurable social impact.') }}</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-6xl mx-auto">
+                <div class="media-frame content-card">
+                    <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U community work">
+                </div>
+                <div class="grid gap-4">
+                    <div class="content-card p-5 flex gap-4">
+                        <i data-lucide="graduation-cap" class="w-7 h-7 text-amber-700 flex-shrink-0"></i>
+                        <p class="text-slate-700">Education support and scholarships for children and youth.</p>
+                    </div>
+                    <div class="content-card p-5 flex gap-4">
+                        <i data-lucide="shield-plus" class="w-7 h-7 text-emerald-700 flex-shrink-0"></i>
+                        <p class="text-slate-700">Preventive health, mental health, and community care initiatives.</p>
+                    </div>
+                    <div class="content-card p-5 flex gap-4">
+                        <i data-lucide="users" class="w-7 h-7 text-blue-700 flex-shrink-0"></i>
+                        <p class="text-slate-700">Women empowerment, rural support, and transparent impact programs.</p>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 
-<!-- Testimonials -->
-<section class="py-20 bg-white">
-    <div class="container mx-auto px-4">
-        <div class="text-center mb-16">
-            <h2 class="text-4xl lg:text-5xl font-black mb-4">
-                <span class="bg-gradient-to-r from-blue-700 via-sky-600 to-emerald-600 bg-clip-text text-transparent">
-                    {{ get_cms('testimonials_heading', 'What People Say') }}
-                </span>
-            </h2>
-            <p class="text-xl text-slate-700 font-medium">{{ get_cms('testimonials_subtitle', 'Hear from those whose lives we\'ve touched') }}</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-8 border-2 border-orange-100 hover:shadow-xl">
-                <div class="flex gap-1 mb-4">★ ★ ★ ★ ★</div>
-                <p class="text-slate-700 mb-4 italic">"{{ get_cms('testimonial_1', 'Think.4U changed my life. Their support helped me get back on my feet.') }}"</p>
-                <div class="font-bold text-orange-700">- {{ get_cms('testimonial_1_author', 'Priya S.') }}</div>
-            </div>
-            <div class="bg-gradient-to-br from-blue-50 to-sky-50 rounded-2xl p-8 border-2 border-blue-100 hover:shadow-xl">
-                <div class="flex gap-1 mb-4">★ ★ ★ ★ ★</div>
-                <p class="text-slate-700 mb-4 italic">"{{ get_cms('testimonial_2', 'Amazing organization doing incredible work. Proud to volunteer here!') }}"</p>
-                <div class="font-bold text-blue-700">- {{ get_cms('testimonial_2_author', 'Rahul K.') }}</div>
-            </div>
-            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 border-2 border-emerald-100 hover:shadow-xl">
-                <div class="flex gap-1 mb-4">★ ★ ★ ★ ★</div>
-                <p class="text-slate-700 mb-4 italic">"{{ get_cms('testimonial_3', 'The education program gave my children hope for a better future.') }}"</p>
-                <div class="font-bold text-emerald-700">- {{ get_cms('testimonial_3_author', 'Anjali M.') }}</div>
+    <section class="py-16 warm-band" id="impact">
+        <div class="container mx-auto px-4">
+            <h2 class="section-title">Our Impact Numbers</h2>
+            <p class="section-subtitle">Real numbers, real change, real lives transformed.</p>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
+                <div class="content-card p-6 text-center"><div class="text-4xl font-black text-amber-700">{{ get_cms('impact_people', '10K+') }}</div><div class="font-bold">People Helped</div></div>
+                <div class="content-card p-6 text-center"><div class="text-4xl font-black text-emerald-700">{{ get_cms('impact_education', '2K+') }}</div><div class="font-bold">Students Educated</div></div>
+                <div class="content-card p-6 text-center"><div class="text-4xl font-black text-blue-700">{{ get_cms('impact_families', '5K+') }}</div><div class="font-bold">Families Supported</div></div>
+                <div class="content-card p-6 text-center"><div class="text-4xl font-black text-rose-700">{{ stats.total_programs or '50+' }}</div><div class="font-bold">Active Programs</div></div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
+
+    <section class="py-16 surface" id="available-events">
+        <div class="container mx-auto px-4">
+            <h2 class="section-title">Available Events</h2>
+            <p class="section-subtitle">Donate, register, or support active event opportunities.</p>
+            {% if available_events %}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-6xl mx-auto">
+                {% for event in available_events %}
+                <article class="content-card p-6">
+                    <p class="text-sm font-bold text-amber-700 mb-2">{{ event.event_date or 'Date TBA' }}{% if event.location %} - {{ event.location }}{% endif %}</p>
+                    <h3 class="text-xl font-black text-slate-900 mb-3">{{ event.title or 'Event' }}</h3>
+                    <p class="text-slate-700 line-clamp-3 mb-5">{{ event.description or 'Support this event and help us reach more people.' }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        <a href="{{ url_for('donate', purpose_type='event', purpose_id=event.id, purpose_label=event.title) }}" class="btn-cta text-sm py-2 px-3">Donate</a>
+                        <a href="{{ url_for('events_page') }}" class="btn-cta btn-secondary text-sm py-2 px-3">Register</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-slate-600">No public events are available right now.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="py-16 warm-band" id="programs">
+        <div class="container mx-auto px-4">
+            <h2 class="section-title">Our Programs</h2>
+            <p class="section-subtitle">Discover initiatives that make a practical difference.</p>
+            {% if programs %}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-6xl mx-auto">
+                {% for program in programs %}
+                <article class="content-card">
+                    <div class="media-frame">
+                        {% if program.image_url %}
+                        <img src="{{ program.image_display_url or program.image_url }}" alt="{{ program.title }}">
+                        {% else %}
+                        <div class="h-full flex items-center justify-center text-white"><i data-lucide="heart" class="w-12 h-12"></i></div>
+                        {% endif %}
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-black text-slate-900 mb-3">{{ program.title }}</h3>
+                        <p class="text-slate-700 mb-5 line-clamp-3">{{ program.description }}</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ url_for('program_detail', program_id=program.id) }}" class="font-bold text-amber-800 hover:underline">Learn More</a>
+                            <a href="{{ url_for('donate', purpose_type='program', purpose_id=program.id, purpose_label=program.title) }}" class="font-bold text-emerald-800 hover:underline">Donate</a>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-slate-600">No programs yet. Check back soon.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="py-16 surface" id="fundraising">
+        <div class="container mx-auto px-4">
+            <h2 class="section-title">Fundraising</h2>
+            <p class="section-subtitle">Support active fundraising campaigns with a purpose-tagged donation.</p>
+            {% if fundraisers %}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-6xl mx-auto">
+                {% for campaign in fundraisers %}
+                {% set target = campaign.target_amount or 0 %}
+                {% set raised = campaign.raised_amount or 0 %}
+                {% set percent = ((raised / target) * 100) if target else 0 %}
+                <article class="content-card p-6">
+                    <h3 class="text-xl font-black text-slate-900 mb-3">{{ campaign.title }}</h3>
+                    <p class="text-slate-700 line-clamp-3 mb-4">{{ campaign.description }}</p>
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm text-slate-600 mb-1">
+                            <span>Raised Rs {{ "{:,.0f}".format(raised) }}</span>
+                            <span>Target Rs {{ "{:,.0f}".format(target) }}</span>
+                        </div>
+                        <div class="w-full bg-stone-200 h-2 rounded-full overflow-hidden"><div class="h-2 bg-emerald-600" style="width: {{ [percent, 100]|min }}%"></div></div>
+                    </div>
+                    <a href="{{ url_for('donate', purpose_type='fundraiser', purpose_id=campaign.id, purpose_label=campaign.title) }}" class="btn-cta text-sm">Donate to Fundraiser</a>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-slate-600">No fundraising campaigns are active right now.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="py-16 warm-band" id="media">
+        <div class="container mx-auto px-4">
+            <h2 class="section-title">Photos & Videos</h2>
+            <p class="section-subtitle">Published by the admin team from program and community work.</p>
+            {% if gallery_photos %}
+            <div class="photo-strip mb-8 max-w-6xl mx-auto">
+                <div class="photo-strip-track">
+                    {% for photo in gallery_photos + gallery_photos %}
+                    <div class="media-frame content-card min-w-[280px] sm:min-w-[360px]">
+                        <img src="{{ photo.display_url or photo.url }}" alt="{{ photo.title or 'Think.4U photo' }}">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center text-slate-600 mb-8">No published photos yet.</p>
+            {% endif %}
+
+            {% if gallery_videos %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-6xl mx-auto">
+                {% for video in gallery_videos %}
+                <div class="content-card p-3">
+                    <video controls preload="metadata" src="{{ video.display_url or video.url }}"></video>
+                    {% if video.title %}<p class="font-bold text-slate-800 mt-3">{{ video.title }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-slate-600">No published videos yet.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="py-16 surface" id="map-address">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto items-stretch">
+                <div class="content-card p-6">
+                    <h2 class="text-3xl font-black text-slate-900 mb-4">Visit or Contact Us</h2>
+                    <div class="space-y-3 text-slate-700">
+                        <p><strong>Address:</strong> {{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</p>
+                        <p><strong>Email:</strong> {{ get_cms('contact_email', 'hello@think4u.org') }}</p>
+                        <p><strong>Phone:</strong> {{ get_cms('contact_phone', '+91 9876543210') }}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mt-6">
+                        <a href="{{ get_cms('google_maps_url', 'https://www.google.com/maps/search/?api=1&query=Hyderabad%2C%20Telangana%2C%20India') }}" target="_blank" rel="noopener" class="btn-cta">Open Google Maps</a>
+                        <a href="{{ url_for('contact') }}" class="btn-cta btn-secondary">Contact Form</a>
+                    </div>
+                </div>
+                <div class="content-card p-3">
+                    <iframe class="map-frame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="{{ get_cms('google_maps_embed_url', 'https://www.google.com/maps?q=Hyderabad%2C%20Telangana%2C%20India&output=embed') }}"></iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>document.addEventListener('DOMContentLoaded',()=>{lucide.createIcons();});</script>
-<style>.line-clamp-3{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}</style>
 {% endblock %}

@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block title %}Bulk Slots & Request Config - Think.4U{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flatpickr.min.css') }}">
+<style>
+    /* Styling Flatpickr calendar popups */
+    .flatpickr-calendar {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        font-family: 'Inter', sans-serif !important;
+        padding: 6px !important;
+    }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.selected:focus {
+        background: #78350f !important;
+        border-color: #78350f !important;
+        color: #ffffff !important;
+    }
+    .flatpickr-day.today {
+        border-color: #d97706 !important;
+    }
+    .flatpickr-day.today:hover {
+        background: #fef3c7 !important;
+        color: #92400e !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="px-4 py-10 bg-[#f4eadf] min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
+            <div>
+                <h1 class="text-4xl font-black text-slate-900 mb-2">Coordinator Portal</h1>
+                <p class="text-slate-700">Manage meeting configurations, bulk slot generation, and automatic rescheduling settings.</p>
+            </div>
+            <a href="{{ url_for('logout') }}" class="px-4 py-2 rounded-lg bg-stone-900 text-white font-bold hover:bg-stone-850 transition">Logout</a>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-stone-200 mb-8 bg-white rounded-t-lg shadow-sm overflow-x-auto scrollbar-thin">
+            <a href="{{ url_for('coordinator_portal') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">Dashboard</a>
+            <a href="{{ url_for('coordinator_history') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">All Slots & Meetings History</a>
+            <a href="{{ url_for('coordinator_settings') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">Meeting Defaults Settings</a>
+            <a href="{{ url_for('coordinator_bulk_slots') }}" class="px-6 py-4 font-bold text-sm border-b-2 border-amber-800 text-amber-800 whitespace-nowrap">Bulk Slots & Request Config</a>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Forms for Range Generation & Custom request settings -->
+            <div class="space-y-8">
+                <!-- Allowed User Request Time Window Settings -->
+                <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-2">Allowed User Request Window</h2>
+                    <p class="text-sm text-slate-500 mb-4">Set the daily time range where users can request custom slots on any day. If the user picks a time in this range, it will bypass strict slot date requirements.</p>
+                    
+                    <form method="POST" action="{{ url_for('coordinator_bulk_slots_settings') }}" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Allowed Start Time</label>
+                                <select name="request_start_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Allowed End Time</label>
+                                <select name="request_end_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Reschedule Default Time</label>
+                                <select name="reschedule_default_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="flex items-center">
+                                <label class="flex items-center gap-2 mt-6 font-bold text-sm text-slate-700 cursor-pointer">
+                                    <input type="checkbox" name="allow_custom_requests" {% if global_settings.allow_custom_requests %}checked{% endif %} class="rounded border-stone-300 text-amber-800 focus:ring-amber-700"> Allow Slot-less User Requests
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Available Till Date (Release Limit)</label>
+                                <input type="text" name="release_limit_date" id="release_limit_date" placeholder="Select date limit..." value="{{ global_settings.release_limit_date or '' }}" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white">
+                                <p class="text-[10px] text-slate-500 mt-1">If set, users cannot book/request slots, and coordinators cannot create slots, after this date.</p>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-lg bg-amber-800 text-white font-bold hover:bg-amber-900 transition shadow">Save Custom Request Hours</button>
+                    </form>
+                </div>
+
+                <!-- Range Slot Generator -->
+                <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-2">Bulk Slot Generator</h2>
+                    <p class="text-sm text-slate-500 mb-4">Generate recurring coordinator slots iteratively over a specified date range, time intervals, and days of the week.</p>
+                    
+                    <form method="POST" action="{{ url_for('coordinator_bulk_slots') }}" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="generate_slots">
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Start Date</label>
+                                <input type="text" name="start_date" id="start_date" required placeholder="Select start date..." class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">End Date</label>
+                                <input type="text" name="end_date" id="end_date" required placeholder="Select end date..." class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daily Start Time</label>
+                                <select name="start_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daily End Time</label>
+                                <select name="end_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Slot Duration (Min)</label>
+                                <input type="number" name="duration_minutes" min="15" max="180" value="30" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Registration Limit</label>
+                                <input type="number" name="registration_limit" min="1" value="1" required class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
+                            </div>
+                            <div class="flex items-center">
+                                <label class="flex items-center gap-2 mt-6 font-bold text-sm text-slate-700 cursor-pointer">
+                                    <input type="checkbox" name="auto_accept" checked class="rounded border-stone-300 text-amber-800 focus:ring-amber-700"> Auto Accept Bookings
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Applicable Weekdays (Excludes Sundays)</label>
+                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs font-semibold text-slate-700 bg-stone-50 p-3 rounded-lg border border-stone-200">
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="0" checked class="rounded border-stone-300 text-amber-800"> Mon
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="1" checked class="rounded border-stone-300 text-amber-800"> Tue
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="2" checked class="rounded border-stone-300 text-amber-800"> Wed
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="3" checked class="rounded border-stone-300 text-amber-800"> Thu
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="4" checked class="rounded border-stone-300 text-amber-800"> Fri
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="5" class="rounded border-stone-300 text-amber-800"> Sat
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full px-6 py-3 rounded-lg bg-amber-800 text-white font-bold hover:bg-amber-900 transition shadow">Generate Slots Range</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: CSV Upload & Rescheduling -->
+            <div class="space-y-8">
+                <!-- CSV Bulk Upload -->
+                <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-2">CSV Bulk Upload</h2>
+                    <p class="text-sm text-slate-500 mb-4">Upload a CSV file with predefined slot schedules to populate coordinator slots directly.</p>
+                    
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 mb-4">
+                        <span class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Required CSV Column Headers</span>
+                        <code class="block text-xs bg-slate-900 text-slate-100 p-3 rounded overflow-x-auto scrollbar-thin">date,time,duration_minutes,registration_limit,auto_accept</code>
+                        <div class="mt-3 text-xs text-slate-500 space-y-1">
+                            <p>&bull; <strong>date</strong>: YYYY-MM-DD format (e.g. 2026-07-01)</p>
+                            <p>&bull; <strong>time</strong>: HH:MM or HH:MM AM/PM format (e.g. 09:30 or 10:00 AM)</p>
+                            <p>&bull; <strong>duration_minutes</strong>: default 30 (optional)</p>
+                            <p>&bull; <strong>registration_limit</strong>: default 1 (optional)</p>
+                            <p>&bull; <strong>auto_accept</strong>: true / false (optional)</p>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('coordinator_bulk_slots') }}" enctype="multipart/form-data" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="upload_csv">
+                        
+                        <div class="border-2 border-dashed border-stone-300 rounded-lg p-6 text-center hover:border-amber-700 transition">
+                            <input type="file" name="csv_file" required accept=".csv" class="mx-auto block text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-amber-100 file:text-amber-800 file:hover:bg-amber-200 cursor-pointer">
+                            <p class="text-xs text-slate-400 mt-2">Only CSV files are supported</p>
+                        </div>
+
+                        <button type="submit" class="w-full px-6 py-3 rounded-lg bg-stone-900 text-white font-bold hover:bg-stone-850 transition shadow">Upload Slots CSV</button>
+                    </form>
+                </div>
+
+                <!-- Auto-Rescheduling Operations -->
+                <div class="bg-white rounded-lg shadow border border-stone-200 p-6 border-l-4 border-l-amber-600">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-2">Reschedule Past Meetings</h2>
+                    <p class="text-sm text-slate-500 mb-4">Any scheduled or booked meeting which has not been completed will be rescheduled to the next valid day automatically when loading the portal. You can also trigger this operation manually.</p>
+                    
+                    <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-6 text-xs text-amber-900 space-y-2">
+                        <p><strong>How rescheduling works:</strong></p>
+                        <p>1. Finds any active scheduled or booked meetings with dates in the past.</p>
+                        <p>2. Shifts their date to tomorrow or the next valid day (skipping Sundays and coordinator holidays).</p>
+                        <p>3. Matches the meeting to an available coordinator slot on that day if one exists; otherwise, defaults to the set rescheduled default time.</p>
+                        <p>4. Updates the user's dashboard and sends notification/email updates automatically.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('coordinator_bulk_slots_reschedule_past') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="w-full px-6 py-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white font-bold transition shadow">Force Reschedule Past Meetings Now</button>
+                    </form>
+                </div>
+
+                <!-- Active Slots Preview -->
+                <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4">Recently Created Slots</h2>
+                    <div class="space-y-3 max-h-64 overflow-y-auto scrollbar-thin">
+                        {% for slot in slots %}
+                        <div class="border rounded-lg p-3 bg-stone-50/40 text-sm">
+                            <div class="flex justify-between font-bold text-slate-800">
+                                <span>{{ slot.slot_date }} @ {{ slot.slot_time }}</span>
+                                <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">{{ slot.status|title }}</span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1">
+                                Duration: {{ slot.duration_minutes }}m | Limit: {{ slot.registration_limit }}
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-slate-500 text-sm">No slots created yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='css/flatpickr.min.js') }}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const releaseLimitDateStr = "{{ global_settings.release_limit_date or '' }}";
+
+        // Flatpickr range dates
+        flatpickr("#start_date", {
+            minDate: "today",
+            maxDate: releaseLimitDateStr || null,
+            disableMobile: true,
+            dateFormat: "Y-m-d",
+            disable: [
+                function(date) { return date.getDay() === 0; }
+            ]
+        });
+
+        flatpickr("#end_date", {
+            minDate: "today",
+            maxDate: releaseLimitDateStr || null,
+            disableMobile: true,
+            dateFormat: "Y-m-d",
+            disable: [
+                function(date) { return date.getDay() === 0; }
+            ]
+        });
+
+        flatpickr("#release_limit_date", {
+            minDate: "today",
+            disableMobile: true,
+            dateFormat: "Y-m-d",
+            disable: [
+                function(date) { return date.getDay() === 0; }
+            ]
+        });
+
+        // Prepopulate time selects
+        const timeSelects = document.querySelectorAll(".time-select-dropdown");
+        
+        const timeOptions = [];
+        for (let hour = 8; hour <= 20; hour++) {
+            for (let min of ["00", "30"]) {
+                if (hour === 20 && min === "30") continue;
+                let h = hour % 12;
+                if (h === 0) h = 12;
+                const ampm = hour < 12 ? "AM" : "PM";
+                const display = `${h}:${min} ${ampm}`;
+                const value = `${hour.toString().padStart(2, '0')}:${min}`;
+                timeOptions.push({ display, value });
+            }
+        }
+
+        // Loop over each select element
+        timeSelects.forEach(select => {
+            // Get original value if any
+            let origVal = "";
+            if (select.name === "request_start_time") {
+                origVal = "{{ global_settings.request_start_time }}";
+            } else if (select.name === "request_end_time") {
+                origVal = "{{ global_settings.request_end_time }}";
+            } else if (select.name === "reschedule_default_time") {
+                origVal = "{{ global_settings.reschedule_default_time }}";
+            } else if (select.name === "start_time") {
+                origVal = "09:00";
+            } else if (select.name === "end_time") {
+                origVal = "17:00";
+            }
+
+            timeOptions.forEach(opt => {
+                const o = document.createElement("option");
+                o.value = opt.value;
+                o.textContent = opt.display;
+                if (opt.value === origVal) {
+                    o.selected = true;
+                }
+                select.appendChild(o);
+            });
+        });
+    });
+</script>
+{% endblock %}

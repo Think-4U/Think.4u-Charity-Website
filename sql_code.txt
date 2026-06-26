@@ -37,6 +37,7 @@ create table if not exists public.users (
     role text not null default 'donor',
     email_verified boolean not null default false,
     last_login_at timestamptz,
+    global_meeting_settings jsonb not null default '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true, "record_meeting": false, "holidays": [], "request_start_time": "09:00", "request_end_time": "17:00", "allow_custom_requests": true, "reschedule_default_time": "10:00"}'::jsonb,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
@@ -128,6 +129,9 @@ create table if not exists public.appointments (
     notes text,
     meet_url text,
     status text not null default 'requested',
+    meeting_settings jsonb not null default '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb,
+    recording_url text,
+    share_recording boolean not null default false,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
@@ -143,6 +147,8 @@ create table if not exists public.appointment_slots (
     meet_url text,
     auto_accept boolean not null default true,
     status text not null default 'available',
+    registration_limit integer not null default 1,
+    meeting_settings jsonb not null default '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
@@ -171,6 +177,7 @@ create table if not exists public.volunteer_events (
     description text,
     location text,
     event_date text,
+    max_registrations integer,
     status text not null default 'active',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
@@ -292,6 +299,7 @@ alter table public.users
     add column if not exists phone text,
     add column if not exists address text,
     add column if not exists last_login_at timestamptz,
+    add column if not exists global_meeting_settings jsonb not null default '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true, "record_meeting": false, "holidays": [], "request_start_time": "09:00", "request_end_time": "17:00", "allow_custom_requests": true, "reschedule_default_time": "10:00"}'::jsonb,
     add column if not exists updated_at timestamptz not null default now();
 
 alter table public.donations
@@ -331,7 +339,14 @@ alter table public.appointments
     add column if not exists scheduled_date text,
     add column if not exists scheduled_time text,
     add column if not exists meet_url text,
+    add column if not exists meeting_settings jsonb not null default '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb,
+    add column if not exists recording_url text,
+    add column if not exists share_recording boolean not null default false,
     add column if not exists updated_at timestamptz not null default now();
+
+alter table public.appointment_slots
+    add column if not exists registration_limit integer not null default 1,
+    add column if not exists meeting_settings jsonb not null default '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb;
 
 alter table public.grievances
     add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
@@ -342,6 +357,7 @@ alter table public.grievances
 alter table public.volunteer_events
     add column if not exists uuid uuid not null default extensions.gen_random_uuid(),
     add column if not exists program_id bigint references public.programs(id) on delete set null,
+    add column if not exists max_registrations integer,
     add column if not exists status text not null default 'active',
     add column if not exists updated_at timestamptz not null default now();
 

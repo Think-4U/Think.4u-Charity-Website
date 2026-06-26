@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Meeting Details - Think.4U{% endblock %}
+
+{% block content %}
+<section class="px-4 py-10 bg-[#f4eadf] min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        <a href="{{ url_for('coordinator_history') }}" class="inline-flex items-center text-sm font-bold text-amber-800 hover:text-amber-900 mb-6">&larr; Back to History</a>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Left Info Panel -->
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6 md:col-span-1 h-fit space-y-5">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</h3>
+                    <span class="inline-block mt-1.5 text-xs font-bold px-2.5 py-1 rounded {% if appointment.status == 'completed' %}bg-slate-100 text-slate-600{% elif appointment.status == 'cancelled' %}bg-red-50 text-red-600{% else %}bg-emerald-50 text-emerald-600{% endif %}">
+                        {{ appointment.status|title }}
+                    </span>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Meeting Schedule</h3>
+                    <p class="font-bold text-slate-900 mt-1 text-sm">{{ appointment.scheduled_date or appointment.appointment_date }}</p>
+                    <p class="text-slate-600 text-sm">{{ appointment.scheduled_time or appointment.appointment_time }}</p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Purpose</h3>
+                    <p class="text-slate-800 text-sm mt-1 font-semibold">{{ appointment.purpose }}</p>
+                </div>
+
+                {% if appointment.notes %}
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Notes</h3>
+                    <p class="text-slate-600 text-xs mt-1 bg-stone-50 p-2.5 rounded border border-stone-200 whitespace-pre-line">{{ appointment.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Controls Panel -->
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6 md:col-span-2 space-y-6">
+                <!-- Participants Section -->
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 mb-3">Participants</h2>
+                    <div class="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto bg-stone-50/50">
+                        {% for p in participants %}
+                        <div class="flex justify-between items-center text-sm py-1 border-b border-stone-100 last:border-b-0">
+                            <div>
+                                <span class="font-bold text-slate-800">{{ p.name or 'Participant' }}</span>
+                                <span class="text-xs text-slate-500">({{ p.email }})</span>
+                            </div>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded {% if p.status == 'completed' %}bg-slate-100 text-slate-600{% else %}bg-emerald-50 text-emerald-600{% endif %}">{{ p.status|title }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-500">No participants scheduled.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Video Recording Panel -->
+                <div class="border-t border-stone-200 pt-6">
+                    <h2 class="text-xl font-bold text-slate-900 mb-3">Meeting Recording</h2>
+                    
+                    {% if appointment.recording_url %}
+                    <div class="mb-4">
+                        <video controls class="w-full rounded-lg border border-stone-300 shadow-inner max-h-96">
+                            <source src="{{ appointment.recording_url }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+
+                    <!-- Share Toggle -->
+                    <form method="POST" action="{{ url_for('coordinator_meeting_detail', appointment_id=appointment.id) }}" class="flex items-center justify-between bg-stone-50 p-3 rounded-lg border border-stone-200">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="toggle_share">
+                        <div>
+                            <span class="block text-sm font-bold text-slate-800">Share with participant</span>
+                            <span class="block text-xs text-slate-500">Allow participant users to watch this recording on their dashboard.</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="share_recording" onchange="this.form.submit()" {% if appointment.share_recording %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        </label>
+                    </form>
+                    {% else %}
+                    <p class="text-sm text-slate-500 mb-4 bg-stone-50 p-4 rounded-lg border border-stone-200">No recorded video uploaded yet for this meeting.</p>
+                    {% endif %}
+
+                    <!-- Upload Form -->
+                    <details class="group mt-4">
+                        <summary class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 cursor-pointer list-none select-none hover:text-amber-900 transition">
+                            <span>{% if appointment.recording_url %}Upload a different video{% else %}Upload meeting recording{% endif %}</span>
+                            <svg class="w-4 h-4 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </summary>
+                        
+                        <form method="POST" action="{{ url_for('coordinator_meeting_detail', appointment_id=appointment.id) }}" enctype="multipart/form-data" class="mt-3 p-4 bg-stone-50 rounded-lg border border-stone-200/85 space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="upload_recording">
+                            
+                            <div>
+                                <label class="block text-xs font-bold text-stone-700 mb-1.5">Select Video File (.mp4, .webm, .mov)</label>
+                                <input type="file" name="video_file" accept="video/*" required class="w-full text-xs text-stone-700 border border-stone-300 rounded-lg bg-white file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-xs file:font-bold file:bg-stone-900 file:text-white hover:file:bg-stone-850 transition">
+                            </div>
+                            
+                            <button type="submit" class="px-4 py-2 text-xs bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-lg transition shadow-sm">Upload to Supabase DB</button>
+                        </form>
+                    </details>
+                </div>
+
+                <!-- Meeting Settings Section -->
+                {% if appointment.status not in ['completed', 'cancelled'] %}
+                <div class="border-t border-stone-200 pt-6">
+                    <h2 class="text-xl font-bold text-slate-900 mb-3">Meeting UI Settings</h2>
+                    <form method="POST" action="{{ url_for('coordinator_update_meeting_settings', appointment_id=appointment.id) }}" class="p-4 bg-stone-50 rounded-lg border border-stone-200 space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-700">
+                            <label class="flex items-center gap-2 cursor-pointer font-semibold">
+                                <input type="checkbox" name="show_chat" {% if appointment.meeting_settings.show_chat %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Enable Chat
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer font-semibold">
+                                <input type="checkbox" name="show_screen_share" {% if appointment.meeting_settings.show_screen_share %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Enable Screen Share
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer font-semibold">
+                                <input type="checkbox" name="show_raise_hand" {% if appointment.meeting_settings.show_raise_hand %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Enable Raise Hand
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer font-semibold">
+                                <input type="checkbox" name="show_participants" {% if appointment.meeting_settings.show_participants %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Enable Participant List
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer font-semibold sm:col-span-2">
+                                <input type="checkbox" name="record_meeting" {% if appointment.meeting_settings.record_meeting %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Auto-Record Meeting
+                            </label>
+                        </div>
+                        <button type="submit" class="px-4 py-2 text-xs bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-lg transition shadow-sm">Save Settings</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

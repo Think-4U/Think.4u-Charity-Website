@@ -1,6 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Coordinator Portal - Think.4U{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flatpickr.min.css') }}">
+<style>
+    /* Style Flatpickr calendar popups for the coordinator portal */
+    .flatpickr-calendar {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        font-family: 'Inter', sans-serif !important;
+        padding: 6px !important;
+    }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.selected:focus {
+        background: #78350f !important;
+        border-color: #78350f !important;
+        color: #ffffff !important;
+    }
+    .flatpickr-day.today {
+        border-color: #d97706 !important;
+    }
+    .flatpickr-day.today:hover {
+        background: #fef3c7 !important;
+        color: #92400e !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="px-4 py-10 bg-[#f4eadf] min-h-screen">
     <div class="max-w-7xl mx-auto">
@@ -12,29 +39,65 @@
             <a href="{{ url_for('logout') }}" class="px-4 py-2 rounded-lg bg-stone-900 text-white font-bold">Logout</a>
         </div>
 
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-stone-200 mb-8 bg-white rounded-t-lg shadow-sm overflow-x-auto scrollbar-thin">
+            <a href="{{ url_for('coordinator_portal') }}" class="px-6 py-4 font-bold text-sm border-b-2 border-amber-800 text-amber-800 whitespace-nowrap">Dashboard</a>
+            <a href="{{ url_for('coordinator_history') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">All Slots & Meetings History</a>
+            <a href="{{ url_for('coordinator_settings') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">Meeting Defaults Settings</a>
+            <a href="{{ url_for('coordinator_bulk_slots') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">Bulk Slots & Request Config</a>
+        </div>
+
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6 h-fit">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Create Available Slot</h2>
                 <form method="POST" action="{{ url_for('coordinator_create_slot') }}" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Date</label>
-                        <input type="date" name="slot_date" required class="w-full px-4 py-3 rounded-lg border-2 border-stone-200">
+                        <input type="text" name="slot_date" id="slot_date" required placeholder="Select slot date..." class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Time</label>
-                        <input type="time" name="slot_time" required class="w-full px-4 py-3 rounded-lg border-2 border-stone-200">
+                        <select name="slot_time" id="slot_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required></select>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Duration</label>
-                        <input type="number" name="duration_minutes" min="15" max="180" value="30" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200">
+                        <input type="number" name="duration_minutes" min="15" max="180" value="30" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Registration Limit</label>
+                        <input type="number" name="registration_limit" min="1" value="1" required class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Meeting URL</label>
-                        <input type="url" name="meet_url" placeholder="Auto generated if blank" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200">
+                        <input type="url" name="meet_url" placeholder="Auto generated if blank" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
                     </div>
-                    <label class="flex items-center gap-2 font-semibold text-sm"><input type="checkbox" name="auto_accept" checked> Auto accept when user books</label>
-                    <button type="submit" class="px-6 py-3 rounded-lg bg-amber-800 text-white font-bold">Create Slot</button>
+                    
+                    <div class="bg-stone-50 p-3 rounded-lg border border-stone-200 space-y-2">
+                        <span class="block text-xs font-bold text-stone-600 uppercase tracking-wider">Default Meeting UI Settings</span>
+                        <div class="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" name="show_chat" {% if global_settings.show_chat %}checked{% endif %} class="rounded border-stone-300"> Chat
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" name="show_screen_share" {% if global_settings.show_screen_share %}checked{% endif %} class="rounded border-stone-300"> Screen Share
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" name="show_raise_hand" {% if global_settings.show_raise_hand %}checked{% endif %} class="rounded border-stone-300"> Raise Hand
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" name="show_participants" {% if global_settings.show_participants %}checked{% endif %} class="rounded border-stone-300"> Participants
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer md:col-span-2">
+                                <input type="checkbox" name="record_meeting" {% if global_settings.record_meeting %}checked{% endif %} class="rounded border-stone-300"> Auto-Record Meeting
+                            </label>
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-2 font-semibold text-sm cursor-pointer">
+                        <input type="checkbox" name="auto_accept" checked class="rounded border-stone-300"> Auto accept bookings
+                    </label>
+                    <button type="submit" class="w-full px-6 py-3 rounded-lg bg-amber-800 text-white font-bold hover:bg-amber-900 transition">Create Slot</button>
                 </form>
             </div>
 
@@ -42,21 +105,21 @@
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Appointment Requests</h2>
                 <div class="space-y-4">
                     {% for request_item in requests %}
-                    <div class="border rounded-lg p-4">
+                    <div class="border rounded-lg p-4 bg-stone-50/50">
                         <div class="flex flex-wrap justify-between gap-3 mb-3">
                             <div>
                                 <p class="font-bold text-slate-900">{{ request_item.name or request_item.email }}</p>
                                 <p class="text-sm text-slate-600">{{ request_item.email }} - {{ request_item.purpose }}</p>
                                 <p class="text-xs text-slate-500">Requested {{ request_item.requested_date or request_item.appointment_date }} {{ request_item.requested_time or request_item.appointment_time }}</p>
                             </div>
-                            <span class="text-xs font-bold text-amber-700">{{ request_item.status|title }}</span>
+                            <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">{{ request_item.status|title }}</span>
                         </div>
                         <form method="POST" action="{{ url_for('coordinator_schedule_appointment', appointment_id=request_item.id) }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="date" name="scheduled_date" required class="px-3 py-2 rounded-lg border border-stone-200">
-                            <input type="time" name="scheduled_time" required class="px-3 py-2 rounded-lg border border-stone-200">
-                            <input type="url" name="meet_url" placeholder="Auto link if blank" class="px-3 py-2 rounded-lg border border-stone-200 md:col-span-2">
-                            <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold">Schedule</button>
+                            <input type="text" name="scheduled_date" placeholder="Date..." required class="scheduled-date-picker px-3 py-2 rounded-lg border border-stone-200 text-sm bg-white">
+                            <select name="scheduled_time" class="time-select-dropdown px-3 py-2 rounded-lg border border-stone-200 text-sm bg-white" required></select>
+                            <input type="url" name="meet_url" placeholder="Auto link if blank" class="px-3 py-2 rounded-lg border border-stone-200 text-sm md:col-span-2">
+                            <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition">Schedule</button>
                         </form>
                     </div>
                     {% else %}
@@ -67,50 +130,274 @@
         </div>
 
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6 h-fit">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Slots</h2>
                 <div class="space-y-3">
                     {% for slot in slots %}
-                    <div class="border rounded-lg p-4">
+                    <div class="border rounded-lg p-4 bg-stone-50/30">
                         <p class="font-bold text-slate-900">{{ slot.slot_date }} {{ slot.slot_time }}</p>
                         <p class="text-sm text-slate-600">{{ slot.status|title }} - {{ slot.duration_minutes or 30 }} minutes{% if slot.auto_accept %} - auto accept{% endif %}</p>
-                        {% if slot.meet_url %}<a href="{{ url_for('meeting_slot_room', slot_id=slot.id) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700">Open secure link</a>{% endif %}
+                        <p class="text-sm font-bold text-amber-900 mt-1">Bookings: {{ slot.bookings_count }} / {{ slot.registration_limit or 1 }}</p>
+                        {% if slot.meet_url %}<a href="{{ url_for('meeting_slot_room', slot_uuid=slot.uuid) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700 hover:text-blue-900 block mt-2">Open secure link &rarr;</a>{% endif %}
                     </div>
                     {% else %}
                     <p class="text-slate-600">No slots created yet.</p>
                     {% endfor %}
+                    {% if slots %}
+                    <div class="mt-4 pt-2 border-t border-stone-100">
+                        <a href="{{ url_for('coordinator_history') }}" class="text-sm font-bold text-amber-800 hover:text-amber-900 flex items-center gap-1">
+                            View all slots & history &rarr;
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Scheduled Meetings</h2>
-                <div class="space-y-3">
+                <div class="space-y-4">
                     {% for meeting in meetings %}
-                    <div class="border rounded-lg p-4">
-                        <div class="flex flex-wrap justify-between gap-3">
+                    <div class="border rounded-lg p-5 bg-stone-50/20">
+                        <div class="flex flex-wrap justify-between gap-3 mb-2">
                             <div>
-                                <p class="font-bold text-slate-900">{{ meeting.name or meeting.email }}</p>
-                                <p class="text-sm text-slate-600">{{ meeting.scheduled_date or meeting.appointment_date }} {{ meeting.scheduled_time or meeting.appointment_time }}</p>
-                                <p class="text-sm text-slate-600">{{ meeting.purpose }}</p>
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Purpose</p>
+                                <p class="font-bold text-slate-900 text-lg">{{ meeting.purpose or 'General Meeting' }}</p>
+                                <p class="text-sm text-slate-600 mt-1 font-semibold">{{ meeting.scheduled_date or meeting.appointment_date }} @ {{ meeting.scheduled_time or meeting.appointment_time }}</p>
                             </div>
-                            <span class="text-xs font-bold text-emerald-700">{{ meeting.status|title }}</span>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 h-fit">{{ meeting.status|title }}</span>
                         </div>
-                        {% if meeting.meet_url %}<a href="{{ url_for('meeting_room', appointment_id=meeting.id) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700">Open secure meeting</a>{% endif %}
-                        <form method="POST" action="{{ url_for('coordinator_schedule_appointment', appointment_id=meeting.id) }}" class="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
+                        
+                        <!-- Participants list -->
+                        <div class="mt-3">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Participants</p>
+                            <div class="space-y-1.5 bg-white p-3 rounded-lg border border-stone-200 max-h-40 overflow-y-auto">
+                                {% for p in meeting.participants %}
+                                <div class="flex items-center justify-between text-sm">
+                                    <div>
+                                        <span class="font-semibold text-slate-800">{{ p.name }}</span> 
+                                        <span class="text-xs text-slate-500">({{ p.email }})</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded {% if p.status == 'completed' %}bg-slate-100 text-slate-600{% else %}bg-emerald-50 text-emerald-600{% endif %}">{{ p.status|title }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Add Participant Action -->
+                        {% if meeting.status not in ['completed', 'cancelled'] %}
+                        <form method="POST" action="{{ url_for('coordinator_add_participant', appointment_id=meeting.id) }}" class="mt-3 flex gap-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="email" name="email" required placeholder="Add participant email (collision override)" class="flex-grow px-3 py-2 text-xs rounded-lg border border-stone-300 focus:outline-none focus:border-amber-700 bg-white">
+                            <button type="submit" class="px-4 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition whitespace-nowrap">Add Participant</button>
+                        </form>
+                        {% endif %}
+
+                        <!-- Meeting Settings inline panel -->
+                        {% if meeting.status not in ['completed', 'cancelled'] %}
+                        <details class="group mt-3 bg-stone-100/60 rounded-lg border border-stone-200/80">
+                            <summary class="flex items-center justify-between p-3 font-bold text-xs text-stone-700 uppercase tracking-wider cursor-pointer list-none select-none">
+                                <span>Meeting UI Settings</span>
+                                <span class="transition group-open:rotate-180">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </span>
+                            </summary>
+                            <form method="POST" action="{{ url_for('coordinator_update_meeting_settings', appointment_id=meeting.id) }}" class="p-3 pt-0 space-y-3">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="grid grid-cols-2 gap-2 text-xs text-slate-700">
+                                    <label class="flex items-center gap-1.5 cursor-pointer font-semibold">
+                                        <input type="checkbox" name="show_chat" {% if meeting.meeting_settings.show_chat %}checked{% endif %}> Enable Chat
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer font-semibold">
+                                        <input type="checkbox" name="show_screen_share" {% if meeting.meeting_settings.show_screen_share %}checked{% endif %}> Enable Screen Share
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer font-semibold">
+                                        <input type="checkbox" name="show_raise_hand" {% if meeting.meeting_settings.show_raise_hand %}checked{% endif %}> Enable Raise Hand
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer font-semibold">
+                                        <input type="checkbox" name="show_participants" {% if meeting.meeting_settings.show_participants %}checked{% endif %}> Enable Participant List
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer font-semibold md:col-span-2">
+                                        <input type="checkbox" name="record_meeting" {% if meeting.meeting_settings.record_meeting %}checked{% endif %}> Auto-Record Meeting
+                                    </label>
+                                </div>
+                                <button type="submit" class="px-4 py-2 text-xs bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-lg transition mt-2">Save Settings</button>
+                            </form>
+                        </details>
+                        {% endif %}
+
+                        {% if meeting.meet_url and meeting.status not in ['completed', 'cancelled'] %}
+                        <a href="{{ url_for('meeting_room', appointment_uuid=meeting.uuid) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700 hover:text-blue-900 block mt-3">Open secure meeting room &rarr;</a>
+                        {% endif %}
+                        
+                        {% if meeting.status not in ['completed', 'cancelled'] %}
+                        <form method="POST" action="{{ url_for('coordinator_schedule_appointment', appointment_id=meeting.id) }}" class="grid grid-cols-1 md:grid-cols-5 gap-3 mt-4 pt-3 border-t border-stone-200">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="status" value="rescheduled">
-                            <input type="date" name="scheduled_date" value="{{ meeting.scheduled_date or meeting.appointment_date }}" required class="px-3 py-2 rounded-lg border border-stone-200">
-                            <input type="time" name="scheduled_time" value="{{ meeting.scheduled_time or meeting.appointment_time }}" required class="px-3 py-2 rounded-lg border border-stone-200">
-                            <input type="url" name="meet_url" value="{{ meeting.meet_url or '' }}" class="px-3 py-2 rounded-lg border border-stone-200 md:col-span-2">
-                            <button type="submit" class="px-4 py-2 rounded-lg bg-amber-800 text-white font-bold">Reschedule</button>
+                            <input type="text" name="scheduled_date" value="{{ meeting.scheduled_date or meeting.appointment_date }}" placeholder="Date..." required class="scheduled-date-picker px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white">
+                            <select name="scheduled_time" data-default-value="{{ meeting.scheduled_time or meeting.appointment_time }}" class="time-select-dropdown px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white" required></select>
+                            <input type="url" name="meet_url" value="{{ meeting.meet_url or '' }}" class="px-3 py-2 rounded-lg border border-stone-300 text-sm md:col-span-2">
+                            <button type="submit" class="px-4 py-2 rounded-lg bg-amber-900 hover:bg-amber-950 text-white font-bold text-sm transition">Reschedule</button>
                         </form>
+                        {% endif %}
                     </div>
                     {% else %}
                     <p class="text-slate-600">No scheduled meetings yet.</p>
                     {% endfor %}
+                    {% if meetings %}
+                    <div class="mt-4 pt-2 border-t border-stone-100">
+                        <a href="{{ url_for('coordinator_history') }}" class="text-sm font-bold text-amber-800 hover:text-amber-900 flex items-center gap-1">
+                            View all meetings & history &rarr;
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Volunteer Events Management -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6 h-fit">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Create Volunteer Event</h2>
+                <form method="POST" action="{{ url_for('coordinator_create_event') }}" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Title</label>
+                        <input type="text" name="title" required class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Date</label>
+                            <input type="text" name="event_date" id="event_date" placeholder="Select date..." required class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Max Registrations</label>
+                            <input type="number" name="max_registrations" min="1" placeholder="Unlimited" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Location</label>
+                        <input type="text" name="location" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Description</label>
+                        <textarea name="description" rows="3" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700"></textarea>
+                    </div>
+                    <button type="submit" class="w-full px-6 py-3 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition">Create Event</button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-lg shadow border border-stone-200 p-6 xl:col-span-2">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Volunteer Events</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-stone-200 bg-stone-50">
+                                <th class="py-3 px-4 font-bold text-slate-700 text-sm">Event</th>
+                                <th class="py-3 px-4 font-bold text-slate-700 text-sm">Date</th>
+                                <th class="py-3 px-4 font-bold text-slate-700 text-sm">Location</th>
+                                <th class="py-3 px-4 font-bold text-slate-700 text-sm">Registrations</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events %}
+                            <tr class="border-b border-stone-200 hover:bg-stone-50/50">
+                                <td class="py-3 px-4">
+                                    <p class="font-bold text-slate-900">{{ event.title }}</p>
+                                    {% if event.description %}<p class="text-xs text-slate-500 line-clamp-1">{{ event.description }}</p>{% endif %}
+                                </td>
+                                <td class="py-3 px-4 text-sm text-slate-600">{{ event.event_date or 'TBA' }}</td>
+                                <td class="py-3 px-4 text-sm text-slate-600">{{ event.location or '-' }}</td>
+                                <td class="py-3 px-4 text-sm text-slate-600">
+                                    {% set count = participant_counts.get(event.id|int, 0) %}
+                                    <span class="font-semibold">{{ count }}</span> / 
+                                    <span>{{ event.max_registrations or 'Unlimited' }}</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="py-8 text-center text-slate-500 text-sm">No volunteer events created yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='css/flatpickr.min.js') }}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const releaseLimitDateStr = "{{ global_settings.release_limit_date or '' }}";
+
+        // Create Slot Date Picker
+        flatpickr("#slot_date", {
+            minDate: "today",
+            maxDate: releaseLimitDateStr || null,
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "F j, Y",
+            disableMobile: true
+        });
+
+        // Event Date Picker
+        flatpickr("#event_date", {
+            minDate: "today",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "F j, Y",
+            disableMobile: true
+        });
+
+        // List / loops date pickers
+        flatpickr(".scheduled-date-picker", {
+            minDate: "today",
+            maxDate: releaseLimitDateStr || null,
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "M j, Y",
+            disableMobile: true
+        });
+
+        // Populate all time select dropdowns (7:00 AM to 9:00 PM, 15-min intervals)
+        const timeSelects = document.querySelectorAll('.time-select-dropdown');
+        if (timeSelects.length > 0) {
+            const timeOptions = [];
+            for (let hour = 7; hour <= 21; hour++) {
+                for (let min of ["00", "15", "30", "45"]) {
+                    if (hour === 21 && min !== "00") continue; // Stop at 9:00 PM
+                    let h = hour % 12;
+                    if (h === 0) h = 12;
+                    const ampm = hour < 12 ? "AM" : "PM";
+                    const display = `${h}:${min} ${ampm}`;
+                    const value = `${hour.toString().padStart(2, '0')}:${min}`;
+                    timeOptions.push({ display, value });
+                }
+            }
+
+            timeSelects.forEach(select => {
+                const defaultValue = select.dataset.defaultValue || "";
+                
+                // Add select time placeholder
+                const placeholder = document.createElement('option');
+                placeholder.value = "";
+                placeholder.textContent = "Select time...";
+                select.appendChild(placeholder);
+
+                timeOptions.forEach(opt => {
+                    const el = document.createElement('option');
+                    el.value = opt.value;
+                    el.textContent = opt.display;
+                    if (defaultValue === opt.value) {
+                        el.selected = true;
+                    }
+                    select.appendChild(el);
+                });
+            });
+        }
+    });
+</script>
 {% endblock %}

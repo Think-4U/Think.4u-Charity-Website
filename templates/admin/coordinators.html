@@ -55,7 +55,7 @@
                         <p class="font-bold text-slate-900">{{ meeting.name or meeting.email }} - {{ meeting.status|title if meeting.status else 'Requested' }}</p>
                         <p class="text-sm text-slate-600">{{ meeting.scheduled_date or meeting.appointment_date }} {{ meeting.scheduled_time or meeting.appointment_time }}</p>
                         <p class="text-sm text-slate-600">{{ meeting.purpose }}</p>
-                        {% if meeting.meet_url %}<a href="{{ url_for('meeting_room', appointment_id=meeting.id) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700">Secure meeting link</a>{% endif %}
+                        {% if meeting.meet_url and meeting.status not in ['completed', 'cancelled'] %}<a href="{{ url_for('meeting_room', appointment_uuid=meeting.uuid) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700">Secure meeting link</a>{% endif %}
                     </div>
                     {% else %}
                     <p class="text-slate-500">No meeting records yet.</p>
@@ -70,7 +70,7 @@
                     <div class="border rounded-xl p-4">
                         <p class="font-bold text-slate-900">{{ slot.slot_date }} {{ slot.slot_time }}</p>
                         <p class="text-sm text-slate-600">{{ slot.status|title }} - {{ slot.duration_minutes or 30 }} minutes</p>
-                        {% if slot.meet_url %}<a href="{{ url_for('meeting_slot_room', slot_id=slot.id) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700">Secure meeting link</a>{% endif %}
+                        {% if slot.meet_url %}<a href="{{ url_for('meeting_slot_room', slot_uuid=slot.uuid) }}" target="_blank" rel="noopener" class="text-sm font-bold text-blue-700">Secure meeting link</a>{% endif %}
                     </div>
                     {% else %}
                     <p class="text-slate-500">No slots yet.</p>

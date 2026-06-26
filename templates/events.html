@@ -27,6 +27,10 @@
                     <div class="flex-1 min-w-[240px]">
                         <h2 class="text-xl font-bold text-slate-900">{{ e.title or 'Event' }}</h2>
                         <p class="text-sm text-slate-500 mb-2">{{ e.event_date or e.date or 'Date TBA' }}{% if e.location %} • {{ e.location }}{% endif %}</p>
+                        {% set count = participant_counts.get(event_id, 0) if participant_counts else 0 %}
+                        <p class="text-xs font-semibold text-slate-600 mb-2">
+                            Registrations: <span class="text-violet-700">{{ count }}</span> / {{ e.max_registrations if e.max_registrations is not none else 'Unlimited' }}
+                        </p>
                         {% if e.description %}
                         <p class="text-slate-700">{{ e.description }}</p>
                         {% endif %}
@@ -47,21 +51,27 @@
                         </span>
                         {% endif %}
                         {% else %}
-                        <a href="{{ url_for('donate', purpose_type='event', purpose_id=event_id, purpose_label=e.title) }}" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-center">
+                        <a href="{{ url_for('donate', purpose_type='event', purpose_id=event_id, purpose_label=e.title) }}" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-center text-sm">
                             Donate to Event
                         </a>
-                        {% if current_user.is_authenticated %}
-                        <form method="POST" action="{{ url_for('register_for_event', event_id=event_id) }}">
-                            <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
-                                Register for Event
-                            </button>
-                        </form>
+                        {% if e.max_registrations is not none and count >= e.max_registrations|int %}
+                        <span class="px-4 py-2 rounded-xl bg-red-100 text-red-700 font-semibold text-center text-sm cursor-not-allowed select-none">
+                            Registration Full
+                        </span>
                         {% else %}
-                        <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center">
-                            Login to Register
-                        </a>
+                            {% if current_user.is_authenticated %}
+                            <form method="POST" action="{{ url_for('register_for_event', event_id=event_id) }}">
+                                <button type="submit" class="px-4 py-2 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm">
+                                    Register for Event
+                                </button>
+                            </form>
+                            {% else %}
+                            <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center text-sm">
+                                Login to Register
+                            </a>
+                            {% endif %}
+                            <span class="text-xs text-slate-500 text-center">Register now to become eligible for certification review.</span>
                         {% endif %}
-                        <span class="text-xs text-slate-500">Register now to become eligible for certification review.</span>
                         {% endif %}
                     </div>
                 </div>

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Meeting Defaults Settings - Think.4U{% endblock %}
+
+{% block content %}
+<section class="px-4 py-10 bg-[#f4eadf] min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-stone-200 mb-8 bg-white rounded-t-lg shadow-sm overflow-x-auto scrollbar-thin">
+            <a href="{{ url_for('coordinator_portal') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">Dashboard</a>
+            <a href="{{ url_for('coordinator_history') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">All Slots & Meetings History</a>
+            <a href="{{ url_for('coordinator_settings') }}" class="px-6 py-4 font-bold text-sm border-b-2 border-amber-800 text-amber-800 whitespace-nowrap">Meeting Defaults Settings</a>
+            <a href="{{ url_for('coordinator_bulk_slots') }}" class="px-6 py-4 font-bold text-sm text-slate-600 hover:text-slate-900 transition whitespace-nowrap">Bulk Slots & Request Config</a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow border border-stone-200 p-8">
+            <h1 class="text-3xl font-black text-slate-900 mb-2">Meeting Defaults Settings</h1>
+            <p class="text-slate-600 mb-6">Configure the default user interface features for Jitsi rooms. These are automatically applied to any new slots and meetings you create.</p>
+
+            <form method="POST" action="{{ url_for('coordinator_settings') }}" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="space-y-4">
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="show_chat" {% if global_settings.show_chat %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Enable Room Chat</span>
+                            <span class="block text-xs text-slate-500">Allow participants to send text messages and share links during the meeting.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="show_screen_share" {% if global_settings.show_screen_share %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Enable Screen Sharing</span>
+                            <span class="block text-xs text-slate-500">Allow participants to share their screens or specific application windows.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="show_raise_hand" {% if global_settings.show_raise_hand %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Enable Raise Hand</span>
+                            <span class="block text-xs text-slate-500">Allow participants to signal they want to speak using the Raise Hand button.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="show_participants" {% if global_settings.show_participants %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Enable Participants Pane</span>
+                            <span class="block text-xs text-slate-500">Show the list of participants and moderators currently present in the Jitsi meeting.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="record_meeting" {% if global_settings.record_meeting %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Enable Auto-Recording</span>
+                            <span class="block text-xs text-stone-500">Automatically record the meeting session using tab capture and upload it to Supabase when the coordinator ends the session.</span>
+                        </div>
+                    </label>
+
+                    <div class="p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition">
+                        <label class="block font-bold text-slate-900 text-sm mb-1">Holiday Dates (YYYY-MM-DD, one per line)</label>
+                        <span class="block text-xs text-stone-500 mb-2">Specify holidays during which users cannot request appointments. Sundays are always treated as holidays automatically.</span>
+                        <textarea name="holidays_list" rows="4" class="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 focus:outline-none focus:border-amber-700 bg-white" placeholder="2026-07-04&#10;2026-12-25">{{ holidays_str }}</textarea>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-stone-200 flex justify-end">
+                    <button type="submit" class="px-6 py-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white font-bold text-sm shadow transition">Save Defaults</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

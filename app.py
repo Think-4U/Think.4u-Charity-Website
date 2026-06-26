@@ -55,6 +55,43 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
+class RedactingFilter(logging.Filter):
+    def __init__(self, patterns=None):
+        super().__init__()
+        self.patterns = [p for p in (patterns or []) if p]
+
+    def filter(self, record):
+        if not record.msg:
+            return True
+        msg_str = str(record.msg)
+        for pattern in self.patterns:
+            msg_str = msg_str.replace(pattern, "[REDACTED]")
+        record.msg = msg_str
+
+        if record.args:
+            new_args = []
+            for arg in record.args:
+                arg_str = str(arg)
+                for pattern in self.patterns:
+                    arg_str = arg_str.replace(pattern, "[REDACTED]")
+                new_args.append(arg_str)
+            record.args = tuple(new_args)
+        return True
+
+# Silence third-party logger details to prevent API key leaks in headers
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+# Apply redacting filter to root logger
+redact_patterns = [
+    os.getenv("SUPABASE_KEY"),
+    os.getenv("SECRET_KEY"),
+    os.getenv("RAZOR_KEY_SECRET"),
+    os.getenv("JITSI_JWT_PRIVATE_KEY")
+]
+logging.getLogger().addFilter(RedactingFilter(redact_patterns))
+
 
 class _NoOpResponse:
     def __init__(self):
@@ -287,11 +324,90 @@ app.config['MAX_FORM_PARTS'] = 1000
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def ensure_meeting_settings_defaults(settings_dict=None):
+    defaults = {
+        "show_chat": True,
+        "show_screen_share": True,
+        "show_raise_hand": True,
+        "show_participants": True,
+        "record_meeting": False,
+        "holidays": [],
+        "request_start_time": "09:00",
+        "request_end_time": "17:00",
+        "allow_custom_requests": True,
+        "reschedule_default_time": "10:00",
+        "release_limit_date": None
+    }
+    if not isinstance(settings_dict, dict):
+        return defaults
+    for k, v in defaults.items():
+        settings_dict.setdefault(k, v)
+    return settings_dict
+
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+def get_db_connection():
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    return psycopg2.connect(db_url)
+
+def cleanup_expired_slots_and_meetings():
+    try:
+        slots_res = supabase.table("appointment_slots").select("id,slot_date,slot_time,duration_minutes").eq("status", "available").execute()
+        slots = slots_res.data or []
+        ids_to_delete = []
+        for slot in slots:
+            s_date = slot.get("slot_date")
+            s_time = slot.get("slot_time")
+            duration = slot.get("duration_minutes") or 30
+            if s_date and s_time:
+                try:
+                    slot_dt = datetime.strptime(f"{s_date} {s_time}", "%Y-%m-%d %H:%M")
+                    slot_end_dt = slot_dt + timedelta(minutes=duration)
+                    if slot_end_dt < datetime.now():
+                        ids_to_delete.append(slot["id"])
+                except Exception:
+                    pass
+        if ids_to_delete:
+            for i in range(0, len(ids_to_delete), 50):
+                chunk = ids_to_delete[i:i+50]
+                supabase.table("appointment_slots").delete().in_("id", chunk).execute()
+        
+        meetings_res = supabase.table("appointments").select("id,appointment_date,appointment_time,requested_date,requested_time").in_("status", ["requested", "pending"]).execute()
+        meetings = meetings_res.data or []
+        m_ids_to_delete = []
+        for m in meetings:
+            m_date = m.get("appointment_date") or m.get("requested_date")
+            m_time = m.get("appointment_time") or m.get("requested_time") or "00:00"
+            if m_time == "TBA":
+                m_time = "23:59"
+            if m_date:
+                try:
+                    if len(m_time) == 5 and ":" in m_time:
+                        m_dt = datetime.strptime(f"{m_date} {m_time}", "%Y-%m-%d %H:%M")
+                    else:
+                        m_dt = datetime.strptime(f"{m_date} 23:59", "%Y-%m-%d %H:%M")
+                    if m_dt < datetime.now():
+                        m_ids_to_delete.append(m["id"])
+                except Exception:
+                    pass
+        if m_ids_to_delete:
+            for i in range(0, len(m_ids_to_delete), 50):
+                chunk = m_ids_to_delete[i:i+50]
+                supabase.table("appointments").delete().in_("id", chunk).execute()
+    except Exception as e:
+        app.logger.warning(f"cleanup_expired_slots_and_meetings failed: {e}")
+
+
+
 # ------------------------------
 # User Model for Flask-Login
 # ------------------------------
 class User(UserMixin):
-    def __init__(self, id, email, name=None, is_admin=False, role="donor", phone=None, address=None):
+    def __init__(self, id, email, name=None, is_admin=False, role="donor", phone=None, address=None, global_meeting_settings=None):
         self.id = id
         self.email = email
         self.name = name or 'User'
@@ -301,6 +417,8 @@ class User(UserMixin):
         self.phone = phone or ""
         self.address = address or ""
         self.username = name or email.split('@')[0]  # Extract username from email if no name
+        self.global_meeting_settings = ensure_meeting_settings_defaults(global_meeting_settings)
+
     
     def get_display_name(self):
         """Get user's display name"""
@@ -331,7 +449,8 @@ def load_user(user_id):
                 is_admin=u.get('is_admin', False),
                 role=u.get('role', 'donor'),
                 phone=u.get('phone'),
-                address=u.get('address')
+                address=u.get('address'),
+                global_meeting_settings=u.get('global_meeting_settings')
             )
         return None
     except Exception as e:
@@ -1018,10 +1137,10 @@ def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_i
 
 
 def appointment_join_url(appointment, external=False):
-    appointment_id = appointment.get("id") if appointment else None
-    if appointment_id:
+    appointment_uuid = appointment.get("uuid") if appointment else None
+    if appointment_uuid:
         try:
-            return url_for("meeting_room", appointment_id=appointment_id, _external=external)
+            return url_for("meeting_room", appointment_uuid=appointment_uuid, _external=external)
         except RuntimeError:
             pass
     return (appointment or {}).get("meet_url") or ""
@@ -2865,6 +2984,7 @@ def latest_notifications():
 @app.route("/appointments", methods=["GET", "POST"])
 @login_required
 def appointments():
+    cleanup_expired_slots_and_meetings()
     if request.method == "POST":
         appointment_date = clean_text(request.form.get("appointment_date"), 20)
         appointment_time = clean_text(request.form.get("appointment_time"), 20)
@@ -2875,7 +2995,139 @@ def appointments():
             flash("Please enter the appointment purpose.", "error")
             return redirect(url_for("appointments"))
 
+        # Check if user already has an active appointment scheduled on this day (Limit 1 per day)
+        if appointment_date:
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("""
+                    SELECT id FROM public.appointments
+                    WHERE user_id = %s AND (appointment_date = %s OR scheduled_date = %s)
+                      AND status NOT IN ('cancelled', 'completed')
+                    LIMIT 1;
+                """, (current_db_user_id(), appointment_date, appointment_date))
+                dup_appt = cur.fetchone()
+                cur.close()
+                conn.close()
+                if dup_appt:
+                    flash("You already have an active appointment scheduled on this day. Limit 1 per day.", "warning")
+                    return redirect(url_for("appointments"))
+            except Exception as e:
+                app.logger.warning(f"Failed to check duplicate day appointment: {e}")
+
+        # Check if there is an available slot matching this date and time
+        if appointment_date and appointment_time:
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("""
+                    SELECT id FROM public.appointment_slots 
+                    WHERE slot_date = %s AND slot_time = %s AND status = 'available'
+                    LIMIT 1;
+                """, (appointment_date, appointment_time))
+                matched_slot = cur.fetchone()
+                cur.close()
+                conn.close()
+                if matched_slot:
+                    slot_id = matched_slot["id"]
+                    return redirect(url_for("book_appointment_slot", slot_id=slot_id), code=307)
+            except Exception as e:
+                app.logger.warning(f"Failed to find matching slot in POST appointments: {e}")
+
         try:
+            status = "requested"
+            reschedule_warning = None
+            
+            if appointment_date:
+                # A. Strict Past date-time check
+                try:
+                    if appointment_time and appointment_time != "TBA":
+                        req_dt = datetime.strptime(f"{appointment_date} {appointment_time}", "%Y-%m-%d %H:%M")
+                        if req_dt < datetime.now():
+                            flash("Cannot request an appointment in the past.", "error")
+                            return redirect(url_for("appointments"))
+                    else:
+                        req_date = datetime.strptime(appointment_date, "%Y-%m-%d").date()
+                        if req_date < datetime.now().date():
+                            flash("Cannot request an appointment in the past.", "error")
+                            return redirect(url_for("appointments"))
+                except Exception:
+                    pass
+                    
+                # B. Sunday check
+                if status == "requested":
+                    try:
+                        dt = datetime.strptime(appointment_date, "%Y-%m-%d")
+                        if dt.weekday() == 6:
+                            status = "rescheduled"
+                            reschedule_warning = "Sundays are holidays."
+                    except Exception:
+                        pass
+                
+                # C. Custom holiday check (any coordinator holiday) and Request Window check
+                coord_settings_list = []
+                if status == "requested":
+                    holidays = set()
+                    try:
+                        coord_res = supabase.table("users").select("global_meeting_settings").eq("role", "coordinator").execute()
+                        for row in (coord_res.data or []):
+                            g_settings = ensure_meeting_settings_defaults(row.get("global_meeting_settings"))
+                            coord_settings_list.append(g_settings)
+                            h_list = g_settings.get("holidays") or []
+                            for h in h_list:
+                                holidays.add(h)
+                    except Exception as e:
+                        app.logger.warning(f"Failed to fetch coordinator settings: {e}")
+                    
+                    if appointment_date in holidays:
+                        status = "rescheduled"
+                        reschedule_warning = "The requested date is a scheduled holiday."
+                        
+                    if status == "requested" and appointment_date:
+                        for g_settings in coord_settings_list:
+                            lim = g_settings.get("release_limit_date")
+                            if lim and appointment_date > lim:
+                                status = "rescheduled"
+                                reschedule_warning = f"The requested date is past the coordinator's release limit date ({lim})."
+                                break
+                        
+                # D. Match available slot dates check OR allowed request window check
+                if status == "requested":
+                    slot_dates = set()
+                    try:
+                        slots_res = supabase.table("appointment_slots").select("slot_date").eq("status", "available").execute()
+                        for row in (slots_res.data or []):
+                            slot_dates.add(row.get("slot_date"))
+                    except Exception as e:
+                        app.logger.warning(f"Failed to fetch slot dates: {e}")
+                    
+                    # Check if requested time is within the allowed request window of any coordinator
+                    in_request_window = False
+                    if appointment_time:
+                        for g_settings in coord_settings_list:
+                            if g_settings.get("allow_custom_requests", True):
+                                start_str = g_settings.get("request_start_time", "09:00")
+                                end_str = g_settings.get("request_end_time", "17:00")
+                                try:
+                                    t = list(map(int, appointment_time.split(':')))
+                                    s = list(map(int, start_str.split(':')))
+                                    e = list(map(int, end_str.split(':')))
+                                    t_min = t[0] * 60 + t[1]
+                                    s_min = s[0] * 60 + s[1]
+                                    e_min = e[0] * 60 + e[1]
+                                    if s_min <= t_min <= e_min:
+                                        in_request_window = True
+                                        break
+                                except Exception:
+                                    pass
+                    
+                    if appointment_date not in slot_dates and not in_request_window:
+                        status = "rescheduled"
+                        reschedule_warning = "There are no available coordinator slots and the selected time is outside allowed coordinator request hours."
+            else:
+                status = "rescheduled"
+                reschedule_warning = "No date was selected."
+
             payload = {
                 "user_id": current_db_user_id(),
                 "name": clean_text(current_user.name, 120),
@@ -2884,7 +3136,7 @@ def appointments():
                 "appointment_time": appointment_time or "TBA",
                 "purpose": purpose,
                 "notes": notes,
-                "status": "requested",
+                "status": status,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
             try:
@@ -2899,9 +3151,12 @@ def appointments():
             create_notification_for_user(
                 current_user.id,
                 "Appointment submitted",
-                "Your appointment request was submitted. A coordinator will schedule or share available slots."
+                f"Your appointment request status: {status.title()}."
             )
-            flash("Appointment request submitted.", "success")
+            if status == "rescheduled":
+                flash(f"Meeting status set to Rescheduled: {reschedule_warning} Please select a valid coordinator slot date.", "warning")
+            else:
+                flash("Appointment request submitted.", "success")
             return redirect(url_for("appointments"))
         except Exception as e:
             app.logger.error(f"Appointment save failed: {e}")
@@ -2914,7 +3169,7 @@ def appointments():
             .select("*") \
             .eq("user_id", current_db_user_id()) \
             .order("created_at", desc=True) \
-            .limit(20) \
+            .limit(200) \
             .execute()
         items = response.data or []
     except Exception:
@@ -2932,7 +3187,46 @@ def appointments():
     except Exception:
         slots = []
 
-    return render_template("appointments.html", appointments=items, slots=slots)
+    show_all = request.args.get("show_all") == "true"
+    has_more = len(items) > 3
+    display_items = items
+    if not show_all and has_more:
+        display_items = items[:3]
+
+    global_settings = ensure_meeting_settings_defaults(None)
+    try:
+        coord_res = supabase.table("users").select("global_meeting_settings").eq("role", "coordinator").execute()
+        if coord_res and hasattr(coord_res, "data") and isinstance(coord_res.data, list) and len(coord_res.data) > 0:
+            global_settings = ensure_meeting_settings_defaults(coord_res.data[0].get("global_meeting_settings"))
+    except Exception as e:
+        app.logger.warning(f"Failed to fetch coordinator settings for rendering: {e}")
+
+    active_user_dates = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT DISTINCT COALESCE(scheduled_date, appointment_date) as adate
+            FROM public.appointments
+            WHERE user_id = %s AND status NOT IN ('cancelled', 'completed');
+        """, (current_db_user_id(),))
+        rows = cur.fetchall()
+        active_user_dates = [r["adate"].isoformat() if hasattr(r["adate"], "isoformat") else str(r["adate"]) for r in rows if r["adate"]]
+        cur.close()
+        conn.close()
+    except Exception as e:
+        app.logger.warning(f"Failed to load active user appointment dates: {e}")
+
+    return render_template(
+        "appointments.html",
+        appointments=display_items,
+        slots=slots,
+        show_all=show_all,
+        has_more=has_more,
+        global_settings=global_settings,
+        active_user_dates=active_user_dates
+    )
+
 
 
 @app.route("/appointments/slot/<int:slot_id>/book", methods=["POST"])
@@ -2941,46 +3235,144 @@ def book_appointment_slot(slot_id):
     purpose = clean_text(request.form.get("purpose"), 120) or "Coordinator meeting"
     notes = clean_text(request.form.get("notes"), 1000, keep_new_lines=True)
 
+    conn = None
     try:
-        slot_response = supabase.table("appointment_slots").select("*").eq("id", slot_id).limit(1).execute()
-        slot = (slot_response.data or [None])[0]
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Lock the slot row
+        cur.execute("SELECT * FROM public.appointment_slots WHERE id = %s FOR UPDATE;", (slot_id,))
+        slot = cur.fetchone()
+        
         if not slot or slot.get("status") != "available":
+            conn.rollback()
             flash("This appointment slot is no longer available.", "warning")
             return redirect(url_for("appointments"))
 
-        meet_url = slot.get("meet_url") or build_meet_url(f"{slot.get('slot_date')}-{slot.get('slot_time')}-{slot_id}")
-        appointment_payload = {
-            "user_id": current_db_user_id(),
-            "name": clean_text(current_user.name, 120),
-            "email": current_user.email,
-            "appointment_date": slot.get("slot_date"),
-            "appointment_time": slot.get("slot_time"),
-            "requested_date": slot.get("slot_date"),
-            "requested_time": slot.get("slot_time"),
-            "scheduled_date": slot.get("slot_date"),
-            "scheduled_time": slot.get("slot_time"),
-            "coordinator_id": slot.get("coordinator_id"),
-            "slot_id": slot_id,
-            "purpose": purpose,
-            "notes": notes,
-            "meet_url": meet_url,
-            "status": "booked" if slot.get("auto_accept") else "scheduled",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        try:
-            appointment_response = supabase.table("appointments").insert(appointment_payload).execute()
-        except Exception:
-            for key in ["requested_date", "requested_time", "scheduled_date", "scheduled_time", "coordinator_id", "slot_id", "meet_url"]:
-                appointment_payload.pop(key, None)
-            appointment_response = supabase.table("appointments").insert(appointment_payload).execute()
+        # Past Slot check
+        slot_date = slot.get("slot_date")
+        slot_time = slot.get("slot_time")
+        duration = slot.get("duration_minutes") or 30
+        if slot_date and slot_time:
+            try:
+                slot_dt = datetime.strptime(f"{slot_date} {slot_time}", "%Y-%m-%d %H:%M")
+                slot_end_dt = slot_dt + timedelta(minutes=duration)
+                if slot_end_dt < datetime.now():
+                    conn.rollback()
+                    flash("Cannot book a past slot.", "warning")
+                    return redirect(url_for("appointments"))
+            except Exception:
+                pass
+                
+        # Release Limit Date check
+        coordinator_id = slot.get("coordinator_id")
+        if coordinator_id:
+            try:
+                cur.execute("SELECT global_meeting_settings FROM public.users WHERE id = %s;", (coordinator_id,))
+                user_row = cur.fetchone()
+                if user_row:
+                    g_settings = ensure_meeting_settings_defaults(user_row.get("global_meeting_settings"))
+                    lim = g_settings.get("release_limit_date")
+                    if lim and slot_date and slot_date > lim:
+                        conn.rollback()
+                        flash(f"This slot date is past the coordinator's booking limit date ({lim}).", "warning")
+                        return redirect(url_for("appointments"))
+            except Exception as e:
+                app.logger.warning(f"Failed to check coordinator release limit during booking: {e}")
+        
+        # Daily Limit check (Limit 1 per day)
+        if slot_date:
+            cur.execute("""
+                SELECT id FROM public.appointments
+                WHERE user_id = %s AND (appointment_date = %s OR scheduled_date = %s)
+                  AND status NOT IN ('cancelled', 'completed')
+                LIMIT 1;
+            """, (current_db_user_id(), slot_date, slot_date))
+            if cur.fetchone():
+                conn.rollback()
+                flash("You already have an active appointment scheduled on this day. Limit 1 per day.", "warning")
+                return redirect(url_for("appointments"))
 
-        supabase.table("appointment_slots").update({
-            "status": "booked",
-            "booked_by_user_id": current_db_user_id(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", slot_id).execute()
+        # 2. Prevent duplicate bookings
+        cur.execute("""
+            SELECT id FROM public.appointments 
+            WHERE slot_id = %s AND user_id = %s AND status != 'cancelled' AND status != 'completed';
+        """, (slot_id, current_db_user_id()))
+        if cur.fetchone():
+            conn.rollback()
+            flash("You have already booked this slot.", "warning")
+            return redirect(url_for("appointments"))
 
-        appointment = (appointment_response.data or [appointment_payload])[0]
+        # 3. Count active bookings
+        cur.execute("""
+            SELECT COUNT(*) as count FROM public.appointments 
+            WHERE slot_id = %s AND status != 'cancelled' AND status != 'completed';
+        """, (slot_id,))
+        active_count = cur.fetchone()["count"]
+
+        limit = slot.get("registration_limit") or 1
+        if active_count >= limit:
+            conn.rollback()
+            flash("This appointment slot has reached its registration limit.", "warning")
+            return redirect(url_for("appointments"))
+
+        # 4. Insert appointment
+        meet_url = slot.get("meet_url") or build_meet_url(secrets.token_urlsafe(16))
+        slot_settings = ensure_meeting_settings_defaults(slot.get("meeting_settings"))
+        status = "booked" if slot.get("auto_accept") else "scheduled"
+        
+        cur.execute("""
+            INSERT INTO public.appointments (
+                user_id, name, email, appointment_date, appointment_time, 
+                requested_date, requested_time, scheduled_date, scheduled_time, 
+                coordinator_id, slot_id, purpose, notes, meet_url, status, 
+                meeting_settings, created_at, uuid
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *;
+        """, (
+            current_db_user_id(),
+            clean_text(current_user.name, 120),
+            current_user.email,
+            slot.get("slot_date"),
+            slot.get("slot_time"),
+            slot.get("slot_date"),
+            slot.get("slot_time"),
+            slot.get("slot_date"),
+            slot.get("slot_time"),
+            slot.get("coordinator_id"),
+            slot_id,
+            purpose,
+            notes,
+            meet_url,
+            status,
+            pyjson.dumps(slot_settings),
+            datetime.now(timezone.utc).isoformat(),
+            str(uuid.uuid4())
+        ))
+        appointment = dict(cur.fetchone())
+        if isinstance(appointment.get("meeting_settings"), str):
+            try:
+                appointment["meeting_settings"] = pyjson.loads(appointment["meeting_settings"])
+            except Exception:
+                pass
+
+        # 5. Update slot
+        is_now_full = (active_count + 1) >= limit
+        if is_now_full:
+            cur.execute("""
+                UPDATE public.appointment_slots 
+                SET booked_by_user_id = %s, status = 'booked', updated_at = %s 
+                WHERE id = %s;
+            """, (current_db_user_id(), datetime.now(timezone.utc).isoformat(), slot_id))
+        else:
+            cur.execute("""
+                UPDATE public.appointment_slots 
+                SET booked_by_user_id = %s, updated_at = %s 
+                WHERE id = %s;
+            """, (current_db_user_id(), datetime.now(timezone.utc).isoformat(), slot_id))
+
+        conn.commit()
+        
         create_notification_for_user(
             current_user.id,
             "Appointment booked",
@@ -2988,9 +3380,15 @@ def book_appointment_slot(slot_id):
         )
         send_meeting_update_email(current_user.email, current_user.name, appointment, "Think.4U appointment booked")
         flash("Appointment slot booked successfully.", "success")
+        
     except Exception as e:
+        if conn:
+            conn.rollback()
         app.logger.error(f"Appointment slot booking failed: {e}")
         flash("Unable to book this appointment slot.", "error")
+    finally:
+        if conn:
+            conn.close()
 
     return redirect(url_for("appointments"))
 
@@ -3009,6 +3407,50 @@ def can_join_appointment(appointment):
     )
 
 
+def is_current_time_near_scheduled(scheduled_date, scheduled_time):
+    if not scheduled_date or not scheduled_time:
+        return True  # Fallback if not set
+    
+    # Clean the date and time strings
+    date_str = str(scheduled_date).strip()
+    time_str = str(scheduled_time).strip()
+    
+    dt_str = f"{date_str} {time_str}"
+    parsed_dt = None
+    
+    # Support various parsing formats
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M"):
+        try:
+            parsed_dt = datetime.strptime(dt_str, fmt)
+            break
+        except ValueError:
+            continue
+            
+    if not parsed_dt:
+        # Check date-only formats as fallback
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
+            try:
+                parsed_dt = datetime.strptime(date_str, fmt)
+                # If date-only, allow any time on that date (set hour/minute to now)
+                parsed_dt = parsed_dt.replace(hour=datetime.now().hour, minute=datetime.now().minute)
+                break
+            except ValueError:
+                continue
+                
+    if not parsed_dt:
+        return True  # Fallback if we cannot parse
+        
+    now_local = datetime.now()
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    
+    # 15 minutes before to 120 minutes after (7200 seconds)
+    def in_window(now_time, target_time):
+        diff = now_time - target_time
+        return -900 <= diff.total_seconds() <= 7200
+        
+    return in_window(now_local, parsed_dt) or in_window(now_utc, parsed_dt)
+
+
 def render_jitsi_room(record, seed_text, title, return_url):
     room_name = jitsi_room_from_url_or_seed((record or {}).get("meet_url"), seed_text)
     is_moderator = bool(getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator")
@@ -3019,6 +3461,30 @@ def render_jitsi_room(record, seed_text, title, return_url):
         moderator=is_moderator,
         user_id=getattr(current_user, "id", "") or JITSI_DEFAULT_USER_ID,
     )
+    
+    appointment_uuid = record.get("uuid") if record else None
+    is_slot = record and "slot_date" in record and "purpose" not in record
+    if is_slot:
+        try:
+            appt_res = supabase.table("appointments").select("uuid").eq("slot_id", record["id"]).neq("status", "cancelled").limit(1).execute()
+            if appt_res.data:
+                appointment_uuid = appt_res.data[0]["uuid"]
+        except Exception as e:
+            app.logger.warning(f"Failed to find appointment for slot: {e}")
+
+    # Fetch all participants for this meeting sharing the same meet_url
+    participants = []
+    meet_url = (record or {}).get("meet_url")
+    if meet_url:
+        try:
+            participants_res = supabase.table("appointments").select("name,email,status").eq("meet_url", meet_url).neq("status", "cancelled").execute()
+            participants = participants_res.data or []
+        except Exception as e:
+            app.logger.warning(f"Failed to fetch meeting participants: {e}")
+
+    # Extract meeting UI settings
+    meeting_settings = ensure_meeting_settings_defaults((record or {}).get("meeting_settings"))
+    
     return render_template(
         "meeting_room.html",
         title=title,
@@ -3032,14 +3498,19 @@ def render_jitsi_room(record, seed_text, title, return_url):
         return_url=return_url,
         jwt_required=bool(read_jitsi_private_key()),
         jwt_enabled=bool(jwt_token),
+        is_coordinator=is_moderator,
+        appointment_uuid=appointment_uuid,
+        meeting_settings=meeting_settings,
+        participants=participants,
+        is_invalid=False
     )
 
 
-@app.route("/meeting/<int:appointment_id>")
+@app.route("/meeting/<uuid:appointment_uuid>")
 @login_required
-def meeting_room(appointment_id):
+def meeting_room(appointment_uuid):
     try:
-        response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
+        response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
         appointment = (response.data or [None])[0]
     except Exception as exc:
         app.logger.warning("Meeting lookup failed: %s", exc)
@@ -3049,20 +3520,166 @@ def meeting_room(appointment_id):
         flash("You do not have access to this meeting.", "error")
         return redirect(url_for("appointments"))
 
-    seed_text = f"appointment-{appointment_id}-{appointment.get('scheduled_date') or appointment.get('appointment_date')}"
+    # Time-window check: only for non-staff
+    is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
+    if not is_staff:
+        scheduled_date = appointment.get("scheduled_date") or appointment.get("appointment_date")
+        scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time")
+        if not is_current_time_near_scheduled(scheduled_date, scheduled_time):
+            return render_template(
+                "meeting_room.html",
+                is_invalid=True,
+                invalid_reason="You can only join the meeting around its scheduled time.",
+                title="Meeting Closed",
+                return_url=url_for("coordinator_portal") if is_staff else url_for("appointments"),
+                domain=jitsi_domain(),
+                api_script_url="",
+                room_name="",
+                jwt_token="",
+                display_name="",
+                user_email="",
+                direct_meet_url="",
+                jwt_required=False,
+                jwt_enabled=False,
+                is_coordinator=False,
+                appointment_uuid=None,
+                meeting_settings={},
+                participants=[]
+            )
+
+    if appointment.get("status") in {"completed", "cancelled"}:
+        return render_template(
+            "meeting_room.html",
+            is_invalid=True,
+            invalid_reason="This meeting has already ended and cannot be joined.",
+            title="Meeting Closed",
+            return_url=url_for("coordinator_portal") if is_staff else url_for("appointments"),
+            domain=jitsi_domain(),
+            api_script_url="",
+            room_name="",
+            jwt_token="",
+            display_name="",
+            user_email="",
+            direct_meet_url="",
+            jwt_required=False,
+            jwt_enabled=False,
+            is_coordinator=False,
+            appointment_uuid=None,
+            meeting_settings={},
+            participants=[]
+        )
+
+    seed_text = f"appointment-{appointment.get('uuid')}"
     return render_jitsi_room(
         appointment,
         seed_text,
         title=f"Think.4U Meeting - {appointment.get('purpose') or 'Appointment'}",
-        return_url=url_for("coordinator_portal") if getattr(current_user, "role", "") == "coordinator" else url_for("appointments"),
+        return_url=url_for("coordinator_portal") if is_staff else url_for("appointments"),
     )
 
 
-@app.route("/meeting/slot/<int:slot_id>")
-@coordinator_required
-def meeting_slot_room(slot_id):
+@app.route("/meeting/<uuid:appointment_uuid>/end", methods=["POST"])
+@login_required
+def end_meeting(appointment_uuid):
     try:
-        response = supabase.table("appointment_slots").select("*").eq("id", slot_id).limit(1).execute()
+        response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
+        appointment = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Meeting lookup failed: %s", exc)
+        appointment = None
+
+    if not appointment or not can_join_appointment(appointment):
+        flash("You do not have access to this meeting.", "error")
+        return redirect(url_for("appointments"))
+
+    is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
+    if not is_staff:
+        flash("Only coordinators/admins can end meetings.", "error")
+        return redirect(url_for("appointments"))
+
+    try:
+        # Mark all appointments sharing the same meet_url as completed to lock the meeting
+        meet_url = appointment.get("meet_url")
+        if meet_url:
+            supabase.table("appointments").update({
+                "status": "completed",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("meet_url", meet_url).execute()
+        else:
+            supabase.table("appointments").update({
+                "status": "completed",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", appointment["id"]).execute()
+        flash("Meeting ended successfully.", "success")
+    except Exception as e:
+        app.logger.error(f"Error ending meeting: {e}")
+        flash("Unable to end meeting.", "error")
+
+    return redirect(url_for("coordinator_portal") if is_staff else url_for("appointments"))
+
+
+@app.route("/meeting/<uuid:appointment_uuid>/upload_recording_auto", methods=["POST"])
+@login_required
+def upload_recording_auto(appointment_uuid):
+    try:
+        response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
+        appointment = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.error("Failed to load appointment for auto upload: %s", exc)
+        return jsonify({"success": False, "message": "Database query error"}), 500
+
+    is_slot = False
+    if not appointment:
+        try:
+            slot_res = supabase.table("appointment_slots").select("id").eq("uuid", str(appointment_uuid)).limit(1).execute()
+            if slot_res.data:
+                appointment = slot_res.data[0]
+                is_slot = True
+        except Exception as exc:
+            app.logger.error("Failed to load slot for auto upload: %s", exc)
+            return jsonify({"success": False, "message": "Database query error"}), 500
+
+    if not appointment:
+        return jsonify({"success": False, "message": "Meeting not found"}), 404
+
+    is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
+    if not is_staff:
+        return jsonify({"success": False, "message": "Unauthorized access to upload recording"}), 403
+
+    video_file = request.files.get("video_file")
+    if not video_file or video_file.filename == "":
+        return jsonify({"success": False, "message": "No video file found"}), 400
+
+    try:
+        public_url = upload_site_media(video_file, "video", folder="recordings")
+        if is_slot:
+            supabase.table("appointments").update({
+                "recording_url": public_url,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }).eq("slot_id", appointment["id"]).execute()
+        else:
+            meet_url = appointment.get("meet_url")
+            if meet_url:
+                supabase.table("appointments").update({
+                    "recording_url": public_url,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).eq("meet_url", meet_url).execute()
+            else:
+                supabase.table("appointments").update({
+                    "recording_url": public_url,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).eq("id", appointment["id"]).execute()
+        return jsonify({"success": True, "recording_url": public_url})
+    except Exception as e:
+        app.logger.error(f"Failed to auto-upload video: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/meeting/slot/<uuid:slot_uuid>")
+@coordinator_required
+def meeting_slot_room(slot_uuid):
+    try:
+        response = supabase.table("appointment_slots").select("*").eq("uuid", str(slot_uuid)).limit(1).execute()
         slot = (response.data or [None])[0]
     except Exception as exc:
         app.logger.warning("Meeting slot lookup failed: %s", exc)
@@ -3075,7 +3692,7 @@ def meeting_slot_room(slot_id):
         flash("You do not have access to this meeting slot.", "error")
         return redirect(url_for("coordinator_portal"))
 
-    seed_text = f"slot-{slot_id}-{slot.get('slot_date')}-{slot.get('slot_time')}"
+    seed_text = f"slot-{slot.get('uuid')}"
     return render_jitsi_room(
         slot,
         seed_text,
@@ -3132,6 +3749,18 @@ def events_page():
     except Exception:
         events = []
 
+    # Get participant counts
+    participant_counts = {}
+    try:
+        participants_response = supabase.table("event_participants").select("event_id,status").execute()
+        for p in (participants_response.data or []):
+            eid = p.get("event_id")
+            if eid is not None and p.get("status") != "cancelled":
+                eid = int(eid)
+                participant_counts[eid] = participant_counts.get(eid, 0) + 1
+    except Exception as e:
+        app.logger.warning(f"Error fetching participant counts: {e}")
+
     if current_user.is_authenticated:
         try:
             registration_response = supabase.table("event_participants") \
@@ -3168,59 +3797,102 @@ def events_page():
         "events.html",
         events=events,
         registration_map=registration_map,
-        certificate_map=certificate_map
+        certificate_map=certificate_map,
+        participant_counts=participant_counts
     )
 
 
 @app.route("/events/register/<int:event_id>", methods=["POST"])
 @login_required
 def register_for_event(event_id):
+    conn = None
     try:
-        event_response = supabase.table("volunteer_events").select("*").eq("id", event_id).limit(1).execute()
-        event_row = (event_response.data or [None])[0]
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Lock the event row
+        cur.execute("SELECT * FROM public.volunteer_events WHERE id = %s FOR UPDATE;", (event_id,))
+        event_row = cur.fetchone()
+        
         if not event_row:
+            conn.rollback()
             flash("Event not found.", "error")
             return redirect(url_for("events_page"))
 
-        existing_response = supabase.table("event_participants") \
-            .select("id") \
-            .eq("event_id", event_id) \
-            .eq("user_id", current_db_user_id()) \
-            .limit(1) \
-            .execute()
-        existing_data = existing_response.data or []
-        if not existing_data:
-            email_existing_response = supabase.table("event_participants") \
-                .select("id") \
-                .eq("event_id", event_id) \
-                .eq("email", current_user.email) \
-                .limit(1) \
-                .execute()
-            existing_data = email_existing_response.data or []
+        # Past Event Check
+        event_date_str = event_row.get("event_date")
+        if event_date_str:
+            try:
+                event_dt = datetime.strptime(event_date_str, "%Y-%m-%d")
+                if event_dt.date() < datetime.now().date():
+                    conn.rollback()
+                    flash("Cannot register for a past event.", "error")
+                    return redirect(url_for("events_page"))
+            except Exception:
+                pass
 
-        if existing_data:
+        # 2. Check registration limit
+        max_regs = event_row.get("max_registrations")
+        if max_regs is not None:
+            try:
+                max_regs = int(max_regs)
+                # Count active registrations
+                cur.execute("""
+                    SELECT COUNT(*) as count FROM public.event_participants 
+                    WHERE event_id = %s AND status != 'cancelled';
+                """, (event_id,))
+                current_count = cur.fetchone()["count"]
+                
+                if current_count >= max_regs:
+                    conn.rollback()
+                    flash("This event has reached its maximum registration limit.", "error")
+                    return redirect(url_for("events_page"))
+            except (ValueError, TypeError):
+                pass
+
+        # 3. Check duplicate registration
+        cur.execute("""
+            SELECT id FROM public.event_participants 
+            WHERE event_id = %s AND (user_id = %s OR email = %s) AND status != 'cancelled';
+        """, (event_id, current_db_user_id(), current_user.email))
+        if cur.fetchone():
+            conn.rollback()
             flash("You are already registered for this event.", "info")
             return redirect(url_for("events_page"))
 
-        supabase.table("event_participants").insert({
-            "event_id": event_id,
-            "user_id": current_db_user_id(),
-            "name": clean_text(current_user.name, 120),
-            "email": current_user.email,
-            "role": current_user.role if current_user.role in {"donor", "volunteer", "both", "admin"} else "donor",
-            "status": "registered",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
+        # 4. Insert participant
+        role = current_user.role if current_user.role in {"donor", "volunteer", "both", "admin"} else "donor"
+        cur.execute("""
+            INSERT INTO public.event_participants (
+                event_id, user_id, name, email, role, status, created_at
+            ) VALUES (%s, %s, %s, %s, %s, 'registered', %s)
+            RETURNING id;
+        """, (
+            event_id,
+            current_db_user_id(),
+            clean_text(current_user.name, 120),
+            current_user.email,
+            role,
+            datetime.now(timezone.utc).isoformat()
+        ))
 
+        # 5. Upsert certificate request
         try:
-            supabase.table("event_certificates").upsert({
-                "event_id": event_id,
-                "user_id": current_db_user_id(),
-                "status": "pending",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }, on_conflict="event_id,user_id").execute()
+            cur.execute("""
+                INSERT INTO public.event_certificates (event_id, user_id, status, created_at)
+                VALUES (%s, %s, 'pending', %s)
+                ON CONFLICT (event_id, user_id) DO UPDATE 
+                SET status = 'pending', updated_at = %s;
+            """, (
+                event_id,
+                current_db_user_id(),
+                datetime.now(timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat()
+            ))
         except Exception as cert_error:
             app.logger.warning(f"Certificate request upsert skipped: {cert_error}")
+
+        conn.commit()
 
         create_notification_for_user(
             current_user.id,
@@ -3228,9 +3900,15 @@ def register_for_event(event_id):
             f"You are registered for {event_row.get('title', 'the event')}. Certificate status will update after admin review."
         )
         flash("Event registration successful.", "success")
+        
     except Exception as e:
+        if conn:
+            conn.rollback()
         app.logger.error(f"Event registration failed: {e}")
         flash("Unable to register for event right now.", "error")
+    finally:
+        if conn:
+            conn.close()
 
     return redirect(url_for("events_page"))
 
@@ -3756,19 +4434,26 @@ def admin_events():
         description = clean_text(request.form.get("description"), 2000, keep_new_lines=True)
         event_date = clean_text(request.form.get("event_date"), 20)
         location = clean_text(request.form.get("location"), 220)
+        max_regs = request.form.get("max_registrations")
 
         if not title or not event_date:
             flash("Event title and date are required.", "error")
             return redirect(url_for("admin_events"))
 
         try:
-            supabase.table("volunteer_events").insert({
+            payload = {
                 "title": title,
                 "description": description,
                 "event_date": event_date,
                 "location": location,
                 "created_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
+            }
+            if max_regs and max_regs.strip():
+                try:
+                    payload["max_registrations"] = int(max_regs)
+                except ValueError:
+                    pass
+            supabase.table("volunteer_events").insert(payload).execute()
             flash("Event created.", "success")
         except Exception as e:
             app.logger.error(f"Event create failed: {e}")
@@ -3776,12 +4461,20 @@ def admin_events():
         return redirect(url_for("admin_events"))
 
     events = []
+    participant_counts = {}
     try:
         response = supabase.table("volunteer_events").select("*").order("event_date", desc=True).limit(200).execute()
         events = response.data or []
+        
+        participants_response = supabase.table("event_participants").select("event_id,status").execute()
+        for p in (participants_response.data or []):
+            eid = p.get("event_id")
+            if eid is not None and p.get("status") != "cancelled":
+                eid = int(eid)
+                participant_counts[eid] = participant_counts.get(eid, 0) + 1
     except Exception as e:
         app.logger.warning(f"Admin events load failed: {e}")
-    return render_template("admin/events.html", events=events)
+    return render_template("admin/events.html", events=events, participant_counts=participant_counts)
 
 
 @app.route("/admin/notifications", methods=["GET", "POST"])
@@ -3905,13 +4598,117 @@ def admin_coordinators():
     return render_template("admin/coordinators.html", coordinators=coordinators, recent_meetings=recent_meetings, slots=slots)
 
 
+def do_reschedule_past_meetings(coordinator_id):
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    try:
+        response = supabase.table("appointments").select("*").execute()
+        appointments_list = response.data or []
+    except Exception as e:
+        app.logger.error(f"Failed to fetch appointments for rescheduling: {e}")
+        return 0
+        
+    try:
+        coord_res = supabase.table("users").select("global_meeting_settings").eq("id", coordinator_id).execute()
+        g_settings = (coord_res.data or [{}])[0].get("global_meeting_settings") or {}
+    except Exception:
+        g_settings = {}
+    g_settings = ensure_meeting_settings_defaults(g_settings)
+    
+    reschedule_time = g_settings.get("reschedule_default_time", "10:00")
+    holidays = set(g_settings.get("holidays") or [])
+    rescheduled_count = 0
+    
+    for appt in appointments_list:
+        status = appt.get("status")
+        if status in ("completed", "cancelled"):
+            continue
+            
+        appt_date = appt.get("scheduled_date") or appt.get("appointment_date")
+        if not appt_date or appt_date >= today_str:
+            continue
+            
+        appt_coord_id = appt.get("coordinator_id")
+        if appt_coord_id and str(appt_coord_id) != str(coordinator_id):
+            continue
+            
+        next_date = datetime.now(timezone.utc).date() + timedelta(days=1)
+        while next_date.weekday() == 6 or next_date.isoformat() in holidays:
+            next_date += timedelta(days=1)
+            
+        next_date_str = next_date.isoformat()
+        
+        slot_time = None
+        slot_id = None
+        try:
+            slots_res = supabase.table("appointment_slots") \
+                .select("*") \
+                .eq("coordinator_id", coordinator_id) \
+                .eq("slot_date", next_date_str) \
+                .eq("status", "available") \
+                .execute()
+            slots = slots_res.data or []
+            if slots:
+                slot_time = slots[0].get("slot_time")
+                slot_id = slots[0].get("id")
+        except Exception as e:
+            app.logger.warning(f"Failed to query slot for reschedule: {e}")
+            
+        new_time = slot_time or reschedule_time
+        
+        update_payload = {
+            "appointment_date": next_date_str,
+            "appointment_time": new_time,
+            "scheduled_date": next_date_str,
+            "scheduled_time": new_time,
+            "status": "scheduled",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        if slot_id:
+            update_payload["slot_id"] = slot_id
+            
+        try:
+            supabase.table("appointments").update(update_payload).eq("id", appt["id"]).execute()
+            
+            if slot_id:
+                active_res = supabase.table("appointments").select("id").eq("slot_id", slot_id).neq("status", "cancelled").neq("status", "completed").execute()
+                active_count = len(active_res.data or [])
+                limit = slots[0].get("registration_limit") or 1
+                if active_count >= limit:
+                    supabase.table("appointment_slots").update({
+                        "status": "booked",
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", slot_id).execute()
+            
+            user_id = appt.get("user_id")
+            if user_id:
+                create_notification_for_user(
+                    user_id,
+                    "Meeting Rescheduled",
+                    f"Your meeting '{appt.get('purpose')}' has been rescheduled to {next_date_str} at {new_time}."
+                )
+            
+            send_meeting_update_email(appt.get("email"), appt.get("name"), {**appt, **update_payload}, "Think.4U meeting rescheduled")
+            rescheduled_count += 1
+        except Exception as e:
+            app.logger.error(f"Failed to update rescheduled appointment {appt['id']}: {e}")
+            
+    return rescheduled_count
+
+
 @app.route("/coordinator")
 @coordinator_required
 def coordinator_portal():
+    cleanup_expired_slots_and_meetings()
     requests = []
     meetings = []
     slots = []
     coordinator_id = current_db_user_id()
+    
+    # Auto-reschedule past uncompleted meetings
+    try:
+        do_reschedule_past_meetings(coordinator_id)
+    except Exception as e:
+        app.logger.warning(f"Auto-rescheduling past meetings failed: {e}")
     try:
         response = supabase.table("appointments").select("*").order("created_at", desc=True).limit(200).execute()
         rows = response.data or []
@@ -3923,9 +4720,55 @@ def coordinator_portal():
                 if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
             ]
         requests = [row for row in visible_rows if row.get("status") in {"requested", "pending"}]
-        meetings = [row for row in visible_rows if row.get("status") not in {"requested", "pending"}]
+        
+        # Filter all visible active scheduled meetings
+        raw_meetings = [row for row in visible_rows if row.get("status") not in {"requested", "pending"}]
+        
+        # Group meetings by meet_url
+        grouped_meetings = {}
+        for row in raw_meetings:
+            meet_url = row.get("meet_url")
+            key = meet_url or f"{row.get('scheduled_date')}-{row.get('scheduled_time')}"
+            m_settings = ensure_meeting_settings_defaults(row.get("meeting_settings"))
+
+            if key not in grouped_meetings:
+                grouped_meetings[key] = {
+                    "meet_url": meet_url,
+                    "scheduled_date": row.get("scheduled_date") or row.get("appointment_date"),
+                    "scheduled_time": row.get("scheduled_time") or row.get("appointment_time"),
+                    "purpose": row.get("purpose"),
+                    "status": row.get("status"),
+                    "uuid": row.get("uuid"),
+                    "id": row.get("id"),
+                    "slot_id": row.get("slot_id"),
+                    "meeting_settings": m_settings,
+                    "participants": []
+                }
+            # If any appointment in the group is completed/cancelled, reflect completed if all are, or keep active
+            if row.get("status") not in {"completed", "cancelled"} and grouped_meetings[key]["status"] in {"completed", "cancelled"}:
+                grouped_meetings[key]["status"] = row.get("status")
+                grouped_meetings[key]["uuid"] = row.get("uuid")
+                grouped_meetings[key]["id"] = row.get("id")
+            grouped_meetings[key]["participants"].append({
+                "id": row.get("id"),
+                "name": row.get("name"),
+                "email": row.get("email"),
+                "status": row.get("status")
+            })
+        meetings = list(grouped_meetings.values())
     except Exception as e:
         app.logger.warning(f"Coordinator appointments load failed: {e}")
+
+    # Count bookings per slot
+    slot_bookings = {}
+    try:
+        bookings_response = supabase.table("appointments").select("slot_id").neq("status", "cancelled").neq("status", "completed").execute()
+        for b in (bookings_response.data or []):
+            sid = b.get("slot_id")
+            if sid:
+                slot_bookings[int(sid)] = slot_bookings.get(int(sid), 0) + 1
+    except Exception as e:
+        app.logger.warning(f"Failed to count slot bookings: {e}")
 
     try:
         response = supabase.table("appointment_slots").select("*").order("slot_date").order("slot_time").limit(200).execute()
@@ -3937,10 +4780,42 @@ def coordinator_portal():
                 row for row in rows
                 if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
             ]
+        for slot in slots:
+            slot["bookings_count"] = slot_bookings.get(int(slot["id"]), 0)
+            slot["registration_limit"] = slot.get("registration_limit") or 1
+            slot["meeting_settings"] = ensure_meeting_settings_defaults(slot.get("meeting_settings"))
     except Exception as e:
         app.logger.warning(f"Coordinator slots load failed: {e}")
 
-    return render_template("coordinator/dashboard.html", requests=requests, meetings=meetings, slots=slots, meet_domain=jitsi_domain())
+    events = []
+    participant_counts = {}
+    try:
+        events_response = supabase.table("volunteer_events").select("*").order("event_date", desc=True).limit(100).execute()
+        events = events_response.data or []
+        
+        participants_response = supabase.table("event_participants").select("event_id,status").execute()
+        for p in (participants_response.data or []):
+            eid = p.get("event_id")
+            if eid is not None and p.get("status") != "cancelled":
+                eid = int(eid)
+                participant_counts[eid] = participant_counts.get(eid, 0) + 1
+    except Exception as e:
+        app.logger.warning(f"Coordinator events load failed: {e}")
+
+    display_meetings = meetings[:3]
+    display_slots = slots[:5]
+    global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+
+    return render_template(
+        "coordinator/dashboard.html",
+        requests=requests,
+        meetings=display_meetings,
+        slots=display_slots,
+        events=events,
+        participant_counts=participant_counts,
+        meet_domain=jitsi_domain(),
+        global_settings=global_settings
+    )
 
 
 @app.route("/coordinator/slots", methods=["POST"])
@@ -3955,10 +4830,39 @@ def coordinator_create_slot():
     auto_accept = request.form.get("auto_accept") == "on"
     meet_url = normalize_url(request.form.get("meet_url"))
     if not meet_url:
-        meet_url = build_meet_url(f"{current_user.id}-{slot_date}-{slot_time}")
+        meet_url = build_meet_url(secrets.token_urlsafe(16))
+
+    try:
+        registration_limit = int(request.form.get("registration_limit", "1"))
+    except ValueError:
+        registration_limit = 1
+
+    meeting_settings = {
+        "show_chat": request.form.get("show_chat") == "on",
+        "show_screen_share": request.form.get("show_screen_share") == "on",
+        "show_raise_hand": request.form.get("show_raise_hand") == "on",
+        "show_participants": request.form.get("show_participants") == "on",
+        "record_meeting": request.form.get("record_meeting") == "on"
+    }
 
     if not slot_date or not slot_time:
         flash("Slot date and time are required.", "error")
+        return redirect(url_for("coordinator_portal"))
+
+    if slot_date and slot_time:
+        try:
+            slot_dt = datetime.strptime(f"{slot_date} {slot_time}", "%Y-%m-%d %H:%M")
+            if slot_dt < datetime.now():
+                flash("Cannot create an available slot in the past.", "error")
+                return redirect(url_for("coordinator_portal"))
+        except Exception:
+            pass
+
+    # Release Limit Date check
+    global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+    lim = global_settings.get("release_limit_date")
+    if lim and slot_date and slot_date > lim:
+        flash(f"Cannot create a slot past the release limit date of {lim}.", "error")
         return redirect(url_for("coordinator_portal"))
 
     try:
@@ -3970,12 +4874,348 @@ def coordinator_create_slot():
             "meet_url": meet_url,
             "auto_accept": auto_accept,
             "status": "available",
+            "registration_limit": registration_limit,
+            "meeting_settings": meeting_settings,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }).execute()
         flash("Appointment slot created.", "success")
     except Exception as e:
         app.logger.error(f"Coordinator slot create failed: {e}")
         flash("Unable to create slot.", "error")
+    return redirect(url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/meeting/<int:appointment_id>/add_participant", methods=["POST"])
+@coordinator_required
+def coordinator_add_participant(appointment_id):
+    email = normalize_email(request.form.get("email"))
+    if not email:
+        flash("Participant email is required.", "error")
+        return redirect(url_for("coordinator_portal"))
+
+    try:
+        # Get source appointment details
+        src_res = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
+        src_meeting = (src_res.data or [None])[0]
+        if not src_meeting:
+            flash("Meeting not found.", "error")
+            return redirect(url_for("coordinator_portal"))
+
+        # Find target user by email
+        user_res = supabase.table("users").select("*").eq("email", email).limit(1).execute()
+        user_row = (user_res.data or [None])[0]
+        if not user_row:
+            flash(f"User with email {email} is not registered on Think.4U.", "error")
+            return redirect(url_for("coordinator_portal"))
+
+        # Check if already a participant
+        meet_url = src_meeting.get("meet_url")
+        if meet_url:
+            existing_res = supabase.table("appointments").select("id").eq("meet_url", meet_url).eq("user_id", user_row["id"]).neq("status", "cancelled").execute()
+            if existing_res.data:
+                flash("User is already a participant in this meeting.", "warning")
+                return redirect(url_for("coordinator_portal"))
+
+        # Create new appointment for the added participant
+        new_appointment = {
+            "user_id": user_row["id"],
+            "name": user_row.get("name") or email,
+            "email": email,
+            "appointment_date": src_meeting.get("appointment_date"),
+            "appointment_time": src_meeting.get("appointment_time"),
+            "requested_date": src_meeting.get("requested_date"),
+            "requested_time": src_meeting.get("requested_time"),
+            "scheduled_date": src_meeting.get("scheduled_date"),
+            "scheduled_time": src_meeting.get("scheduled_time"),
+            "coordinator_id": src_meeting.get("coordinator_id") or current_db_user_id(),
+            "slot_id": src_meeting.get("slot_id"),
+            "purpose": src_meeting.get("purpose") or "Coordinator meeting",
+            "notes": src_meeting.get("notes"),
+            "meet_url": meet_url,
+            "status": "scheduled",
+            "meeting_settings": src_meeting.get("meeting_settings"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        supabase.table("appointments").insert(new_appointment).execute()
+
+        # Send email update to added participant
+        send_meeting_update_email(email, user_row.get("name") or email, new_appointment, "Think.4U meeting invitation")
+        create_notification_for_user(user_row["id"], "Added to meeting", f"You have been added to the meeting on {new_appointment['scheduled_date']} at {new_appointment['scheduled_time']}.")
+
+        flash(f"Successfully added {email} to the meeting.", "success")
+    except Exception as e:
+        app.logger.error(f"Failed to add participant: {e}")
+        flash("Unable to add participant.", "error")
+
+    return redirect(url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/meeting/<int:appointment_id>/update_settings", methods=["POST"])
+@coordinator_required
+def coordinator_update_meeting_settings(appointment_id):
+    show_chat = request.form.get("show_chat") == "on"
+    show_screen_share = request.form.get("show_screen_share") == "on"
+    show_raise_hand = request.form.get("show_raise_hand") == "on"
+    show_participants = request.form.get("show_participants") == "on"
+    record_meeting = request.form.get("record_meeting") == "on"
+
+    settings = {
+        "show_chat": show_chat,
+        "show_screen_share": show_screen_share,
+        "show_raise_hand": show_raise_hand,
+        "show_participants": show_participants,
+        "record_meeting": record_meeting
+    }
+
+    try:
+        # Get the meeting
+        meet_res = supabase.table("appointments").select("meet_url").eq("id", appointment_id).limit(1).execute()
+        meet_row = (meet_res.data or [None])[0]
+        if meet_row and meet_row.get("meet_url"):
+            # Update all appointments sharing this meet_url
+            supabase.table("appointments").update({
+                "meeting_settings": settings,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }).eq("meet_url", meet_row["meet_url"]).execute()
+        else:
+            # Fallback to single appointment
+            supabase.table("appointments").update({
+                "meeting_settings": settings,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }).eq("id", appointment_id).execute()
+
+        flash("Meeting settings updated successfully.", "success")
+    except Exception as e:
+        app.logger.error(f"Failed to update meeting settings: {e}")
+        flash("Unable to update meeting settings.", "error")
+
+    referrer = request.referrer
+    if referrer and "/coordinator/meeting/" in referrer:
+        return redirect(referrer)
+    return redirect(url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/settings", methods=["GET", "POST"])
+@coordinator_required
+def coordinator_settings():
+    if request.method == "POST":
+        show_chat = request.form.get("show_chat") == "on"
+        show_screen_share = request.form.get("show_screen_share") == "on"
+        show_raise_hand = request.form.get("show_raise_hand") == "on"
+        show_participants = request.form.get("show_participants") == "on"
+        record_meeting = request.form.get("record_meeting") == "on"
+        
+        holidays_raw = request.form.get("holidays_list", "")
+        holidays_list = []
+        for line in holidays_raw.splitlines():
+            line = line.strip()
+            if line and re.match(r"^\d{4}-\d{2}-\d{2}$", line):
+                holidays_list.append(line)
+        
+        settings = {
+            "show_chat": show_chat,
+            "show_screen_share": show_screen_share,
+            "show_raise_hand": show_raise_hand,
+            "show_participants": show_participants,
+            "record_meeting": record_meeting,
+            "holidays": holidays_list
+        }
+        
+        try:
+            supabase.table("users").update({
+                "global_meeting_settings": settings
+            }).eq("id", current_db_user_id()).execute()
+            
+            current_user.global_meeting_settings = settings
+            flash("Global meeting defaults updated successfully.", "success")
+        except Exception as e:
+            app.logger.error(f"Failed to update global meeting settings: {e}")
+            flash("Unable to update global meeting defaults.", "error")
+        return redirect(url_for("coordinator_settings"))
+
+    global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+    holidays_str = "\n".join(global_settings.get("holidays", []))
+    return render_template("coordinator/settings.html", global_settings=global_settings, holidays_str=holidays_str)
+
+
+@app.route("/coordinator/history")
+@coordinator_required
+def coordinator_history():
+    meetings = []
+    slots = []
+    coordinator_id = current_db_user_id()
+    
+    try:
+        response = supabase.table("appointments").select("*").order("created_at", desc=True).limit(200).execute()
+        rows = response.data or []
+        if current_user.is_admin:
+            visible_rows = rows
+        else:
+            visible_rows = [
+                row for row in rows
+                if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
+            ]
+        
+        raw_meetings = [row for row in visible_rows if row.get("status") not in {"requested", "pending"}]
+        
+        grouped_meetings = {}
+        for row in raw_meetings:
+            meet_url = row.get("meet_url")
+            key = meet_url or f"{row.get('scheduled_date')}-{row.get('scheduled_time')}"
+            if key not in grouped_meetings:
+                grouped_meetings[key] = {
+                    "meet_url": meet_url,
+                    "scheduled_date": row.get("scheduled_date") or row.get("appointment_date"),
+                    "scheduled_time": row.get("scheduled_time") or row.get("appointment_time"),
+                    "purpose": row.get("purpose"),
+                    "status": row.get("status"),
+                    "uuid": row.get("uuid"),
+                    "id": row.get("id"),
+                    "slot_id": row.get("slot_id"),
+                    "participants": []
+                }
+            if row.get("status") not in {"completed", "cancelled"} and grouped_meetings[key]["status"] in {"completed", "cancelled"}:
+                grouped_meetings[key]["status"] = row.get("status")
+                grouped_meetings[key]["uuid"] = row.get("uuid")
+                grouped_meetings[key]["id"] = row.get("id")
+            grouped_meetings[key]["participants"].append({
+                "id": row.get("id"),
+                "name": row.get("name"),
+                "email": row.get("email"),
+                "status": row.get("status")
+            })
+        meetings = list(grouped_meetings.values())
+    except Exception as e:
+        app.logger.warning(f"Coordinator appointments load failed: {e}")
+
+    slot_bookings = {}
+    try:
+        bookings_response = supabase.table("appointments").select("slot_id").neq("status", "cancelled").neq("status", "completed").execute()
+        for b in (bookings_response.data or []):
+            sid = b.get("slot_id")
+            if sid:
+                slot_bookings[int(sid)] = slot_bookings.get(int(sid), 0) + 1
+    except Exception as e:
+        app.logger.warning(f"Failed to count slot bookings: {e}")
+
+    try:
+        response = supabase.table("appointment_slots").select("*").order("slot_date", desc=True).order("slot_time", desc=True).limit(200).execute()
+        rows = response.data or []
+        if current_user.is_admin:
+            slots = rows
+        else:
+            slots = [
+                row for row in rows
+                if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
+            ]
+        for slot in slots:
+            slot["bookings_count"] = slot_bookings.get(int(slot["id"]), 0)
+            slot["registration_limit"] = slot.get("registration_limit") or 1
+    except Exception as e:
+        app.logger.warning(f"Coordinator slots load failed: {e}")
+
+    return render_template("coordinator/history.html", meetings=meetings, slots=slots)
+
+
+@app.route("/coordinator/meeting/<int:appointment_id>", methods=["GET", "POST"])
+@coordinator_required
+def coordinator_meeting_detail(appointment_id):
+    try:
+        response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
+        appointment = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.error("Failed to load appointment detail: %s", exc)
+        appointment = None
+
+    if not appointment:
+        flash("Meeting not found.", "error")
+        return redirect(url_for("coordinator_history"))
+
+    appointment["meeting_settings"] = ensure_meeting_settings_defaults(appointment.get("meeting_settings"))
+
+    coordinator_id = current_db_user_id()
+    if not current_user.is_admin and appointment.get("coordinator_id") not in {None, "", coordinator_id, str(coordinator_id)}:
+        flash("Unauthorized access to this meeting's details.", "error")
+        return redirect(url_for("coordinator_history"))
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "toggle_share":
+            share_recording = request.form.get("share_recording") == "on"
+            try:
+                meet_url = appointment.get("meet_url")
+                if meet_url:
+                    supabase.table("appointments").update({"share_recording": share_recording}).eq("meet_url", meet_url).execute()
+                else:
+                    supabase.table("appointments").update({"share_recording": share_recording}).eq("id", appointment_id).execute()
+                flash("Recording sharing preference updated.", "success")
+            except Exception as e:
+                app.logger.error(f"Failed to toggle share recording: {e}")
+                flash("Unable to update sharing preference.", "error")
+            return redirect(url_for("coordinator_meeting_detail", appointment_id=appointment_id))
+
+        elif action == "upload_recording":
+            video_file = request.files.get("video_file")
+            if not video_file or video_file.filename == "":
+                flash("No file selected for upload.", "error")
+                return redirect(url_for("coordinator_meeting_detail", appointment_id=appointment_id))
+            try:
+                public_url = upload_site_media(video_file, "video", folder="recordings")
+                meet_url = appointment.get("meet_url")
+                if meet_url:
+                    supabase.table("appointments").update({"recording_url": public_url}).eq("meet_url", meet_url).execute()
+                else:
+                    supabase.table("appointments").update({"recording_url": public_url}).eq("id", appointment_id).execute()
+                flash("Recorded meeting video uploaded successfully.", "success")
+            except Exception as e:
+                app.logger.error(f"Failed to upload video: {e}")
+                flash(f"Upload failed: {e}", "error")
+            return redirect(url_for("coordinator_meeting_detail", appointment_id=appointment_id))
+
+    participants = []
+    meet_url = appointment.get("meet_url")
+    if meet_url:
+        try:
+            participants_res = supabase.table("appointments").select("name,email,status").eq("meet_url", meet_url).neq("status", "cancelled").execute()
+            participants = participants_res.data or []
+        except Exception as e:
+            app.logger.warning(f"Failed to fetch meeting participants: {e}")
+
+    return render_template("coordinator/details.html", appointment=appointment, participants=participants)
+
+
+@app.route("/coordinator/events", methods=["POST"])
+@coordinator_required
+def coordinator_create_event():
+    title = clean_text(request.form.get("title"), 200)
+    description = clean_text(request.form.get("description"), 2000, keep_new_lines=True)
+    event_date = clean_text(request.form.get("event_date"), 20)
+    location = clean_text(request.form.get("location"), 220)
+    max_regs = request.form.get("max_registrations")
+
+    if not title or not event_date:
+        flash("Event title and date are required.", "error")
+        return redirect(url_for("coordinator_portal"))
+
+    try:
+        payload = {
+            "title": title,
+            "description": description,
+            "event_date": event_date,
+            "location": location,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if max_regs and max_regs.strip():
+            try:
+                payload["max_registrations"] = int(max_regs)
+            except ValueError:
+                pass
+        supabase.table("volunteer_events").insert(payload).execute()
+        flash("Volunteer Event created successfully.", "success")
+    except Exception as e:
+        app.logger.error(f"Coordinator event create failed: {e}")
+        flash("Unable to create event.", "error")
     return redirect(url_for("coordinator_portal"))
 
 
@@ -3991,12 +5231,26 @@ def coordinator_schedule_appointment(appointment_id):
     if not scheduled_date or not scheduled_time:
         flash("Schedule date and time are required.", "error")
         return redirect(url_for("coordinator_portal"))
+
+    if scheduled_date and scheduled_time and status not in {"completed", "cancelled"}:
+        try:
+            sched_dt = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
+            if sched_dt < datetime.now():
+                flash("Cannot schedule or reschedule a meeting in the past.", "error")
+                return redirect(url_for("coordinator_portal"))
+        except Exception:
+            pass
+
     if not meet_url:
-        meet_url = build_meet_url(f"appointment-{appointment_id}-{scheduled_date}-{scheduled_time}")
+        meet_url = build_meet_url(secrets.token_urlsafe(16))
 
     try:
         current_response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
         current_row = (current_response.data or [None])[0]
+        
+        global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+        meeting_settings = ensure_meeting_settings_defaults((current_row or {}).get("meeting_settings") or global_settings)
+
         update_payload = {
             "coordinator_id": current_db_user_id(),
             "scheduled_date": scheduled_date,
@@ -4005,6 +5259,7 @@ def coordinator_schedule_appointment(appointment_id):
             "appointment_time": scheduled_time,
             "meet_url": meet_url,
             "status": status,
+            "meeting_settings": meeting_settings,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         try:
@@ -4032,6 +5287,276 @@ def coordinator_schedule_appointment(appointment_id):
         app.logger.error(f"Coordinator schedule failed: {e}")
         flash("Unable to update appointment schedule.", "error")
     return redirect(url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/bulk_slots", methods=["GET", "POST"])
+@coordinator_required
+def coordinator_bulk_slots():
+    cleanup_expired_slots_and_meetings()
+    coordinator_id = current_db_user_id()
+    global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+    
+    if request.method == "POST":
+        action = request.form.get("action")
+        
+        if action == "upload_csv":
+            file = request.files.get("csv_file")
+            if not file or file.filename == "":
+                flash("No file selected for upload.", "error")
+                return redirect(url_for("coordinator_bulk_slots"))
+
+            if not file.filename.lower().endswith(".csv"):
+                flash("Invalid file format. Please upload a CSV file.", "error")
+                return redirect(url_for("coordinator_bulk_slots"))
+
+            try:
+                stream = io.StringIO(file.stream.read().decode("utf-8"), newline=None)
+                csv_reader = csv.DictReader(stream)
+                
+                headers = [h.strip().lower() for h in (csv_reader.fieldnames or [])]
+                if "date" not in headers or "time" not in headers:
+                    flash("CSV must contain at least 'date' and 'time' columns.", "error")
+                    return redirect(url_for("coordinator_bulk_slots"))
+                
+                slots_to_insert = []
+                for row in csv_reader:
+                    clean_row = {k.strip().lower(): v.strip() for k, v in row.items() if k and v}
+                    
+                    slot_date = clean_row.get("date")
+                    slot_time = clean_row.get("time")
+                    
+                    if not slot_date or not slot_time:
+                        continue
+                        
+                    # Standardize date YYYY-MM-DD
+                    if not re.match(r"^\d{4}-\d{2}-\d{2}$", slot_date):
+                        try:
+                            dt = datetime.strptime(slot_date, "%Y/%m/%d")
+                            slot_date = dt.date().isoformat()
+                        except Exception:
+                            try:
+                                dt = datetime.strptime(slot_date, "%d-%m-%Y")
+                                slot_date = dt.date().isoformat()
+                            except Exception:
+                                continue
+                                
+                    lim = global_settings.get("release_limit_date")
+                    if lim and slot_date > lim:
+                        flash(f"Cannot upload slots past the release limit date of {lim}.", "error")
+                        return redirect(url_for("coordinator_bulk_slots"))
+                                
+                    # Standardize time HH:MM
+                    if not re.match(r"^\d{2}:\d{2}$", slot_time):
+                        try:
+                            dt = datetime.strptime(slot_time, "%I:%M %p")
+                            slot_time = dt.strftime("%H:%M")
+                        except Exception:
+                            try:
+                                dt = datetime.strptime(slot_time, "%H:%M:%S")
+                                slot_time = dt.strftime("%H:%M")
+                            except Exception:
+                                continue
+                                
+                    try:
+                        duration = int(clean_row.get("duration_minutes", clean_row.get("duration", "30")))
+                    except ValueError:
+                        duration = 30
+                        
+                    try:
+                        limit = int(clean_row.get("registration_limit", clean_row.get("limit", "1")))
+                    except ValueError:
+                        limit = 1
+                        
+                    auto_accept = clean_row.get("auto_accept", "true").lower() in ("true", "1", "yes", "on")
+                    meet_url = build_meet_url(secrets.token_urlsafe(16))
+                    
+                    slots_to_insert.append({
+                        "coordinator_id": coordinator_id,
+                        "slot_date": slot_date,
+                        "slot_time": slot_time,
+                        "duration_minutes": max(15, min(duration, 180)),
+                        "meet_url": meet_url,
+                        "auto_accept": auto_accept,
+                        "status": "available",
+                        "registration_limit": limit,
+                        "meeting_settings": global_settings,
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    
+                if slots_to_insert:
+                    supabase.table("appointment_slots").insert(slots_to_insert).execute()
+                    flash(f"Successfully uploaded {len(slots_to_insert)} slots.", "success")
+                else:
+                    flash("No valid slots found in CSV.", "warning")
+            except Exception as e:
+                app.logger.error(f"Bulk slots CSV upload failed: {e}")
+                flash(f"Error parsing CSV file: {e}", "error")
+            return redirect(url_for("coordinator_bulk_slots"))
+            
+        elif action == "generate_slots":
+            start_date_str = request.form.get("start_date")
+            end_date_str = request.form.get("end_date")
+            start_time_str = request.form.get("start_time")
+            end_time_str = request.form.get("end_time")
+            
+            try:
+                duration = int(request.form.get("duration_minutes", "30"))
+            except ValueError:
+                duration = 30
+            try:
+                limit = int(request.form.get("registration_limit", "1"))
+            except ValueError:
+                limit = 1
+            auto_accept = request.form.get("auto_accept") == "on"
+            days_of_week = request.form.getlist("days_of_week")
+            
+            if not start_date_str or not end_date_str or not start_time_str or not end_time_str:
+                flash("Start date, end date, start time, and end time are required.", "error")
+                return redirect(url_for("coordinator_bulk_slots"))
+                
+            lim = global_settings.get("release_limit_date")
+            if lim and end_date_str > lim:
+                flash(f"Cannot generate slots past the release limit date of {lim}.", "error")
+                return redirect(url_for("coordinator_bulk_slots"))
+                
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                sh, sm = map(int, start_time_str.split(":"))
+                eh, em = map(int, end_time_str.split(":"))
+                
+                day_count = (end_date - start_date).days + 1
+                dates_list = [start_date + timedelta(days=i) for i in range(day_count)]
+                
+                slots_to_insert = []
+                selected_weekdays = {int(d) for d in days_of_week if d.isdigit()}
+                holidays = set(global_settings.get("holidays") or [])
+                
+                for cur_date in dates_list:
+                    if selected_weekdays and cur_date.weekday() not in selected_weekdays:
+                        continue
+                    if cur_date.weekday() == 6:  # Skip Sunday automatically
+                        continue
+                    if cur_date.isoformat() in holidays:
+                        continue
+                        
+                    current_time = datetime.combine(cur_date, datetime.min.time().replace(hour=sh, minute=sm))
+                    end_time_limit = datetime.combine(cur_date, datetime.min.time().replace(hour=eh, minute=em))
+                    
+                    while current_time + timedelta(minutes=duration) <= end_time_limit:
+                        if current_time < datetime.now():
+                            current_time += timedelta(minutes=duration)
+                            continue
+                        slot_date = cur_date.isoformat()
+                        slot_time = current_time.strftime("%H:%M")
+                        meet_url = build_meet_url(secrets.token_urlsafe(16))
+                        
+                        slots_to_insert.append({
+                            "coordinator_id": coordinator_id,
+                            "slot_date": slot_date,
+                            "slot_time": slot_time,
+                            "duration_minutes": duration,
+                            "meet_url": meet_url,
+                            "auto_accept": auto_accept,
+                            "status": "available",
+                            "registration_limit": limit,
+                            "meeting_settings": global_settings,
+                            "created_at": datetime.now(timezone.utc).isoformat()
+                        })
+                        current_time += timedelta(minutes=duration)
+                        
+                if slots_to_insert:
+                    supabase.table("appointment_slots").insert(slots_to_insert).execute()
+                    flash(f"Successfully generated {len(slots_to_insert)} slots across the date range.", "success")
+                else:
+                    flash("No slots were generated. Check your date range and weekday selections.", "warning")
+            except Exception as e:
+                app.logger.error(f"Generate slots failed: {e}")
+                flash(f"Error generating slots: {e}", "error")
+            return redirect(url_for("coordinator_bulk_slots"))
+
+    # GET requests: render the template
+    recent_requests = []
+    slots = []
+    try:
+        response = supabase.table("appointments").select("*").order("created_at", desc=True).limit(200).execute()
+        rows = response.data or []
+        visible_rows = [
+            row for row in rows
+            if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
+        ]
+        recent_requests = [row for row in visible_rows if row.get("status") in {"requested", "pending"}]
+    except Exception as e:
+        app.logger.warning(f"Recent requests load failed: {e}")
+        
+    try:
+        response = supabase.table("appointment_slots").select("*").eq("coordinator_id", coordinator_id).order("slot_date", desc=True).order("slot_time", desc=True).limit(10).execute()
+        slots = response.data or []
+    except Exception as e:
+        app.logger.warning(f"Active slots load failed: {e}")
+        
+    return render_template(
+        "coordinator/bulk_slots.html",
+        global_settings=global_settings,
+        requests=recent_requests,
+        slots=slots,
+        meet_domain=jitsi_domain()
+    )
+
+
+@app.route("/coordinator/bulk_slots/settings", methods=["POST"])
+@coordinator_required
+def coordinator_bulk_slots_settings():
+    request_start_time = clean_text(request.form.get("request_start_time"), 20) or "09:00"
+    request_end_time = clean_text(request.form.get("request_end_time"), 20) or "17:00"
+    allow_custom_requests = request.form.get("allow_custom_requests") == "on"
+    reschedule_default_time = clean_text(request.form.get("reschedule_default_time"), 20) or "10:00"
+    release_limit_date = clean_text(request.form.get("release_limit_date"), 10) or None
+    
+    if release_limit_date:
+        try:
+            limit_date = datetime.strptime(release_limit_date, "%Y-%m-%d").date()
+            if limit_date < datetime.now().date():
+                flash("Release limit date cannot be in the past.", "error")
+                return redirect(url_for("coordinator_bulk_slots"))
+        except ValueError:
+            flash("Invalid Release Limit Date format. Use YYYY-MM-DD.", "error")
+            return redirect(url_for("coordinator_bulk_slots"))
+
+    try:
+        global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+        global_settings["request_start_time"] = request_start_time
+        global_settings["request_end_time"] = request_end_time
+        global_settings["allow_custom_requests"] = allow_custom_requests
+        global_settings["reschedule_default_time"] = reschedule_default_time
+        global_settings["release_limit_date"] = release_limit_date
+        
+        supabase.table("users").update({
+            "global_meeting_settings": global_settings
+        }).eq("id", current_db_user_id()).execute()
+        
+        current_user.global_meeting_settings = global_settings
+        flash("Custom request hours, reschedule settings, and release limit date updated.", "success")
+    except Exception as e:
+        app.logger.error(f"Failed to update bulk slots settings: {e}")
+        flash("Unable to update settings.", "error")
+        
+    return redirect(url_for("coordinator_bulk_slots"))
+
+
+@app.route("/coordinator/bulk_slots/reschedule_past", methods=["POST"])
+@coordinator_required
+def coordinator_bulk_slots_reschedule_past():
+    try:
+        rescheduled_count = do_reschedule_past_meetings(current_db_user_id())
+        if rescheduled_count > 0:
+            flash(f"Successfully rescheduled {rescheduled_count} past uncompleted meetings.", "success")
+        else:
+            flash("No past uncompleted meetings found to reschedule.", "info")
+    except Exception as e:
+        app.logger.error(f"Failed to reschedule past meetings manually: {e}")
+        flash(f"Error rescheduling meetings: {e}", "error")
+    return redirect(url_for("coordinator_bulk_slots"))
 
 
 @app.route("/admin")

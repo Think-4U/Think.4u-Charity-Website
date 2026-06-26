@@ -1,6 +1,157 @@
 {% extends "base.html" %}
 {% block title %}Appointments - Think.4U{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flatpickr.min.css') }}">
+<style>
+    /* Premium style matching side-by-side calendar and scrollable times list */
+    .flatpickr-calendar {
+        background: #ffffff !important;
+        border: none !important;
+        border-radius: 0px !important;
+        box-shadow: none !important;
+        font-family: 'Inter', sans-serif !important;
+        width: 300px !important;
+    }
+    .flatpickr-months .flatpickr-month {
+        color: #0f172a !important;
+    }
+    .flatpickr-current-month {
+        font-size: 15px !important;
+    }
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+        font-weight: 700 !important;
+    }
+    .flatpickr-day {
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        color: #334155 !important;
+    }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.selected:focus {
+        background: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
+    }
+    .flatpickr-day.today {
+        border-color: transparent !important;
+        background: #fef3c7 !important;
+        color: #92400e !important;
+        font-weight: 700 !important;
+    }
+    /* Availability dots matching Calendly style */
+    .flatpickr-day.highlight-available {
+        position: relative !important;
+    }
+    .flatpickr-day.highlight-available::after {
+        content: '' !important;
+        position: absolute !important;
+        bottom: 4px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 4px !important;
+        height: 4px !important;
+        background-color: #3b82f6 !important; /* blue dot */
+        border-radius: 50% !important;
+    }
+
+    /* Custom styled time list buttons */
+    .time-btn {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        text-align: center;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        color: #334155;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .time-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+    .time-btn.selected {
+        background: #cbd5e1 !important;
+        border-color: #94a3b8 !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
+    }
+    .time-btn.highlight-slot {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+        font-weight: 600;
+        position: relative;
+    }
+    .time-btn.highlight-slot::after {
+        content: '';
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        background: #10b981;
+        border-radius: 50%;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+    .time-btn.highlight-slot:hover {
+        background: #10b981;
+        color: white;
+        border-color: #10b981;
+    }
+
+    /* Sleek thin scrollbar */
+    .scrollbar-thin::-webkit-scrollbar {
+        width: 6px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+        background: #f8fafc;
+        border-radius: 10px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Mobile Overlay & Responsive Adjustments */
+    @media (max-width: 767px) {
+        #datetime-picker-panel {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 90vw !important;
+            max-width: 340px !important;
+            height: auto !important;
+            max-height: 90vh !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+            z-index: 10000 !important;
+            border-radius: 24px !important;
+            padding: 16px !important;
+        }
+        .flatpickr-calendar {
+            width: 100% !important;
+            max-width: 280px !important;
+            margin: 0 auto !important;
+            flex-shrink: 0 !important;
+        }
+        #picker-time-list {
+            flex-grow: 1 !important;
+            max-height: 180px !important;
+            overflow-y: auto !important;
+            margin-top: 8px !important;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="px-4 py-10 bg-[#f4eadf] min-h-screen">
     <div class="max-w-6xl mx-auto">
@@ -12,17 +163,70 @@
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Request Appointment</h2>
                 <form method="POST" action="{{ url_for('appointments') }}" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 relative">
+                        <!-- Date Trigger Input -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-2">Preferred Date</label>
-                            <input type="date" name="appointment_date"
-                                   class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none">
+                            <div class="relative">
+                                <input type="hidden" name="appointment_date" id="appointment_date_hidden">
+                                <input type="text" id="appointment_date" readonly placeholder="Select date..."
+                                       class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none bg-white cursor-pointer pr-10">
+                                <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </span>
+                            </div>
                         </div>
+                        <!-- Time Trigger Input -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-2">Preferred Time</label>
-                            <input type="time" name="appointment_time"
-                                   class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none">
+                            <div class="relative">
+                                <input type="hidden" name="appointment_time" id="appointment_time_hidden">
+                                <input type="text" id="appointment_time" readonly placeholder="Select time..."
+                                       class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:border-amber-700 focus:outline-none bg-white cursor-pointer pr-10">
+                                <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </span>
+                            </div>
                         </div>
+
+                        <!-- Combined Unified Picker Dropdown Backdrop -->
+                        <div id="datetime-picker-backdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999]"></div>
+
+                        <!-- Combined Unified Picker Dropdown -->
+                        <div id="datetime-picker-panel" class="hidden absolute top-[calc(100%+8px)] left-0 right-0 z-[10000] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 flex flex-col md:flex-row gap-4 max-w-[580px] w-[95vw] md:w-auto mx-auto sm:mx-0">
+                            <!-- Left: Inline Flatpickr Calendar -->
+                            <div class="flex-grow">
+                                <div id="picker-calendar-inline"></div>
+                            </div>
+                            <!-- Vertical Divider -->
+                            <div class="hidden md:block w-px bg-slate-100 self-stretch"></div>
+                            <!-- Right: Scrollable Times list -->
+                            <div class="w-full md:w-[150px] flex flex-col">
+                                <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Time</span>
+                                <div id="picker-time-list" class="flex-grow overflow-y-auto max-h-[290px] pr-1 space-y-1 scrollbar-thin">
+                                    <!-- Dynamic time options: 8:00 AM to 8:00 PM -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modern Interactive Slot Helpers -->
+                    <div id="slot-helper-container" class="hidden p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <p class="text-sm font-semibold text-emerald-900 mb-2 flex items-center gap-1.5">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Available slot times on this date:
+                        </p>
+                        <div id="slot-buttons" class="flex flex-wrap gap-2"></div>
+                        <p class="text-xs text-emerald-600 mt-2">Click a time slot to select it automatically.</p>
+                    </div>
+                    <div id="slot-warning-container" class="hidden p-4 bg-amber-50 rounded-xl border border-amber-200">
+                        <p class="text-sm text-amber-900 flex items-start gap-2">
+                            <span class="text-amber-500 font-bold">⚠️</span>
+                            <span>
+                                <strong>No pre-scheduled slots on this date.</strong> 
+                                Your request can be submitted, but may require rescheduling.
+                            </span>
+                        </p>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Purpose</label>
@@ -42,9 +246,17 @@
 
             <div class="bg-white rounded-lg shadow border border-stone-200 p-6">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Available Slots</h2>
-                {% if slots %}
+                {% set ns = namespace(has_slots=false) %}
+                {% for slot in slots %}
+                    {% if (not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date) and (slot.slot_date not in active_user_dates) %}
+                        {% set ns.has_slots = true %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if slots and ns.has_slots %}
                 <div class="space-y-3">
                     {% for slot in slots %}
+                    {% if (not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date) and (slot.slot_date not in active_user_dates) %}
                     <form method="POST" action="{{ url_for('book_appointment_slot', slot_id=slot.id) }}" class="border rounded-lg p-4 space-y-3">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="flex items-center justify-between gap-3">
@@ -59,6 +271,7 @@
                         <textarea name="notes" rows="2" placeholder="Notes"
                                   class="w-full px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:border-amber-700"></textarea>
                     </form>
+                    {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}
@@ -72,25 +285,339 @@
             {% if appointments %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for a in appointments %}
-                <div class="border rounded-lg p-4">
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="font-semibold text-slate-900">{{ a.scheduled_date or a.appointment_date }} {{ a.scheduled_time or a.appointment_time }}</p>
-                        <span class="text-xs font-bold {% if a.status in ['scheduled','booked','completed'] %}text-green-700{% elif a.status == 'cancelled' %}text-red-700{% else %}text-amber-700{% endif %}">
-                            {{ a.status|replace('_',' ')|title if a.status else 'Requested' }}
-                        </span>
+                <div class="border rounded-lg p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="font-semibold text-slate-900">{{ a.scheduled_date or a.appointment_date }} {{ a.scheduled_time or a.appointment_time }}</p>
+                            <span class="text-xs font-bold {% if a.status in ['scheduled','booked','completed'] %}text-green-700{% elif a.status == 'cancelled' %}text-red-700{% else %}text-amber-700{% endif %}">
+                                {{ a.status|replace('_',' ')|title if a.status else 'Requested' }}
+                            </span>
+                        </div>
+                        <p class="text-slate-700 mt-1">{{ a.purpose }}</p>
+                        {% if a.notes %}<p class="text-sm text-slate-500 mt-1">{{ a.notes }}</p>{% endif %}
+                        
+                        {% if a.recording_url and a.share_recording %}
+                        <div class="mt-3 p-3 bg-stone-50 rounded-lg border border-stone-200">
+                            <p class="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path></svg>
+                                Meeting Recording
+                            </p>
+                            <video controls class="w-full rounded border border-stone-300 max-h-64 shadow-sm bg-black">
+                                <source src="{{ a.recording_url }}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        {% endif %}
                     </div>
-                    <p class="text-slate-700 mt-1">{{ a.purpose }}</p>
-                    {% if a.notes %}<p class="text-sm text-slate-500 mt-1">{{ a.notes }}</p>{% endif %}
-                    {% if a.meet_url %}
-                    <a href="{{ url_for('meeting_room', appointment_id=a.id) }}" target="_blank" rel="noopener" class="inline-flex mt-3 text-sm font-bold text-blue-700">Open secure meeting</a>
+                    {% if a.meet_url and a.status not in ['completed', 'cancelled'] %}
+                    <div class="mt-3 pt-2">
+                        <a href="{{ url_for('meeting_room', appointment_uuid=a.uuid) }}" target="_blank" rel="noopener" class="inline-flex text-sm font-bold text-blue-700 hover:text-blue-900">Open secure meeting</a>
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
+            
+            {% if has_more %}
+            <div class="mt-6 flex justify-start">
+                {% if not show_all %}
+                <a href="{{ url_for('appointments', show_all='true') }}" class="px-5 py-2.5 bg-amber-800 text-white font-bold rounded-lg hover:bg-amber-900 transition text-sm shadow">View More Meetings</a>
+                {% else %}
+                <a href="{{ url_for('appointments') }}" class="px-5 py-2.5 bg-stone-900 text-white font-bold rounded-lg hover:bg-stone-850 transition text-sm shadow">Show Less</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            
             {% else %}
             <p class="text-slate-600">No appointment requests yet.</p>
             {% endif %}
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='css/flatpickr.min.js') }}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Collect all available slot date-times from context
+        const availableSlots = [
+            {% for slot in slots %}
+            {% if not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date %}
+            {
+                date: "{{ slot.slot_date }}",
+                time: "{{ slot.slot_time }}"
+            },
+            {% endif %}
+            {% endfor %}
+        ];
+
+        // Create a unique set of available slot dates
+        const availableDatesSet = new Set(availableSlots.map(s => s.date));
+
+        const dateInput = document.getElementById('appointment_date');
+        const timeInput = document.getElementById('appointment_time');
+        const dateInputHidden = document.getElementById('appointment_date_hidden');
+        const timeInputHidden = document.getElementById('appointment_time_hidden');
+        const pickerPanel = document.getElementById('datetime-picker-panel');
+        const timeListDiv = document.getElementById('picker-time-list');
+        const helperContainer = document.getElementById('slot-helper-container');
+        const warningContainer = document.getElementById('slot-warning-container');
+        const slotButtonsDiv = document.getElementById('slot-buttons');
+
+        // Toggle panel when trigger inputs are clicked
+        function showPanel() {
+            pickerPanel.classList.remove('hidden');
+            if (window.innerWidth < 768) {
+                const backdrop = document.getElementById('datetime-picker-backdrop');
+                backdrop.classList.remove('hidden');
+                backdrop.classList.add('show');
+            }
+        }
+        
+        function hidePanel() {
+            pickerPanel.classList.add('hidden');
+            const backdrop = document.getElementById('datetime-picker-backdrop');
+            backdrop.classList.add('hidden');
+            backdrop.classList.remove('show');
+        }
+
+        dateInput.addEventListener('click', showPanel);
+        timeInput.addEventListener('click', showPanel);
+
+        // Hide panel when clicking outside or clicking the backdrop
+        document.getElementById('datetime-picker-backdrop').addEventListener('click', hidePanel);
+        document.addEventListener('click', function(e) {
+            if (!pickerPanel.contains(e.target) && 
+                e.target !== dateInput && 
+                e.target !== timeInput && 
+                !dateInput.contains(e.target) && 
+                !timeInput.contains(e.target) &&
+                e.target !== document.getElementById('datetime-picker-backdrop')) {
+                hidePanel();
+            }
+        });
+
+        const releaseLimitDateStr = "{{ global_settings.release_limit_date if (global_settings and global_settings.release_limit_date) else '' }}";
+        const activeUserDates = new Set({{ active_user_dates | tojson }});
+
+        // Initialize inline flatpickr inside the #picker-calendar-inline container
+        const calendarFp = flatpickr("#picker-calendar-inline", {
+            inline: true,
+            minDate: "today",
+            maxDate: releaseLimitDateStr || null,
+            disableMobile: true,
+            disable: [
+                function(date) {
+                    // Disable Sundays (0)
+                    if (date.getDay() === 0) return true;
+                    
+                    // Disable dates where user already has an active appointment
+                    const dateStr = flatpickr.formatDate(date, "Y-m-d");
+                    if (activeUserDates.has(dateStr)) return true;
+                    
+                    return false;
+                }
+            ],
+            dateFormat: "Y-m-d",
+            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                const dateStr = fp.formatDate(dayElem.dateObj, "Y-m-d");
+                if (availableDatesSet.has(dateStr)) {
+                    dayElem.classList.add("highlight-available");
+                    dayElem.title = "Coordinator slots available!";
+                }
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length > 0) {
+                    // Formatted display date for user view
+                    const formattedDate = instance.formatDate(selectedDates[0], "M j, Y"); // e.g. Sep 21, 2025
+                    dateInput.value = formattedDate;
+                    dateInputHidden.value = dateStr; // ISO format submitted to backend
+                    
+                    // Re-render and filter time options for this selected date
+                    renderTimeList(dateStr);
+                    
+                    // Smoothly scroll the time panel to the first highlighted coordinator slot if available
+                    setTimeout(() => {
+                        const firstHighlight = timeListDiv.querySelector('.highlight-slot');
+                        if (firstHighlight) {
+                            firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 80);
+                }
+            }
+        });
+
+        // Settings fetched from coordinator global config
+        const allowCustomRequests = {{ 'true' if (global_settings and global_settings.allow_custom_requests) else 'false' }};
+        const requestStartTime = "{{ global_settings.request_start_time if (global_settings and global_settings.request_start_time) else '09:00' }}";
+        const requestEndTime = "{{ global_settings.request_end_time if (global_settings and global_settings.request_end_time) else '17:00' }}";
+
+        // Helper to convert time "HH:MM" to minutes from midnight
+        function timeToMinutes(tStr) {
+            if (!tStr) return 0;
+            const parts = tStr.split(':');
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || 0, 10);
+        }
+
+        // Helper to format "HH:MM" 24h format to 12h display format
+        function formatTime12(tStr) {
+            if (!tStr) return '';
+            const parts = tStr.split(':');
+            const h24 = parseInt(parts[0], 10);
+            const min = parts[1];
+            const ampm = h24 < 12 ? "AM" : "PM";
+            const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+            return `${h12}:${min} ${ampm}`;
+        }
+
+        // Pre-generate standard 30-min time increments from 8:00 AM to 8:00 PM
+        const timeOptions = [];
+        for (let hour = 8; hour <= 20; hour++) {
+            for (let min of ["00", "30"]) {
+                if (hour === 20 && min === "30") continue;
+                let h = hour % 12;
+                if (h === 0) h = 12;
+                const ampm = hour < 12 ? "AM" : "PM";
+                const display = `${h}:${min} ${ampm}`;
+                const value = `${hour.toString().padStart(2, '0')}:${min}`;
+                timeOptions.push({ display, value });
+            }
+        }
+
+        // Render scrollable time option buttons
+        function renderTimeList(selectedDateStr) {
+            timeListDiv.innerHTML = '';
+            
+            if (!selectedDateStr) {
+                const msg = document.createElement('div');
+                msg.className = 'text-xs text-slate-500 text-center py-4';
+                msg.textContent = 'Please select a date first.';
+                timeListDiv.appendChild(msg);
+                updateSlotHelpers(selectedDateStr, []);
+                return;
+            }
+            
+            const daySlots = availableSlots.filter(s => s.date === selectedDateStr);
+            const daySlotTimes = new Set(daySlots.map(s => s.time));
+
+            let filteredOptions = [];
+
+            if (daySlots.length > 0) {
+                // If there are pre-scheduled available coordinator slots on this date:
+                // Show ONLY those specific slot times on the right (and hide all other standard times)
+                filteredOptions = timeOptions.filter(opt => daySlotTimes.has(opt.value));
+            } else if (allowCustomRequests) {
+                // If no slots but custom requests are allowed:
+                // Show ONLY the time options that fall within the custom request window
+                const startMin = timeToMinutes(requestStartTime);
+                const endMin = timeToMinutes(requestEndTime);
+                filteredOptions = timeOptions.filter(opt => {
+                    const optMin = timeToMinutes(opt.value);
+                    return optMin >= startMin && optMin <= endMin;
+                });
+            }
+
+            if (filteredOptions.length === 0) {
+                const msg = document.createElement('div');
+                msg.className = 'text-xs text-rose-500 font-semibold text-center py-4 px-2';
+                msg.textContent = 'No slots available on this date.';
+                timeListDiv.appendChild(msg);
+            } else {
+                filteredOptions.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'time-btn';
+                    btn.textContent = opt.display;
+                    btn.dataset.value = opt.value;
+
+                    // Highlight if coordinator slot is available on this date
+                    if (daySlotTimes.has(opt.value)) {
+                        btn.classList.add('highlight-slot');
+                        btn.title = "Coordinator is available!";
+                    }
+
+                    // If currently selected, show selected state
+                    if (timeInputHidden.value === opt.value) {
+                        btn.classList.add('selected');
+                    }
+
+                    btn.addEventListener('click', function() {
+                        timeInput.value = opt.display;
+                        timeInputHidden.value = opt.value;
+                        
+                        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+
+                        // Flash success highlight on the time field
+                        timeInput.classList.add('ring-2', 'ring-emerald-500', 'border-emerald-500');
+                        setTimeout(() => timeInput.classList.remove('ring-2', 'ring-emerald-500', 'border-emerald-500'), 800);
+
+                        // Close the picker panel
+                        setTimeout(() => {
+                            pickerPanel.classList.add('hidden');
+                        }, 250);
+                    });
+
+                    timeListDiv.appendChild(btn);
+                });
+            }
+            
+            // Sync with helper badge components under inputs
+            updateSlotHelpers(selectedDateStr, daySlots);
+        }
+
+        // Function to update interaction helpers/badges when date is selected
+        function updateSlotHelpers(dateStr, daySlots) {
+            slotButtonsDiv.innerHTML = '';
+            
+            if (!dateStr) {
+                helperContainer.classList.add('hidden');
+                warningContainer.classList.add('hidden');
+                return;
+            }
+            
+            if (daySlots.length > 0) {
+                warningContainer.classList.add('hidden');
+                helperContainer.classList.remove('hidden');
+                
+                daySlots.forEach(slot => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'px-3 py-1.5 text-xs font-bold bg-white text-emerald-800 border border-emerald-300 rounded-lg hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition shadow-sm cursor-pointer';
+                    
+                    btn.textContent = formatTime12(slot.time);
+
+                    btn.addEventListener('click', () => {
+                        timeInput.value = btn.textContent;
+                        timeInputHidden.value = slot.time;
+                        
+                        // Sync state in scrollable sidebar list
+                        renderTimeList(dateStr);
+                        
+                        // Highlight the time input box briefly to indicate selection
+                        timeInput.classList.add('ring-2', 'ring-emerald-500', 'border-emerald-500');
+                        setTimeout(() => timeInput.classList.remove('ring-2', 'ring-emerald-500', 'border-emerald-500'), 1200);
+                    });
+                    slotButtonsDiv.appendChild(btn);
+                });
+            } else {
+                helperContainer.classList.add('hidden');
+                warningContainer.classList.remove('hidden');
+                
+                const warningMsgSpan = warningContainer.querySelector('span');
+                if (warningMsgSpan) {
+                    if (allowCustomRequests) {
+                        warningMsgSpan.innerHTML = `<strong>No pre-scheduled slots on this date.</strong> Your request can be submitted within ${formatTime12(requestStartTime)} - ${formatTime12(requestEndTime)}.`;
+                    } else {
+                        warningMsgSpan.innerHTML = `<strong>No slots available on this date.</strong> Custom requests are disabled by the coordinator.`;
+                    }
+                }
+            }
+        }
+
+        // Initialize default view
+        renderTimeList(null);
+    });
+</script>
 {% endblock %}

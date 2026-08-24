@@ -3705,6 +3705,59 @@ def is_current_time_near_scheduled(scheduled_date, scheduled_time):
     return -900 <= diff.total_seconds() <= 10800
 
 
+def meeting_allowed_participants(record):
+    """Return the authorised people for a meeting without relying on Jitsi presence."""
+    record = record or {}
+    participants = []
+    seen = set()
+
+    def add_person(person, role_label="Participant"):
+        if not person:
+            return
+        email = normalize_email(person.get("email")) or ""
+        user_id = str(person.get("user_id") or person.get("id") or "")
+        identity = email or user_id
+        if not identity or identity in seen:
+            return
+        seen.add(identity)
+        participants.append({
+            "name": clean_text(person.get("name"), 120) or email or "User",
+            "email": email,
+            "role": role_label,
+        })
+
+    try:
+        meet_url = record.get("meet_url")
+        slot_id = record.get("slot_id")
+        query = supabase.table("appointments").select("user_id,name,email,status")
+        if meet_url:
+            response = query.eq("meet_url", meet_url).limit(100).execute()
+        elif slot_id:
+            response = query.eq("slot_id", slot_id).limit(100).execute()
+        else:
+            response = None
+        for appointment in ((response.data or []) if response else [record]):
+            if appointment.get("status") not in {"cancelled", "completed"}:
+                add_person(appointment)
+    except Exception as exc:
+        app.logger.warning("Could not load meeting participants: %s", exc)
+        add_person(record)
+
+    try:
+        coordinator_id = record.get("coordinator_id")
+        if coordinator_id:
+            response = supabase.table("users").select("id,name,email").eq("id", coordinator_id).limit(1).execute()
+            add_person((response.data or [None])[0], "Coordinator")
+    except Exception as exc:
+        app.logger.warning("Could not load meeting coordinator: %s", exc)
+
+    # A coordinator opening an unused slot has no appointment record yet.
+    if getattr(current_user, "is_authenticated", False):
+        add_person({"id": current_db_user_id(), "name": current_user.name, "email": current_user.email},
+                   "Coordinator" if getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator" else "Participant")
+    return participants
+
+
 def render_jitsi_room(record, seed_text, title, return_url):
     room_name = jitsi_room_from_url_or_seed((record or {}).get("meet_url"), seed_text)
     is_moderator = bool(getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator")
@@ -3749,7 +3802,7 @@ def render_jitsi_room(record, seed_text, title, return_url):
         is_coordinator=is_moderator,
         appointment_uuid=(record or {}).get("uuid"),
         meeting_settings=ensure_meeting_settings_defaults((record or {}).get("meeting_settings")),
-        participants=[]
+        participants=meeting_allowed_participants(record)
     )
 
 

@@ -315,18 +315,20 @@
                     Allowed Participants ({{ participants|length }})
                 </button>
                 <div id="participants-panel" class="participants-panel">
-                    <div class="participants-title">Allowed Participants Only</div>
+                    <div class="participants-title">Scheduled participants</div>
                     <div class="participant-list-container">
                         {% for participant in participants %}
                         <div class="participant-item">
                             <div class="participant-info">
                                 <span class="participant-name">{{ participant.name or 'User' }}</span>
+                                {% if is_coordinator and participant.email %}
                                 <span class="participant-email">{{ participant.email }}</span>
+                                {% endif %}
                             </div>
-                            <span class="participant-status status-allowed">Allowed</span>
+                            <span class="participant-status status-allowed">{{ participant.role }}</span>
                         </div>
                         {% else %}
-                        <p style="font-size: 12px; color: #94a3b8; margin: 0;">Only you are scheduled in this room.</p>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 0;">No participant records are available for this meeting.</p>
                         {% endfor %}
                     </div>
                 </div>

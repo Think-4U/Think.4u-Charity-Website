@@ -1193,6 +1193,9 @@ def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_i
                 "name": clean_text(display_name, 120) or "Think.4U User",
                 "avatar": normalize_url(avatar_url or JITSI_DEFAULT_AVATAR_URL),
                 "email": normalize_email(email) or "",
+                # token_affiliation on the Jitsi server maps owner/member to
+                # moderator/participant. Do not rely on room defaults here.
+                "affiliation": "owner" if moderator else "member",
                 "moderator": bool(moderator),
             }
         },

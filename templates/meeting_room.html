@@ -406,7 +406,8 @@
             settings: JSON.parse('{{ meeting_settings|default({})|tojson|safe }}'),
             csrfToken: "{{ csrf_token() }}",
             appointmentUuid: JSON.parse('{{ appointment_uuid|default("")|tojson|safe }}'),
-            isCoordinator: JSON.parse('{{ is_coordinator|default(false)|tojson|safe }}')
+            isCoordinator: JSON.parse('{{ is_coordinator|default(false)|tojson|safe }}'),
+            e2eeEnabled: JSON.parse('{{ e2ee_enabled|default(false)|tojson|safe }}')
         };
 
         let mediaRecorder = null;
@@ -621,6 +622,7 @@
                     disableLinkToApp: true,
                     enableWelcomePage: false,
                     disableThirdPartyRequests: true,
+                    enableE2EE: meetingConfig.e2eeEnabled,
                     hideConferenceSubject: true,
                     toolbarButtons: buttons
                 }

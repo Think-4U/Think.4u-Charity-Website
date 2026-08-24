@@ -147,21 +147,24 @@ JITSI_ROOM_PREFIX = os.getenv("JITSI_ROOM_PREFIX", "Think4U").strip() or "Think4
 JITSI_JWT_KID = os.getenv("JITSI_JWT_KID", "").strip()
 JITSI_JWT_PRIVATE_KEY = os.getenv("JITSI_JWT_PRIVATE_KEY", "").strip()
 JITSI_JWT_PRIVATE_KEY_FILE = os.getenv("JITSI_JWT_PRIVATE_KEY_FILE", "").strip()
+JITSI_JWT_SECRET = os.getenv("JITSI_JWT_SECRET", "").strip()
 JITSI_JWT_KEY_ID = os.getenv("JITSI_JWT_KEY_ID", "").strip()
 JITSI_JWT_ISSUER = os.getenv("JITSI_JWT_ISSUER", "chat").strip()
 JITSI_JWT_AUDIENCE = os.getenv("JITSI_JWT_AUDIENCE", "jitsi").strip()
 JITSI_JWT_SUBJECT = os.getenv("JITSI_JWT_SUBJECT", "").strip()
 JITSI_JWT_ROOM_CLAIM = os.getenv("JITSI_JWT_ROOM_CLAIM", "").strip()
-JITSI_JWT_TTL_SECONDS = int(os.getenv("JITSI_JWT_TTL_SECONDS", "7200"))
+JITSI_JWT_TTL_SECONDS = int(os.getenv("JITSI_JWT_TTL_SECONDS", "900"))
+JITSI_REQUIRE_JWT = os.getenv("JITSI_REQUIRE_JWT", "true").lower() == "true"
+JITSI_ENABLE_E2EE = os.getenv("JITSI_ENABLE_E2EE", "true").lower() == "true"
 JITSI_DEFAULT_USER_ID = os.getenv("JITSI_DEFAULT_USER_ID", "").strip()
 JITSI_DEFAULT_AVATAR_URL = os.getenv("JITSI_DEFAULT_AVATAR_URL", "").strip()
-JITSI_FEATURE_LIVESTREAMING = os.getenv("JITSI_FEATURE_LIVESTREAMING", "true").lower() == "true"
-JITSI_FEATURE_FILE_UPLOAD = os.getenv("JITSI_FEATURE_FILE_UPLOAD", "true").lower() == "true"
-JITSI_FEATURE_OUTBOUND_CALL = os.getenv("JITSI_FEATURE_OUTBOUND_CALL", "true").lower() == "true"
+JITSI_FEATURE_LIVESTREAMING = os.getenv("JITSI_FEATURE_LIVESTREAMING", "false").lower() == "true"
+JITSI_FEATURE_FILE_UPLOAD = os.getenv("JITSI_FEATURE_FILE_UPLOAD", "false").lower() == "true"
+JITSI_FEATURE_OUTBOUND_CALL = os.getenv("JITSI_FEATURE_OUTBOUND_CALL", "false").lower() == "true"
 JITSI_FEATURE_SIP_OUTBOUND_CALL = os.getenv("JITSI_FEATURE_SIP_OUTBOUND_CALL", "false").lower() == "true"
-JITSI_FEATURE_TRANSCRIPTION = os.getenv("JITSI_FEATURE_TRANSCRIPTION", "true").lower() == "true"
+JITSI_FEATURE_TRANSCRIPTION = os.getenv("JITSI_FEATURE_TRANSCRIPTION", "false").lower() == "true"
 JITSI_FEATURE_LIST_VISITORS = os.getenv("JITSI_FEATURE_LIST_VISITORS", "false").lower() == "true"
-JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "true").lower() == "true"
+JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "false").lower() == "true"
 JITSI_FEATURE_FLIP = os.getenv("JITSI_FEATURE_FLIP", "false").lower() == "true"
 JITSI_JWT_ALGORITHM = os.getenv("JITSI_JWT_ALGORITHM", "RS256").strip()
 SITE_MEDIA_BUCKET = os.getenv("SITE_MEDIA_BUCKET", "site-media")
@@ -1129,10 +1132,10 @@ def jitsi_jwt_kid():
 
 
 def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_id=None, avatar_url=None):
-    private_key = read_jitsi_private_key()
+    signing_key = read_jitsi_private_key() or JITSI_JWT_SECRET
     jwt_kid = jitsi_jwt_kid()
-    if not private_key or not jwt_kid or not pyjwt:
-        if private_key and not pyjwt:
+    if not signing_key or not pyjwt:
+        if signing_key and not pyjwt:
             app.logger.warning("Jitsi JWT private key is configured but PyJWT is not installed.")
         return ""
 
@@ -1170,7 +1173,7 @@ def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_i
     }
     return pyjwt.encode(
         payload,
-        private_key,
+        signing_key,
         algorithm=JITSI_JWT_ALGORITHM,
         headers={"kid": jwt_kid} if jwt_kid else None,
     )
@@ -3561,10 +3564,10 @@ def book_appointment_slot(slot_id):
             "uuid": str(uuid.uuid4())
         }
         
+        # Supabase may return an empty body for a successful INSERT (the normal
+        # `return=minimal` behaviour). Do not turn that booking into an error.
         insert_res = supabase.table("appointments").insert(new_appt).execute()
-        if not insert_res.data:
-            raise Exception("Failed to insert appointment")
-        appointment = insert_res.data[0]
+        appointment = (getattr(insert_res, "data", None) or [new_appt])[0]
 
         # 5. Update slot
         is_now_full = (active_count + 1) >= limit
@@ -3625,6 +3628,18 @@ def can_join_appointment(appointment):
     )
 
 
+def can_manage_coordinator_record(record):
+    """Return whether the current coordinator may change this slot or meeting."""
+    if not record or not current_user.is_authenticated:
+        return False
+    if getattr(current_user, "is_admin", False):
+        return True
+    if getattr(current_user, "role", "") != "coordinator":
+        return False
+    owner_id = record.get("coordinator_id")
+    return owner_id in {None, "", current_db_user_id(), str(current_db_user_id())}
+
+
 def is_current_time_near_scheduled(scheduled_date, scheduled_time):
     if not scheduled_date or not scheduled_time:
         return True  # Fallback if not set
@@ -3679,11 +3694,42 @@ def render_jitsi_room(record, seed_text, title, return_url):
         moderator=is_moderator,
         user_id=getattr(current_user, "id", "") or JITSI_DEFAULT_USER_ID,
     )
-    
-    direct_meet_url = f"{jitsi_origin()}/{room_name}"
-    if jwt_token:
-        direct_meet_url += f"?jwt={jwt_token}"
-    return redirect(direct_meet_url)
+    if JITSI_REQUIRE_JWT and not jwt_token:
+        app.logger.error("Refusing to open meeting %s without a Jitsi JWT.", room_name)
+        return render_template(
+            "meeting_room.html",
+            is_invalid=True,
+            invalid_reason="Secure meeting access is temporarily unavailable. Please contact support.",
+            title="Meeting Unavailable",
+            return_url=return_url,
+            domain=jitsi_domain(), api_script_url="", room_name="", jwt_token="",
+            display_name="", user_email="", direct_meet_url="", jwt_required=True,
+            jwt_enabled=False, is_coordinator=False, appointment_uuid=None,
+            meeting_settings={}, participants=[]
+        ), 503
+
+    # Keep the JWT out of the browser address bar and referrer headers. The
+    # External API receives it directly when it creates the authenticated room.
+    return render_template(
+        "meeting_room.html",
+        is_invalid=False,
+        title=title,
+        return_url=return_url,
+        domain=jitsi_domain(),
+        api_script_url=jitsi_api_script_url(),
+        room_name=room_name,
+        jwt_token=jwt_token,
+        display_name=current_user.name or current_user.email,
+        user_email=current_user.email,
+        direct_meet_url="",
+        jwt_required=JITSI_REQUIRE_JWT,
+        jwt_enabled=bool(jwt_token),
+        e2ee_enabled=JITSI_ENABLE_E2EE,
+        is_coordinator=is_moderator,
+        appointment_uuid=(record or {}).get("uuid"),
+        meeting_settings=ensure_meeting_settings_defaults((record or {}).get("meeting_settings")),
+        participants=[]
+    )
 
 
 @app.route("/meeting/<uuid:appointment_uuid>")
@@ -3704,13 +3750,13 @@ def meeting_room(appointment_uuid):
         flash("You do not have access to this meeting.", "error")
         return redirect(url_for("appointments"))
 
-    # Time-window check: only for non-staff
+    # Apply the join window to every role. Staff receive moderator claims but
+    # must not be able to mint an active room token far outside its schedule.
     is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
-    if not is_staff:
-        scheduled_date = appointment.get("scheduled_date") or appointment.get("appointment_date")
-        scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time")
-        if not is_current_time_near_scheduled(scheduled_date, scheduled_time):
-            return render_template(
+    scheduled_date = appointment.get("scheduled_date") or appointment.get("appointment_date")
+    scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time")
+    if not is_current_time_near_scheduled(scheduled_date, scheduled_time):
+        return render_template(
                 "meeting_room.html",
                 is_invalid=True,
                 invalid_reason="You can only join the meeting around its scheduled time.",
@@ -3729,7 +3775,7 @@ def meeting_room(appointment_uuid):
                 appointment_uuid=None,
                 meeting_settings={},
                 participants=[]
-            )
+        )
 
     if appointment.get("status") in {"completed", "cancelled"}:
         return render_template(
@@ -3979,7 +4025,7 @@ def upload_recording_auto(appointment_uuid):
         return jsonify({"success": False, "message": "Meeting not found"}), 404
 
     is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
-    if not is_staff:
+    if not is_staff or (not getattr(current_user, "is_admin", False) and not can_join_appointment(appointment)):
         return jsonify({"success": False, "message": "Unauthorized access to upload recording"}), 403
 
     video_file = request.files.get("video_file")
@@ -5212,7 +5258,9 @@ def coordinator_create_slot():
     except ValueError:
         registration_limit = 1
 
+    global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
     meeting_settings = {
+        **global_settings,
         "show_chat": request.form.get("show_chat") == "on",
         "show_screen_share": request.form.get("show_screen_share") == "on",
         "show_raise_hand": request.form.get("show_raise_hand") == "on",
@@ -5224,7 +5272,10 @@ def coordinator_create_slot():
         flash("Slot date and time are required.", "error")
         return redirect(url_for("coordinator_portal"))
 
-    global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
+    release_limit_date = global_settings.get("release_limit_date")
+    if release_limit_date and slot_date > release_limit_date:
+        flash(f"Slots cannot be created after the release limit date ({release_limit_date}).", "error")
+        return redirect(url_for("coordinator_portal"))
 
     try:
         supabase.table("appointment_slots").insert({
@@ -5250,6 +5301,11 @@ def coordinator_create_slot():
 @coordinator_required
 def coordinator_slot_delete(slot_id):
     try:
+        slot_res = supabase.table("appointment_slots").select("id,coordinator_id").eq("id", slot_id).limit(1).execute()
+        slot = (slot_res.data or [None])[0]
+        if not can_manage_coordinator_record(slot):
+            flash("You do not have permission to delete this slot.", "error")
+            return redirect(url_for("coordinator_portal"))
         supabase.table("appointments").update({"status": "cancelled", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("slot_id", slot_id).neq("status", "completed").execute()
         supabase.table("appointment_slots").delete().eq("id", slot_id).execute()
         flash("Slot deleted and associated appointments cancelled.", "success")
@@ -5268,12 +5324,17 @@ def coordinator_slot_merge(slot_id):
         return redirect(request.referrer or url_for("coordinator_portal"))
         
     try:
-        target_res = supabase.table("appointment_slots").select("*").eq("id", target_slot_id).execute()
+        source_res = supabase.table("appointment_slots").select("id,coordinator_id").eq("id", slot_id).limit(1).execute()
+        source_slot = (source_res.data or [None])[0]
+        target_res = supabase.table("appointment_slots").select("*").eq("id", target_slot_id).limit(1).execute()
         if not target_res.data:
             flash("Target slot not found.", "error")
             return redirect(request.referrer or url_for("coordinator_portal"))
             
         target_slot = target_res.data[0]
+        if not can_manage_coordinator_record(source_slot) or not can_manage_coordinator_record(target_slot):
+            flash("You do not have permission to merge these slots.", "error")
+            return redirect(url_for("coordinator_portal"))
         
         update_data = {
             "slot_id": target_slot_id,
@@ -5307,6 +5368,9 @@ def coordinator_add_participant(appointment_id):
         src_meeting = (src_res.data or [None])[0]
         if not src_meeting:
             flash("Meeting not found.", "error")
+            return redirect(url_for("coordinator_portal"))
+        if not can_manage_coordinator_record(src_meeting):
+            flash("You do not have permission to manage this meeting.", "error")
             return redirect(url_for("coordinator_portal"))
 
         # Find target user by email
@@ -5392,8 +5456,11 @@ def coordinator_update_meeting_settings(appointment_id):
 
     try:
         # Get the meeting
-        meet_res = supabase.table("appointments").select("meet_url").eq("id", appointment_id).limit(1).execute()
+        meet_res = supabase.table("appointments").select("meet_url,coordinator_id").eq("id", appointment_id).limit(1).execute()
         meet_row = (meet_res.data or [None])[0]
+        if not can_manage_coordinator_record(meet_row):
+            flash("You do not have permission to change this meeting.", "error")
+            return redirect(url_for("coordinator_portal"))
         if meet_row and meet_row.get("meet_url"):
             # Update all appointments sharing this meet_url
             supabase.table("appointments").update({
@@ -5543,7 +5610,7 @@ def coordinator_history():
     except Exception as e:
         app.logger.warning(f"Coordinator slots load failed: {e}")
 
-    return render_template("coordinator/history.html", meetings=meetings, slots=slots)
+    return render_template("coordinator/history.html", meetings=meetings, slots=slots, all_slots=slots)
 
 
 @app.route("/coordinator/meeting/<int:appointment_id>", methods=["GET", "POST"])
@@ -5675,6 +5742,9 @@ def coordinator_schedule_appointment(appointment_id):
     try:
         current_response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
         current_row = (current_response.data or [None])[0]
+        if not can_manage_coordinator_record(current_row):
+            flash("You do not have permission to schedule this meeting.", "error")
+            return redirect(url_for("coordinator_portal"))
         
         global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
         meeting_settings = ensure_meeting_settings_defaults((current_row or {}).get("meeting_settings") or global_settings)
@@ -5752,6 +5822,7 @@ def coordinator_bulk_slots():
                     return redirect(url_for("coordinator_bulk_slots"))
                 
                 slots_to_insert = []
+                release_limit_date = global_settings.get("release_limit_date")
                 for row in csv_reader:
                     clean_row = {k.strip().lower(): v.strip() for k, v in row.items() if k and v}
                     
@@ -5772,6 +5843,10 @@ def coordinator_bulk_slots():
                                 slot_date = dt.date().isoformat()
                             except Exception:
                                 continue
+
+                    if release_limit_date and slot_date > release_limit_date:
+                        flash(f"CSV contains a slot after the release limit date ({release_limit_date}).", "error")
+                        return redirect(url_for("coordinator_bulk_slots"))
                                 
                     pass
                                 
@@ -5843,12 +5918,14 @@ def coordinator_bulk_slots():
             if not start_date_str or not end_date_str or not start_time_str or not end_time_str:
                 flash("Start date, end date, start time, and end time are required.", "error")
                 return redirect(url_for("coordinator_bulk_slots"))
-                
-            pass
-                
+
             try:
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                release_limit_date = global_settings.get("release_limit_date")
+                if release_limit_date and end_date.isoformat() > release_limit_date:
+                    flash(f"Slots cannot be generated after the release limit date ({release_limit_date}).", "error")
+                    return redirect(url_for("coordinator_bulk_slots"))
                 sh, sm = map(int, start_time_str.split(":"))
                 eh, em = map(int, end_time_str.split(":"))
                 

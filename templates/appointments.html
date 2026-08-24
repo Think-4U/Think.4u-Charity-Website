@@ -248,7 +248,7 @@
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">Available Slots</h2>
                 {% set ns = namespace(has_slots=false) %}
                 {% for slot in slots %}
-                    {% if (not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date) and (slot.slot_date not in active_user_dates) %}
+                    {% if slot.slot_date not in active_user_dates %}
                         {% set ns.has_slots = true %}
                     {% endif %}
                 {% endfor %}
@@ -256,7 +256,7 @@
                 {% if slots and ns.has_slots %}
                 <div class="space-y-3">
                     {% for slot in slots %}
-                    {% if (not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date) and (slot.slot_date not in active_user_dates) %}
+                    {% if slot.slot_date not in active_user_dates %}
                     <form method="POST" action="{{ url_for('book_appointment_slot', slot_id=slot.id) }}" class="border rounded-lg p-4 space-y-3">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="flex items-center justify-between gap-3">
@@ -388,14 +388,12 @@
         // Collect all available slot date-times from context
         const availableSlotsStr = `[
             {% for slot in slots %}
-            {% if not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date %}
             {
                 "date": "{{ slot.slot_date }}",
                 "time": "{{ slot.slot_time[:5] if slot.slot_time else '' }}"
             }{% if not loop.last %},{% endif %}
-            {% endif %}
             {% endfor %}
-        ]`.replace(/,\s*\]$/, ']'); // Remove trailing comma if present
+        ]`;
         const availableSlots = JSON.parse(availableSlotsStr);
 
         // Create a unique set of available slot dates

@@ -26,6 +26,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import HTTPException
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import traceback
 import tempfile
 import qrcode
@@ -167,6 +168,13 @@ JITSI_FEATURE_LIST_VISITORS = os.getenv("JITSI_FEATURE_LIST_VISITORS", "false").
 JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "false").lower() == "true"
 JITSI_FEATURE_FLIP = os.getenv("JITSI_FEATURE_FLIP", "false").lower() == "true"
 JITSI_JWT_ALGORITHM = os.getenv("JITSI_JWT_ALGORITHM", "RS256").strip()
+MEETING_TIMEZONE_NAME = os.getenv("MEETING_TIMEZONE", "Asia/Kolkata").strip() or "Asia/Kolkata"
+try:
+    MEETING_TIMEZONE = ZoneInfo(MEETING_TIMEZONE_NAME)
+except ZoneInfoNotFoundError:
+    # Keep the app usable in a minimal runtime, while logging the configuration issue.
+    MEETING_TIMEZONE = timezone.utc
+    logging.getLogger(__name__).warning("Unknown MEETING_TIMEZONE %s; using UTC.", MEETING_TIMEZONE_NAME)
 SITE_MEDIA_BUCKET = os.getenv("SITE_MEDIA_BUCKET", "site-media")
 APP_VERSION = "2.4.0"
 
@@ -429,7 +437,7 @@ def cleanup_expired_slots_and_meetings():
                     s_time_clean = str(s_time)[:5]
                     slot_dt = datetime.strptime(f"{s_date} {s_time_clean}", "%Y-%m-%d %H:%M")
                     slot_end_dt = slot_dt + timedelta(minutes=duration)
-                    if slot_end_dt < datetime.now():
+                    if slot_end_dt < meeting_now_naive():
                         ids_to_delete.append(slot["id"])
                 except Exception:
                     pass
@@ -454,7 +462,7 @@ def cleanup_expired_slots_and_meetings():
                         m_dt = datetime.strptime(f"{m_date} {m_time}", "%Y-%m-%d %H:%M")
                     else:
                         m_dt = datetime.strptime(f"{m_date} 23:59", "%Y-%m-%d %H:%M")
-                    if m_dt < datetime.now():
+                    if m_dt < meeting_now_naive():
                         m_ids_to_delete.append(m["id"])
                 except Exception:
                     pass
@@ -571,6 +579,24 @@ def normalize_url(value, max_length=800):
     if not re.match(r"^https://", url, flags=re.IGNORECASE):
         return ""
     return url
+
+
+def normalize_meeting_time(value):
+    """Return a validated 24-hour HH:MM time, or an empty string."""
+    raw_value = clean_text(value, 20)
+    if not raw_value:
+        return ""
+    for time_format in ("%H:%M", "%H:%M:%S", "%I:%M %p", "%I:%M%p"):
+        try:
+            return datetime.strptime(raw_value, time_format).strftime("%H:%M")
+        except ValueError:
+            continue
+    return ""
+
+
+def meeting_now_naive():
+    """Current coordinator/participant time in the configured meeting timezone."""
+    return datetime.now(MEETING_TIMEZONE).replace(tzinfo=None)
 
 
 def db_id(value):
@@ -3253,12 +3279,12 @@ def appointments():
                 try:
                     if appointment_time and appointment_time != "TBA":
                         req_dt = datetime.strptime(f"{appointment_date} {appointment_time}", "%Y-%m-%d %H:%M")
-                        if req_dt < datetime.now():
+                        if req_dt < meeting_now_naive():
                             flash("Cannot request an appointment in the past.", "error")
                             return redirect(url_for("appointments"))
                     else:
                         req_date = datetime.strptime(appointment_date, "%Y-%m-%d").date()
-                        if req_date < datetime.now().date():
+                        if req_date < meeting_now_naive().date():
                             flash("Cannot request an appointment in the past.", "error")
                             return redirect(url_for("appointments"))
                 except Exception:
@@ -3399,7 +3425,7 @@ def appointments():
 
     active_appointments = []
     past_appointments = []
-    now_dt = datetime.now()
+    now_dt = meeting_now_naive()
 
     for a in items:
         a["duration_minutes"] = 30
@@ -3493,7 +3519,7 @@ def book_appointment_slot(slot_id):
                 time_str = str(slot_time)[:5]
                 slot_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
                 slot_end_dt = slot_dt + timedelta(minutes=duration)
-                if slot_end_dt < datetime.now():
+                if slot_end_dt < meeting_now_naive():
                     flash("Cannot book a past slot.", "warning")
                     return redirect(url_for("appointments"))
             except Exception as e:
@@ -3664,8 +3690,9 @@ def is_current_time_near_scheduled(scheduled_date, scheduled_time):
         for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
             try:
                 parsed_dt = datetime.strptime(date_str, fmt)
-                # If date-only, allow any time on that date (set hour/minute to now)
-                parsed_dt = parsed_dt.replace(hour=datetime.now().hour, minute=datetime.now().minute)
+                # If date-only, allow any time on that date (set hour/minute to now).
+                now = meeting_now_naive()
+                parsed_dt = parsed_dt.replace(hour=now.hour, minute=now.minute)
                 break
             except ValueError:
                 continue
@@ -3673,15 +3700,9 @@ def is_current_time_near_scheduled(scheduled_date, scheduled_time):
     if not parsed_dt:
         return True  # Fallback if we cannot parse
         
-    now_local = datetime.now()
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-    
     # Allow joining 15 minutes before the meeting up to 3 hours (10800 seconds) after
-    def in_window(now_time, target_time):
-        diff = now_time - target_time
-        return -900 <= diff.total_seconds() <= 10800
-        
-    return in_window(now_local, parsed_dt) or in_window(now_utc, parsed_dt)
+    diff = meeting_now_naive() - parsed_dt
+    return -900 <= diff.total_seconds() <= 10800
 
 
 def render_jitsi_room(record, seed_text, title, return_url):
@@ -3870,7 +3891,7 @@ def end_meeting(appointment_uuid):
                 .in_("status", ["scheduled", "booked"])\
                 .execute()
             
-            now_local = datetime.now()
+            now_local = meeting_now_naive()
             for next_apt in (next_meetings_res.data or []):
                 date_str = str(next_apt.get("scheduled_date") or next_apt.get("appointment_date")).strip()
                 time_str = str(next_apt.get("scheduled_time") or next_apt.get("appointment_time") or "").strip()
@@ -5243,7 +5264,7 @@ def coordinator_portal():
 @coordinator_required
 def coordinator_create_slot():
     slot_date = clean_text(request.form.get("slot_date"), 20)
-    slot_time = clean_text(request.form.get("slot_time"), 20)
+    slot_time = normalize_meeting_time(request.form.get("slot_time"))
     try:
         duration_minutes = int(request.form.get("duration_minutes", "30"))
     except ValueError:
@@ -5265,7 +5286,10 @@ def coordinator_create_slot():
         "show_screen_share": request.form.get("show_screen_share") == "on",
         "show_raise_hand": request.form.get("show_raise_hand") == "on",
         "show_participants": request.form.get("show_participants") == "on",
-        "record_meeting": request.form.get("record_meeting") == "on"
+        "record_meeting": request.form.get("record_meeting") == "on",
+        "start_audio_muted": request.form.get("start_audio_muted") == "on",
+        "start_video_hidden": request.form.get("start_video_hidden") == "on",
+        "follow_me_enabled": request.form.get("follow_me_enabled") == "on",
     }
 
     if not slot_date or not slot_time:
@@ -5718,7 +5742,7 @@ def coordinator_create_event():
 @coordinator_required
 def coordinator_schedule_appointment(appointment_id):
     scheduled_date = clean_text(request.form.get("scheduled_date"), 20)
-    scheduled_time = clean_text(request.form.get("scheduled_time"), 20)
+    scheduled_time = normalize_meeting_time(request.form.get("scheduled_time"))
     meet_url = normalize_url(request.form.get("meet_url"))
     status = clean_text(request.form.get("status") or "scheduled", 30).lower()
     if status not in {"scheduled", "rescheduled", "booked", "completed", "cancelled"}:
@@ -5730,7 +5754,7 @@ def coordinator_schedule_appointment(appointment_id):
     if scheduled_date and scheduled_time and status not in {"completed", "cancelled"}:
         try:
             sched_dt = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
-            if sched_dt < datetime.now():
+            if sched_dt < meeting_now_naive():
                 flash("Cannot schedule or reschedule a meeting in the past.", "error")
                 return redirect(url_for("coordinator_portal"))
         except Exception:
@@ -5901,8 +5925,8 @@ def coordinator_bulk_slots():
         elif action == "generate_slots":
             start_date_str = request.form.get("start_date")
             end_date_str = request.form.get("end_date")
-            start_time_str = request.form.get("start_time")
-            end_time_str = request.form.get("end_time")
+            start_time_str = normalize_meeting_time(request.form.get("start_time"))
+            end_time_str = normalize_meeting_time(request.form.get("end_time"))
             
             try:
                 duration = int(request.form.get("duration_minutes", "30"))
@@ -5928,6 +5952,9 @@ def coordinator_bulk_slots():
                     return redirect(url_for("coordinator_bulk_slots"))
                 sh, sm = map(int, start_time_str.split(":"))
                 eh, em = map(int, end_time_str.split(":"))
+                if (eh, em) <= (sh, sm):
+                    flash("Daily end time must be after daily start time.", "error")
+                    return redirect(url_for("coordinator_bulk_slots"))
                 
                 day_count = (end_date - start_date).days + 1
                 dates_list = [start_date + timedelta(days=i) for i in range(day_count)]
@@ -5948,7 +5975,7 @@ def coordinator_bulk_slots():
                     end_time_limit = datetime.combine(cur_date, datetime.min.time().replace(hour=eh, minute=em))
                     
                     while current_time + timedelta(minutes=duration) <= end_time_limit:
-                        if current_time < datetime.now():
+                        if current_time < meeting_now_naive():
                             current_time += timedelta(minutes=duration)
                             continue
                         slot_date = cur_date.isoformat()
@@ -6011,16 +6038,23 @@ def coordinator_bulk_slots():
 @app.route("/coordinator/bulk_slots/settings", methods=["POST"])
 @coordinator_required
 def coordinator_bulk_slots_settings():
-    request_start_time = clean_text(request.form.get("request_start_time"), 20) or "09:00"
-    request_end_time = clean_text(request.form.get("request_end_time"), 20) or "17:00"
+    request_start_time = normalize_meeting_time(request.form.get("request_start_time"))
+    request_end_time = normalize_meeting_time(request.form.get("request_end_time"))
     allow_custom_requests = request.form.get("allow_custom_requests") == "on"
-    reschedule_default_time = clean_text(request.form.get("reschedule_default_time"), 20) or "10:00"
+    reschedule_default_time = normalize_meeting_time(request.form.get("reschedule_default_time"))
     release_limit_date = clean_text(request.form.get("release_limit_date"), 10) or None
     
+    if not request_start_time or not request_end_time or not reschedule_default_time:
+        flash("Enter valid times in HH:MM format.", "error")
+        return redirect(url_for("coordinator_bulk_slots"))
+    if request_end_time <= request_start_time:
+        flash("Allowed end time must be after allowed start time.", "error")
+        return redirect(url_for("coordinator_bulk_slots"))
+
     if release_limit_date:
         try:
             limit_date = datetime.strptime(release_limit_date, "%Y-%m-%d").date()
-            if limit_date < datetime.now().date():
+            if limit_date < meeting_now_naive().date():
                 flash("Release limit date cannot be in the past.", "error")
                 return redirect(url_for("coordinator_bulk_slots"))
         except ValueError:

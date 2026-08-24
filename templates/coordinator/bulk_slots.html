@@ -61,24 +61,18 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Allowed Start Time</label>
-                                <select name="request_start_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
-                                    <!-- Options populated dynamically -->
-                                </select>
+                                <input type="time" name="request_start_time" step="60" value="{{ global_settings.request_start_time or '09:00' }}" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Allowed End Time</label>
-                                <select name="request_end_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
-                                    <!-- Options populated dynamically -->
-                                </select>
+                                <input type="time" name="request_end_time" step="60" value="{{ global_settings.request_end_time or '17:00' }}" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Reschedule Default Time</label>
-                                <select name="reschedule_default_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
-                                    <!-- Options populated dynamically -->
-                                </select>
+                                <input type="time" name="reschedule_default_time" step="60" value="{{ global_settings.reschedule_default_time or '10:00' }}" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
                             </div>
                             <div class="flex items-center">
                                 <label class="flex items-center gap-2 mt-6 font-bold text-sm text-slate-700 cursor-pointer">
@@ -122,15 +116,11 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daily Start Time</label>
-                                <select name="start_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
-                                    <!-- Options populated dynamically -->
-                                </select>
+                                <input type="time" name="start_time" step="60" value="09:00" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daily End Time</label>
-                                <select name="end_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
-                                    <!-- Options populated dynamically -->
-                                </select>
+                                <input type="time" name="end_time" step="60" value="17:00" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
                             </div>
                         </div>
 
@@ -281,48 +271,6 @@
             dateFormat: "Y-m-d"
         });
 
-        // Prepopulate time selects
-        const timeSelects = document.querySelectorAll(".time-select-dropdown");
-        
-        const timeOptions = [];
-        for (let hour = 8; hour <= 20; hour++) {
-            for (let min of ["00", "30"]) {
-                if (hour === 20 && min === "30") continue;
-                let h = hour % 12;
-                if (h === 0) h = 12;
-                const ampm = hour < 12 ? "AM" : "PM";
-                const display = `${h}:${min} ${ampm}`;
-                const value = `${hour.toString().padStart(2, '0')}:${min}`;
-                timeOptions.push({ display, value });
-            }
-        }
-
-        // Loop over each select element
-        timeSelects.forEach(select => {
-            // Get original value if any
-            let origVal = "";
-            if (select.name === "request_start_time") {
-                origVal = "{{ global_settings.request_start_time }}";
-            } else if (select.name === "request_end_time") {
-                origVal = "{{ global_settings.request_end_time }}";
-            } else if (select.name === "reschedule_default_time") {
-                origVal = "{{ global_settings.reschedule_default_time }}";
-            } else if (select.name === "start_time") {
-                origVal = "09:00";
-            } else if (select.name === "end_time") {
-                origVal = "17:00";
-            }
-
-            timeOptions.forEach(opt => {
-                const o = document.createElement("option");
-                o.value = opt.value;
-                o.textContent = opt.display;
-                if (opt.value === origVal) {
-                    o.selected = true;
-                }
-                select.appendChild(o);
-            });
-        });
     });
 </script>
 {% endblock %}

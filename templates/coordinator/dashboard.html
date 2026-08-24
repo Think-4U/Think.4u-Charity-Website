@@ -57,8 +57,9 @@
                         <input type="text" name="slot_date" id="slot_date" required placeholder="Select slot date..." class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Time</label>
-                        <select name="slot_time" id="slot_time" class="time-select-dropdown w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required></select>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Time (any time of day)</label>
+                        <input type="time" name="slot_time" id="slot_time" step="60" aria-describedby="slot-time-help" class="w-full px-4 py-3 rounded-lg border-2 border-stone-200 focus:outline-none focus:border-amber-700 bg-white" required>
+                        <p id="slot-time-help" class="mt-1 text-xs text-slate-500">Select any time from 12:00 AM to 11:59 PM. On mobile this opens your phone's clock picker.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Duration</label>
@@ -126,7 +127,7 @@
                         <form method="POST" action="{{ url_for('coordinator_schedule_appointment', appointment_id=request_item.id) }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="text" name="scheduled_date" placeholder="Date..." required class="scheduled-date-picker px-3 py-2 rounded-lg border border-stone-200 text-sm bg-white">
-                            <select name="scheduled_time" class="time-select-dropdown px-3 py-2 rounded-lg border border-stone-200 text-sm bg-white" required></select>
+                            <input type="time" name="scheduled_time" step="60" value="{{ (request_item.requested_time or request_item.appointment_time or '')[:5] }}" class="px-3 py-2 rounded-lg border border-stone-200 text-sm bg-white" required>
                             <input type="url" name="meet_url" placeholder="Auto link if blank" class="px-3 py-2 rounded-lg border border-stone-200 text-sm md:col-span-2">
                             <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition">Schedule</button>
                         </form>
@@ -282,7 +283,7 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="status" value="rescheduled">
                             <input type="text" name="scheduled_date" value="{{ meeting.scheduled_date or meeting.appointment_date }}" placeholder="Date..." required class="scheduled-date-picker px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white">
-                            <select name="scheduled_time" data-default-value="{{ meeting.scheduled_time or meeting.appointment_time }}" class="time-select-dropdown px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white" required></select>
+                            <input type="time" name="scheduled_time" step="60" value="{{ (meeting.scheduled_time or meeting.appointment_time or '')[:5] }}" class="px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white" required>
                             <input type="url" name="meet_url" value="{{ meeting.meet_url or '' }}" class="px-3 py-2 rounded-lg border border-stone-300 text-sm md:col-span-2">
                             <button type="submit" class="px-4 py-2 rounded-lg bg-amber-900 hover:bg-amber-950 text-white font-bold text-sm transition">Reschedule</button>
                         </form>
@@ -406,42 +407,14 @@
             disableMobile: true
         });
 
-        // Populate all time select dropdowns (7:00 AM to 9:00 PM, 15-min intervals)
-        const timeSelects = document.querySelectorAll('.time-select-dropdown');
-        if (timeSelects.length > 0) {
-            const timeOptions = [];
-            for (let hour = 7; hour <= 21; hour++) {
-                for (let min of ["00", "15", "30", "45"]) {
-                    if (hour === 21 && min !== "00") continue; // Stop at 9:00 PM
-                    let h = hour % 12;
-                    if (h === 0) h = 12;
-                    const ampm = hour < 12 ? "AM" : "PM";
-                    const display = `${h}:${min} ${ampm}`;
-                    const value = `${hour.toString().padStart(2, '0')}:${min}`;
-                    timeOptions.push({ display, value });
-                }
-            }
-
-            timeSelects.forEach(select => {
-                const defaultValue = select.dataset.defaultValue || "";
-                
-                // Add select time placeholder
-                const placeholder = document.createElement('option');
-                placeholder.value = "";
-                placeholder.textContent = "Select time...";
-                select.appendChild(placeholder);
-
-                timeOptions.forEach(opt => {
-                    const el = document.createElement('option');
-                    el.value = opt.value;
-                    el.textContent = opt.display;
-                    if (defaultValue === opt.value) {
-                        el.selected = true;
-                    }
-                    select.appendChild(el);
-                });
-            });
+        // Keep the field fully custom, but make a new slot convenient to create.
+        // There is deliberately no min/max: a coordinator can choose any time of day.
+        const slotTimeInput = document.getElementById("slot_time");
+        if (slotTimeInput && !slotTimeInput.value) {
+            const now = new Date();
+            slotTimeInput.value = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
         }
+
     });
 </script>
 {% endblock %}

@@ -304,6 +304,7 @@
         <strong>{{ title }} <span id="meeting-timer"
                 style="margin-left: 10px; font-family: monospace; font-size: 14px; color: #cbd5e1; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; display: none;">00:00:00</span></strong>
         <div class="meeting-controls">
+            {% if is_coordinator %}
             <div class="participants-dropdown">
                 <button type="button" class="btn-participants" onclick="toggleParticipantsList()">
                     <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -312,7 +313,7 @@
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
                         </path>
                     </svg>
-                    Allowed Participants ({{ participants|length }})
+                    Scheduled access ({{ participants|length }})
                 </button>
                 <div id="participants-panel" class="participants-panel">
                     <div class="participants-title">Scheduled participants</div>
@@ -333,6 +334,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             {% if is_coordinator and appointment_uuid %}
             <button type="button" class="btn-end" style="background: #3b82f6;" onclick="requestLeaveMeeting()">Leave

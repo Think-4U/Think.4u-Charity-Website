@@ -37,11 +37,10 @@ Set these in Vercel Project Settings -> Environment Variables:
 - `MAIL_USERNAME`
 - `MAIL_PASSWORD`
 - `SITE_MEDIA_BUCKET=site-media`
-- `JITSI_MEET_DOMAIN=8x8.vc`
-- `JITSI_APP_ID`
+- `JITSI_MEET_DOMAIN=meet.yourdomain.com`
 - `JITSI_JWT_KID`
 - `JITSI_JWT_PRIVATE_KEY` or `JITSI_JWT_PRIVATE_KEY_FILE`
-- `JITSI_JWT_SUBJECT` (usually the same as `JITSI_APP_ID` for JaaS)
+- `JITSI_JWT_SUBJECT`
 - `ENFORCE_HTTPS=true`
 - `SESSION_COOKIE_SECURE=true`
 - `ALLOW_DEV_OTP_FALLBACK=false`

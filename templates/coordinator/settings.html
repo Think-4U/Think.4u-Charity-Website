@@ -60,6 +60,30 @@
                         </div>
                     </label>
 
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="start_audio_muted" {% if global_settings.start_audio_muted %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Everyone Starts Muted</span>
+                            <span class="block text-xs text-stone-500">Participants will join with their microphones muted by default.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="start_video_hidden" {% if global_settings.start_video_hidden %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Everyone Starts Hidden</span>
+                            <span class="block text-xs text-stone-500">Participants will join with their cameras turned off by default.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition cursor-pointer">
+                        <input type="checkbox" name="follow_me_enabled" {% if global_settings.follow_me_enabled %}checked{% endif %} class="mt-1 h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700">
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Everyone Follows Me</span>
+                            <span class="block text-xs text-stone-500">Force all participants to follow the coordinator's view and pinned videos.</span>
+                        </div>
+                    </label>
+
                     <div class="p-4 rounded-xl border border-stone-200 hover:bg-stone-50 transition">
                         <label class="block font-bold text-slate-900 text-sm mb-1">Holiday Dates (YYYY-MM-DD, one per line)</label>
                         <span class="block text-xs text-stone-500 mb-2">Specify holidays during which users cannot request appointments. Sundays are always treated as holidays automatically.</span>

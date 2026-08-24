@@ -17,7 +17,7 @@ import uuid
 from collections import defaultdict, deque
 from functools import wraps
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, Response, make_response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
@@ -142,7 +142,6 @@ ALLOW_DEV_OTP_FALLBACK = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == 
 DEV_OTP_FALLBACK_ENABLED = ALLOW_DEV_OTP_FALLBACK and not ENFORCE_HTTPS
 PAYMENT_PENDING_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_PENDING_TIMEOUT_MINUTES", "15"))
 JITSI_MEET_DOMAIN = os.getenv("JITSI_MEET_DOMAIN", "meet.domain.com").strip()
-JITSI_APP_ID = os.getenv("JITSI_APP_ID", "").strip().strip("/")
 JITSI_API_SCRIPT_URL = os.getenv("JITSI_API_SCRIPT_URL", "").strip()
 JITSI_ROOM_PREFIX = os.getenv("JITSI_ROOM_PREFIX", "Think4U").strip() or "Think4U"
 JITSI_JWT_KID = os.getenv("JITSI_JWT_KID", "").strip()
@@ -164,8 +163,64 @@ JITSI_FEATURE_TRANSCRIPTION = os.getenv("JITSI_FEATURE_TRANSCRIPTION", "true").l
 JITSI_FEATURE_LIST_VISITORS = os.getenv("JITSI_FEATURE_LIST_VISITORS", "false").lower() == "true"
 JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "true").lower() == "true"
 JITSI_FEATURE_FLIP = os.getenv("JITSI_FEATURE_FLIP", "false").lower() == "true"
+JITSI_JWT_ALGORITHM = os.getenv("JITSI_JWT_ALGORITHM", "RS256").strip()
 SITE_MEDIA_BUCKET = os.getenv("SITE_MEDIA_BUCKET", "site-media")
 APP_VERSION = "2.4.0"
+
+# Cloudflare Turnstile Configuration
+TURNSTILE_SITE_KEY = (os.getenv("TURNSTILE_SITE_KEY") or "").strip() or None
+TURNSTILE_SECRET_KEY = (os.getenv("TURNSTILE_SECRET_KEY") or "").strip() or None
+
+@app.context_processor
+def inject_turnstile():
+    return dict(turnstile_site_key=TURNSTILE_SITE_KEY)
+
+def get_turnstile_token():
+    """Extract Turnstile token from form data or JSON payload."""
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        return data.get("cf-turnstile-response")
+    try:
+        data = request.get_json(silent=True)
+        if data and isinstance(data, dict):
+            token = data.get("cf-turnstile-response")
+            if token:
+                return token
+    except Exception:
+        pass
+    return request.form.get("cf-turnstile-response")
+
+def verify_turnstile(token, ip=None):
+    """Verify Cloudflare Turnstile token."""
+    if not TURNSTILE_SECRET_KEY:
+        app.logger.warning("TURNSTILE_SECRET_KEY not set. Skipping Turnstile verification.")
+        return True
+    try:
+        import requests
+        data = {
+            "secret": TURNSTILE_SECRET_KEY,
+            "response": token or "",
+        }
+        if ip:
+            data["remoteip"] = ip
+        response = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data=data,
+            timeout=10.0,
+        )
+        if response.status_code != 200:
+            app.logger.error(f"Turnstile API returned status code {response.status_code}")
+            return False
+        res_data = response.json()
+        if res_data.get("success"):
+            return True
+        else:
+            app.logger.warning(f"Turnstile verification failed. Error codes: {res_data.get('error-codes')}")
+            return False
+    except Exception as e:
+        app.logger.error(f"Error during Turnstile verification: {e}")
+        return False
+
 
 REQUEST_RATE_STATE = defaultdict(deque)
 FAILED_LOGIN_STATE = {}
@@ -331,6 +386,9 @@ def ensure_meeting_settings_defaults(settings_dict=None):
         "show_raise_hand": True,
         "show_participants": True,
         "record_meeting": False,
+        "start_audio_muted": False,
+        "start_video_hidden": False,
+        "follow_me_enabled": False,
         "holidays": [],
         "request_start_time": "09:00",
         "request_end_time": "17:00",
@@ -365,7 +423,8 @@ def cleanup_expired_slots_and_meetings():
             duration = slot.get("duration_minutes") or 30
             if s_date and s_time:
                 try:
-                    slot_dt = datetime.strptime(f"{s_date} {s_time}", "%Y-%m-%d %H:%M")
+                    s_time_clean = str(s_time)[:5]
+                    slot_dt = datetime.strptime(f"{s_date} {s_time_clean}", "%Y-%m-%d %H:%M")
                     slot_end_dt = slot_dt + timedelta(minutes=duration)
                     if slot_end_dt < datetime.now():
                         ids_to_delete.append(slot["id"])
@@ -384,6 +443,8 @@ def cleanup_expired_slots_and_meetings():
             m_time = m.get("appointment_time") or m.get("requested_time") or "00:00"
             if m_time == "TBA":
                 m_time = "23:59"
+            else:
+                m_time = str(m_time)[:5]
             if m_date:
                 try:
                     if len(m_time) == 5 and ":" in m_time:
@@ -597,7 +658,8 @@ def validate_media_upload(file_obj, media_type):
         file_size = get_upload_size(file_obj)
         if file_size and file_size > MAX_VIDEO_UPLOAD_MB * 1024 * 1024:
             return False, f"Video is too large. Maximum video size is {MAX_VIDEO_UPLOAD_MB} MB"
-        if not (file_obj.content_type or "").startswith("video/"):
+        ctype = (file_obj.content_type or "").lower()
+        if not ctype.startswith("video/") and ctype != "application/octet-stream":
             return False, "Invalid video content type"
         return True, filename
 
@@ -938,9 +1000,9 @@ def get_or_create_public_donor(name, email, phone, address=""):
         existing_row = (existing_response.data or [None])[0]
         if existing_row:
             update_payload = {
-                "name": clean_text(name, 120) or existing_row.get("name"),
-                "phone": phone or existing_row.get("phone"),
-                "address": clean_text(address, 500) or existing_row.get("address"),
+                "name": existing_row.get("name") or clean_text(name, 120),
+                "phone": existing_row.get("phone") or phone,
+                "address": existing_row.get("address") or clean_text(address, 500),
                 "email_verified": True,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -1013,16 +1075,9 @@ def jitsi_origin():
     return f"https://{jitsi_domain()}"
 
 
-def jitsi_app_id():
-    return (JITSI_APP_ID or "").strip().strip("/")
-
-
 def jitsi_api_script_url():
     if JITSI_API_SCRIPT_URL:
         return JITSI_API_SCRIPT_URL
-    app_id = jitsi_app_id()
-    if app_id and jitsi_domain() == "8x8.vc":
-        return f"{jitsi_origin()}/{app_id}/external_api.js"
     return f"{jitsi_origin()}/external_api.js"
 
 
@@ -1037,16 +1092,11 @@ def jitsi_room_slug(seed_text):
 
 
 def jitsi_room_name(seed_text):
-    slug = jitsi_room_slug(seed_text)
-    app_id = jitsi_app_id()
-    return f"{app_id}/{slug}" if app_id else slug
+    return jitsi_room_slug(seed_text)
 
 
 def jitsi_room_slug_from_name(room_name):
     room_name = (room_name or "").strip("/")
-    app_id = jitsi_app_id()
-    if app_id and room_name.startswith(f"{app_id}/"):
-        return room_name.split("/", 1)[1]
     return room_name.rsplit("/", 1)[-1] if "/" in room_name else room_name
 
 
@@ -1054,9 +1104,6 @@ def jitsi_room_from_url_or_seed(meet_url, seed_text):
     parsed = urlparse((meet_url or "").strip())
     path = parsed.path.strip("/") if parsed.scheme and parsed.netloc else ""
     if path:
-        app_id = jitsi_app_id()
-        if app_id and path.startswith(f"{app_id}/"):
-            return path
         return jitsi_room_name(path.rsplit("/", 1)[-1])
     return jitsi_room_name(seed_text)
 
@@ -1078,18 +1125,11 @@ def read_jitsi_private_key():
 
 
 def jitsi_jwt_kid():
-    raw_kid = (JITSI_JWT_KID or JITSI_JWT_KEY_ID or "").strip()
-    if not raw_kid:
-        return ""
-    if "/" in raw_kid:
-        return raw_kid
-    app_id = jitsi_app_id()
-    return f"{app_id}/{raw_kid}" if app_id else raw_kid
+    return (JITSI_JWT_KID or JITSI_JWT_KEY_ID or "").strip()
 
 
 def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_id=None, avatar_url=None):
     private_key = read_jitsi_private_key()
-    app_id = jitsi_app_id()
     jwt_kid = jitsi_jwt_kid()
     if not private_key or not jwt_kid or not pyjwt:
         if private_key and not pyjwt:
@@ -1102,7 +1142,7 @@ def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_i
     payload = {
         "aud": JITSI_JWT_AUDIENCE or "jitsi",
         "iss": JITSI_JWT_ISSUER or "chat",
-        "sub": JITSI_JWT_SUBJECT or app_id or jitsi_domain(),
+        "sub": JITSI_JWT_SUBJECT or jitsi_domain(),
         "room": room_claim,
         "nbf": now - 10,
         "iat": now,
@@ -1131,9 +1171,59 @@ def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_i
     return pyjwt.encode(
         payload,
         private_key,
-        algorithm="RS256",
-        headers={"kid": jwt_kid},
+        algorithm=JITSI_JWT_ALGORITHM,
+        headers={"kid": jwt_kid} if jwt_kid else None,
     )
+
+
+def generate_ics_string(appointment, attendee_email=None, meet_url=None, coordinator_email=None):
+    date_str = str(appointment.get("scheduled_date") or appointment.get("appointment_date")).strip()
+    time_str = str(appointment.get("scheduled_time") or appointment.get("appointment_time") or "").strip()
+    dt_str = f"{date_str} {time_str}".strip()
+    
+    parsed_dt = None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M"):
+        try:
+            parsed_dt = datetime.strptime(dt_str, fmt)
+            break
+        except ValueError:
+            continue
+            
+    if not parsed_dt:
+        parsed_dt = datetime.now() + timedelta(days=1)
+        
+    start_ics = parsed_dt.strftime("%Y%m%dT%H%M%S")
+    end_ics = (parsed_dt + timedelta(minutes=30)).strftime("%Y%m%dT%H%M%S")
+    now_ics = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    
+    uid = appointment.get('uuid') or secrets.token_urlsafe(8)
+    summary = appointment.get('purpose', 'Meeting')
+    description = f"Join your secure Think.4U meeting via your dashboard.\\n"
+    if meet_url:
+        description += f"Meeting Link: {meet_url}"
+    organizer_email = coordinator_email if coordinator_email else "noreply@think4u.org"
+    
+    ics_lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Think.4U//Appointments//EN",
+        "METHOD:REQUEST",
+        "BEGIN:VEVENT",
+        f"UID:{uid}@think4u.org",
+        f"DTSTAMP:{now_ics}",
+        f"DTSTART:{start_ics}",
+        f"DTEND:{end_ics}",
+        f"SUMMARY:Think.4U Appointment: {summary}",
+        f"DESCRIPTION:{description}",
+        f"ORGANIZER;CN=Think.4U Coordinator:mailto:{organizer_email}"
+    ]
+    if attendee_email:
+        ics_lines.append(f"ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:{attendee_email}")
+    if coordinator_email and coordinator_email != attendee_email:
+        ics_lines.append(f"ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE:mailto:{coordinator_email}")
+        
+    ics_lines.extend(["END:VEVENT", "END:VCALENDAR"])
+    return "\r\n".join(ics_lines)
 
 
 def appointment_join_url(appointment, external=False):
@@ -1146,25 +1236,65 @@ def appointment_join_url(appointment, external=False):
     return (appointment or {}).get("meet_url") or ""
 
 
-def send_meeting_update_email(recipient, name, appointment, subject="Think.4U meeting update"):
+def send_meeting_update_email(recipient, name, appointment, subject="Think.4U meeting update", coordinator_email=None, coordinator_name=None):
     if not recipient:
         return
     meet_url = appointment_join_url(appointment, external=True)
     scheduled_date = appointment.get("scheduled_date") or appointment.get("appointment_date") or "TBA"
     scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time") or "TBA"
+    ics_url = url_for("download_calendar", appointment_uuid=appointment.get("uuid"), _external=True)
+    
+    html_template = """
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+        <h2 style="color:#7c2d12;">Think.4U Meeting Schedule</h2>
+        <p>Hello {recipient_name},</p>
+        <p>Your meeting is scheduled for <strong>{date}</strong> at <strong>{time}</strong>.</p>
+        {meet_link}
+        <p style="margin-top:20px;">
+            <a href="{ics_link}" style="display:inline-block; padding:8px 16px; background:#0ea5e9; color:#fff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">Add to Calendar (.ics)</a>
+        </p>
+        <p>You can also view this inside your Think.4U appointment page.</p>
+    </div>
+    """
+    
+    # 1. Send to User
+    ics_data_user = generate_ics_string(appointment, attendee_email=recipient, meet_url=meet_url, coordinator_email=coordinator_email)
+    attachments_user = [("invite.ics", "text/calendar; method=REQUEST", ics_data_user, "inline", {"Content-Class": "urn:content-classes:calendarmessage"})]
+    
+    user_html = html_template.format(
+        recipient_name=html.escape(clean_text(name, 120) or 'Supporter'),
+        date=html.escape(str(scheduled_date)),
+        time=html.escape(str(scheduled_time)),
+        meet_link=f'<p><strong>Meeting link:</strong> <a href="{html.escape(meet_url)}">{html.escape(meet_url)}</a></p>' if meet_url else '',
+        ics_link=html.escape(ics_url)
+    )
+    
     send_email_async(
         subject=subject,
         recipients=[recipient],
-        html=f"""
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-            <h2 style="color:#7c2d12;">Think.4U Meeting Schedule</h2>
-            <p>Hello {html.escape(clean_text(name, 120) or 'Supporter')},</p>
-            <p>Your meeting is scheduled for <strong>{html.escape(str(scheduled_date))}</strong> at <strong>{html.escape(str(scheduled_time))}</strong>.</p>
-            {'<p><strong>Meeting link:</strong> <a href="' + html.escape(meet_url) + '">' + html.escape(meet_url) + '</a></p>' if meet_url else ''}
-            <p>You can also view this inside your Think.4U appointment page.</p>
-        </div>
-        """
+        attachments=attachments_user,
+        html=user_html
     )
+    
+    # 2. Send to Coordinator
+    if coordinator_email and coordinator_email != recipient:
+        ics_data_coord = generate_ics_string(appointment, attendee_email=recipient, meet_url=meet_url, coordinator_email=coordinator_email)
+        attachments_coord = [("invite.ics", "text/calendar; method=REQUEST", ics_data_coord, "inline", {"Content-Class": "urn:content-classes:calendarmessage"})]
+        
+        coord_html = html_template.format(
+            recipient_name=html.escape(clean_text(coordinator_name, 120) or 'Coordinator'),
+            date=html.escape(str(scheduled_date)),
+            time=html.escape(str(scheduled_time)),
+            meet_link=f'<p><strong>Meeting link:</strong> <a href="{html.escape(meet_url)}">{html.escape(meet_url)}</a></p>' if meet_url else '',
+            ics_link=html.escape(ics_url)
+        )
+        
+        send_email_async(
+            subject=f"Coordinator: {subject}",
+            recipients=[coordinator_email],
+            attachments=attachments_coord,
+            html=coord_html
+        )
 
 
 class SimplePagination:
@@ -1295,6 +1425,40 @@ def send_otp_email(email, otp_code, flow_label):
     )
     ok, _err = send_email_sync(subject=subject, recipients=[email], html=html_content)
     return ok
+
+
+@app.route("/resend-otp/<flow>", methods=["POST"])
+def resend_otp(flow):
+    pending = session.get(f"pending_{flow}")
+    if not pending:
+        return jsonify({"error": "No pending verification found. Please start over."}), 400
+        
+    email = pending.get("email")
+    if not email:
+        return jsonify({"error": "Invalid session data."}), 400
+        
+    otp = generate_otp()
+    pending["otp_hash"] = generate_password_hash(otp)
+    pending["expires_at"] = int(datetime.now(timezone.utc).timestamp()) + OTP_EXPIRY_SECONDS
+    pending["attempts"] = 0
+    session[f"pending_{flow}"] = pending
+    
+    flow_labels = {
+        "login": "Login",
+        "signup": "Account Verification",
+        "donation_public": "Donation Verification",
+        "profile_update": "Profile Update"
+    }
+    label = flow_labels.get(flow, "Verification")
+    
+    email_sent = send_otp_email(email, otp, label)
+    if not email_sent:
+        if DEV_OTP_FALLBACK_ENABLED:
+            app.logger.warning(f"DEV OTP fallback (resend {flow}) for {email}: {otp}")
+            return jsonify({"ok": True, "message": "Development OTP printed in server terminal"}), 200
+        return jsonify({"error": "Unable to send OTP email right now."}), 503
+        
+    return jsonify({"ok": True, "message": "A new OTP has been sent to your email."}), 200
 
 
 def create_notification_for_user(user_id, title, body):
@@ -1496,15 +1660,12 @@ def apply_security_controls():
 def set_security_headers(response):
     jitsi_src_values = [
         jitsi_origin(),
-        "https://8x8.vc",
-        "https://*.8x8.vc",
         "https://meet.jit.si",
         "https://meet.domain.com",
     ]
     jitsi_src = " ".join(dict.fromkeys(jitsi_src_values))
     jitsi_permission_origins = [
         jitsi_origin(),
-        "https://8x8.vc",
         "https://meet.jit.si",
         "https://meet.domain.com",
     ]
@@ -1532,13 +1693,13 @@ def set_security_headers(response):
         "frame-ancestors 'none'; "
         "img-src 'self' data: https:; "
         "media-src 'self' blob: data:; "
-        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {jitsi_src}; "
+        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com {jitsi_src}; "
-        f"frame-src https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com {jitsi_src}; "
+        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com https://challenges.cloudflare.com {jitsi_src}; "
+        f"frame-src https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com https://challenges.cloudflare.com {jitsi_src}; "
         "base-uri 'self'; "
         "form-action 'self'; "
         "object-src 'none'"
@@ -1551,12 +1712,20 @@ def set_security_headers(response):
 # ===================================
 # HELPER FUNCTIONS
 # ===================================
-def send_email_async(subject, recipients, html):
+def send_email_async(subject, recipients, html, attachments=None):
     """Send email in background thread"""
     def send():
         try:
             with app.app_context():
                 msg = Message(subject=subject, recipients=recipients, html=html)
+                if attachments:
+                    for att in attachments:
+                        if len(att) == 3:
+                            msg.attach(att[0], att[1], att[2])
+                        elif len(att) == 4:
+                            msg.attach(att[0], att[1], att[2], disposition=att[3])
+                        elif len(att) >= 5:
+                            msg.attach(att[0], att[1], att[2], disposition=att[3], headers=att[4])
                 mail.send(msg)
                 app.logger.info(f"Email sent to {recipients}")
         except Exception as e:
@@ -1565,11 +1734,19 @@ def send_email_async(subject, recipients, html):
     threading.Thread(target=send, daemon=True).start()
 
 
-def send_email_sync(subject, recipients, html):
+def send_email_sync(subject, recipients, html, attachments=None):
     """Send email synchronously and return success status"""
     try:
         with app.app_context():
             msg = Message(subject=subject, recipients=recipients, html=html)
+            if attachments:
+                for att in attachments:
+                    if len(att) == 3:
+                        msg.attach(att[0], att[1], att[2])
+                    elif len(att) == 4:
+                        msg.attach(att[0], att[1], att[2], disposition=att[3])
+                    elif len(att) >= 5:
+                        msg.attach(att[0], att[1], att[2], disposition=att[3], headers=att[4])
             mail.send(msg)
         app.logger.info("Email sent to %s", recipients)
         return True, None
@@ -1721,6 +1898,10 @@ def start_public_donation_verification():
         return jsonify({"ok": True, "verified": True}), 200
 
     data = request.get_json(silent=True) or {}
+    turnstile_token = get_turnstile_token()
+    if not verify_turnstile(turnstile_token, get_client_ip()):
+        return jsonify({"error": "Security verification failed. Please try again."}), 400
+
     name = clean_text(data.get("name"), 120)
     email = normalize_email(data.get("email"))
     phone = normalize_phone(data.get("phone", ""))
@@ -2444,9 +2625,14 @@ def signup():
         confirm_password = request.form.get("confirm_password", "")
         role = clean_text(request.form.get("role") or "donor", 20).lower()
         captcha_answer = request.form.get("captcha_answer")
+        turnstile_token = get_turnstile_token()
 
         if not verify_math_captcha("signup", captcha_answer):
             flash("Captcha verification failed.", "error")
+            return render_template("signup.html", captcha_question=generate_math_captcha("signup"))
+
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
             return render_template("signup.html", captcha_question=generate_math_captcha("signup"))
 
         if not name or not email:
@@ -2504,6 +2690,11 @@ def verify_signup():
         return redirect(url_for("signup"))
 
     if request.method == "POST":
+        turnstile_token = get_turnstile_token()
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
+            return redirect(url_for("verify_signup"))
+
         otp_code = clean_text(request.form.get("otp"), 10)
         ok, payload_or_message = validate_pending_otp("signup", otp_code)
         if not ok:
@@ -2585,6 +2776,7 @@ def login():
         email = normalize_email(request.form.get("email"))
         password = request.form.get("password", "")
         captcha_answer = request.form.get("captcha_answer")
+        turnstile_token = get_turnstile_token()
         next_page = request.args.get("next") or request.form.get("next")
 
         if not email:
@@ -2600,6 +2792,11 @@ def login():
         if not verify_math_captcha("login", captcha_answer):
             record_failed_login(identity)
             flash("Captcha verification failed.", "error")
+            return render_template("login.html", captcha_question=generate_math_captcha("login"), next_page=next_page)
+
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            record_failed_login(identity)
+            flash("Security verification failed. Please try again.", "error")
             return render_template("login.html", captcha_question=generate_math_captcha("login"), next_page=next_page)
 
         try:
@@ -2653,6 +2850,11 @@ def verify_login():
         return redirect(url_for("login"))
 
     if request.method == "POST":
+        turnstile_token = get_turnstile_token()
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
+            return redirect(url_for("verify_login"))
+
         otp_code = clean_text(request.form.get("otp"), 10)
         ok, payload_or_message = validate_pending_otp("login", otp_code)
         if not ok:
@@ -2917,6 +3119,11 @@ def verify_profile_update():
         return redirect(url_for("profile"))
 
     if request.method == "POST":
+        turnstile_token = get_turnstile_token()
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
+            return redirect(url_for("verify_profile_update"))
+
         ok, payload_or_message = validate_pending_otp("profile_update", request.form.get("otp"))
         if not ok:
             flash(payload_or_message, "error")
@@ -3187,11 +3394,39 @@ def appointments():
     except Exception:
         slots = []
 
+    active_appointments = []
+    past_appointments = []
+    now_dt = datetime.now()
+
+    for a in items:
+        a["duration_minutes"] = 30
+        is_past = False
+        if a.get("status") in ["completed", "cancelled"]:
+            is_past = True
+        else:
+            date_part = str(a.get('scheduled_date') or a.get('appointment_date')).strip()
+            time_part = str(a.get('scheduled_time') or a.get('appointment_time') or '').strip()
+            dt_str = f"{date_part} {time_part}".strip()
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M", "%Y-%m-%d"):
+                try:
+                    parsed_dt = datetime.strptime(dt_str, fmt)
+                    if len(fmt) <= 10:
+                        parsed_dt = parsed_dt.replace(hour=23, minute=59)
+                    if (now_dt - parsed_dt).total_seconds() > 10800:
+                        is_past = True
+                    break
+                except ValueError:
+                    continue
+        if is_past:
+            past_appointments.append(a)
+        else:
+            active_appointments.append(a)
+
     show_all = request.args.get("show_all") == "true"
-    has_more = len(items) > 3
-    display_items = items
-    if not show_all and has_more:
-        display_items = items[:3]
+    has_more = (len(active_appointments) > 3) or (len(past_appointments) > 3)
+    
+    display_active = active_appointments if show_all else active_appointments[:3]
+    display_past = past_appointments if show_all else past_appointments[:3]
 
     global_settings = ensure_meeting_settings_defaults(None)
     try:
@@ -3203,23 +3438,21 @@ def appointments():
 
     active_user_dates = []
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT DISTINCT COALESCE(scheduled_date, appointment_date) as adate
-            FROM public.appointments
-            WHERE user_id = %s AND status NOT IN ('cancelled', 'completed');
-        """, (current_db_user_id(),))
-        rows = cur.fetchall()
-        active_user_dates = [r["adate"].isoformat() if hasattr(r["adate"], "isoformat") else str(r["adate"]) for r in rows if r["adate"]]
-        cur.close()
-        conn.close()
+        res = supabase.table("appointments").select("scheduled_date, appointment_date").eq("user_id", current_db_user_id()).neq("status", "cancelled").neq("status", "completed").execute()
+        if res.data:
+            dates = set()
+            for r in res.data:
+                adate = r.get("scheduled_date") or r.get("appointment_date")
+                if adate:
+                    dates.add(str(adate))
+            active_user_dates = list(dates)
     except Exception as e:
         app.logger.warning(f"Failed to load active user appointment dates: {e}")
 
     return render_template(
         "appointments.html",
-        appointments=display_items,
+        active_appointments=display_active,
+        past_appointments=display_past,
         slots=slots,
         show_all=show_all,
         has_more=has_more,
@@ -3235,17 +3468,15 @@ def book_appointment_slot(slot_id):
     purpose = clean_text(request.form.get("purpose"), 120) or "Coordinator meeting"
     notes = clean_text(request.form.get("notes"), 1000, keep_new_lines=True)
 
-    conn = None
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # 1. Lock the slot row
-        cur.execute("SELECT * FROM public.appointment_slots WHERE id = %s FOR UPDATE;", (slot_id,))
-        slot = cur.fetchone()
-        
-        if not slot or slot.get("status") != "available":
-            conn.rollback()
+        # 1. Get the slot
+        slot_res = supabase.table("appointment_slots").select("*").eq("id", slot_id).execute()
+        if not slot_res.data:
+            flash("This appointment slot is no longer available.", "warning")
+            return redirect(url_for("appointments"))
+            
+        slot = slot_res.data[0]
+        if slot.get("status") != "available":
             flash("This appointment slot is no longer available.", "warning")
             return redirect(url_for("appointments"))
 
@@ -3255,64 +3486,52 @@ def book_appointment_slot(slot_id):
         duration = slot.get("duration_minutes") or 30
         if slot_date and slot_time:
             try:
-                slot_dt = datetime.strptime(f"{slot_date} {slot_time}", "%Y-%m-%d %H:%M")
+                date_str = str(slot_date)
+                time_str = str(slot_time)[:5]
+                slot_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
                 slot_end_dt = slot_dt + timedelta(minutes=duration)
                 if slot_end_dt < datetime.now():
-                    conn.rollback()
                     flash("Cannot book a past slot.", "warning")
                     return redirect(url_for("appointments"))
-            except Exception:
-                pass
+            except Exception as e:
+                app.logger.warning(f"Past slot check failed: {e}")
                 
         # Release Limit Date check
         coordinator_id = slot.get("coordinator_id")
         if coordinator_id:
             try:
-                cur.execute("SELECT global_meeting_settings FROM public.users WHERE id = %s;", (coordinator_id,))
-                user_row = cur.fetchone()
-                if user_row:
-                    g_settings = ensure_meeting_settings_defaults(user_row.get("global_meeting_settings"))
+                user_res = supabase.table("users").select("global_meeting_settings").eq("id", coordinator_id).execute()
+                if user_res.data:
+                    g_settings = ensure_meeting_settings_defaults(user_res.data[0].get("global_meeting_settings"))
                     lim = g_settings.get("release_limit_date")
-                    if lim and slot_date and slot_date > lim:
-                        conn.rollback()
+                    if lim and slot_date and str(slot_date) > lim:
                         flash(f"This slot date is past the coordinator's booking limit date ({lim}).", "warning")
                         return redirect(url_for("appointments"))
             except Exception as e:
                 app.logger.warning(f"Failed to check coordinator release limit during booking: {e}")
         
+        uid = current_db_user_id()
         # Daily Limit check (Limit 1 per day)
         if slot_date:
-            cur.execute("""
-                SELECT id FROM public.appointments
-                WHERE user_id = %s AND (appointment_date = %s OR scheduled_date = %s)
-                  AND status NOT IN ('cancelled', 'completed')
-                LIMIT 1;
-            """, (current_db_user_id(), slot_date, slot_date))
-            if cur.fetchone():
-                conn.rollback()
-                flash("You already have an active appointment scheduled on this day. Limit 1 per day.", "warning")
-                return redirect(url_for("appointments"))
+            app_res = supabase.table("appointments").select("id, appointment_date, scheduled_date").eq("user_id", uid).neq("status", "cancelled").neq("status", "completed").execute()
+            if app_res.data:
+                for appt in app_res.data:
+                    if appt.get("appointment_date") == slot_date or appt.get("scheduled_date") == slot_date:
+                        flash("You already have an active appointment scheduled on this day. Limit 1 per day.", "warning")
+                        return redirect(url_for("appointments"))
 
         # 2. Prevent duplicate bookings
-        cur.execute("""
-            SELECT id FROM public.appointments 
-            WHERE slot_id = %s AND user_id = %s AND status != 'cancelled' AND status != 'completed';
-        """, (slot_id, current_db_user_id()))
-        if cur.fetchone():
-            conn.rollback()
+        dup_res = supabase.table("appointments").select("id").eq("slot_id", slot_id).eq("user_id", uid).neq("status", "cancelled").neq("status", "completed").execute()
+        if dup_res.data:
             flash("You have already booked this slot.", "warning")
             return redirect(url_for("appointments"))
 
         # 3. Count active bookings
-        cur.execute("""
-            SELECT COUNT(*) as count FROM public.appointments 
-            WHERE slot_id = %s AND status != 'cancelled' AND status != 'completed';
-        """, (slot_id,))
-        active_count = cur.fetchone()["count"]
+        count_res = supabase.table("appointments").select("id", count="exact").eq("slot_id", slot_id).neq("status", "cancelled").neq("status", "completed").execute()
+        active_count = count_res.count if hasattr(count_res, 'count') and count_res.count is not None else len(count_res.data or [])
 
         limit = slot.get("registration_limit") or 1
         if active_count >= limit:
-            conn.rollback()
             flash("This appointment slot has reached its registration limit.", "warning")
             return redirect(url_for("appointments"))
 
@@ -3321,74 +3540,73 @@ def book_appointment_slot(slot_id):
         slot_settings = ensure_meeting_settings_defaults(slot.get("meeting_settings"))
         status = "booked" if slot.get("auto_accept") else "scheduled"
         
-        cur.execute("""
-            INSERT INTO public.appointments (
-                user_id, name, email, appointment_date, appointment_time, 
-                requested_date, requested_time, scheduled_date, scheduled_time, 
-                coordinator_id, slot_id, purpose, notes, meet_url, status, 
-                meeting_settings, created_at, uuid
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *;
-        """, (
-            current_db_user_id(),
-            clean_text(current_user.name, 120),
-            current_user.email,
-            slot.get("slot_date"),
-            slot.get("slot_time"),
-            slot.get("slot_date"),
-            slot.get("slot_time"),
-            slot.get("slot_date"),
-            slot.get("slot_time"),
-            slot.get("coordinator_id"),
-            slot_id,
-            purpose,
-            notes,
-            meet_url,
-            status,
-            pyjson.dumps(slot_settings),
-            datetime.now(timezone.utc).isoformat(),
-            str(uuid.uuid4())
-        ))
-        appointment = dict(cur.fetchone())
-        if isinstance(appointment.get("meeting_settings"), str):
-            try:
-                appointment["meeting_settings"] = pyjson.loads(appointment["meeting_settings"])
-            except Exception:
-                pass
+        new_appt = {
+            "user_id": uid,
+            "name": clean_text(current_user.name, 120),
+            "email": current_user.email,
+            "appointment_date": slot.get("slot_date"),
+            "appointment_time": slot.get("slot_time"),
+            "requested_date": slot.get("slot_date"),
+            "requested_time": slot.get("slot_time"),
+            "scheduled_date": slot.get("slot_date"),
+            "scheduled_time": slot.get("slot_time"),
+            "coordinator_id": slot.get("coordinator_id"),
+            "slot_id": slot_id,
+            "purpose": purpose,
+            "notes": notes,
+            "meet_url": meet_url,
+            "status": status,
+            "meeting_settings": slot_settings,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "uuid": str(uuid.uuid4())
+        }
+        
+        insert_res = supabase.table("appointments").insert(new_appt).execute()
+        if not insert_res.data:
+            raise Exception("Failed to insert appointment")
+        appointment = insert_res.data[0]
 
         # 5. Update slot
         is_now_full = (active_count + 1) >= limit
+        update_data = {
+            "booked_by_user_id": uid,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
         if is_now_full:
-            cur.execute("""
-                UPDATE public.appointment_slots 
-                SET booked_by_user_id = %s, status = 'booked', updated_at = %s 
-                WHERE id = %s;
-            """, (current_db_user_id(), datetime.now(timezone.utc).isoformat(), slot_id))
-        else:
-            cur.execute("""
-                UPDATE public.appointment_slots 
-                SET booked_by_user_id = %s, updated_at = %s 
-                WHERE id = %s;
-            """, (current_db_user_id(), datetime.now(timezone.utc).isoformat(), slot_id))
-
-        conn.commit()
+            update_data["status"] = "booked"
+            
+        supabase.table("appointment_slots").update(update_data).eq("id", slot_id).execute()
         
         create_notification_for_user(
             current_user.id,
             "Appointment booked",
             f"Your meeting is scheduled for {slot.get('slot_date')} at {slot.get('slot_time')}."
         )
-        send_meeting_update_email(current_user.email, current_user.name, appointment, "Think.4U appointment booked")
+        # Get coordinator email for syncing
+        coordinator_email = None
+        coordinator_name = None
+        if slot.get("coordinator_id"):
+            try:
+                coord_res = supabase.table("users").select("email, name").eq("id", slot.get("coordinator_id")).limit(1).execute()
+                if coord_res.data:
+                    coordinator_email = coord_res.data[0].get("email")
+                    coordinator_name = coord_res.data[0].get("name")
+            except Exception as e:
+                app.logger.warning(f"Failed to fetch coordinator info: {e}")
+                
+        send_meeting_update_email(
+            current_user.email, 
+            current_user.name, 
+            appointment, 
+            "Think.4U appointment booked",
+            coordinator_email=coordinator_email,
+            coordinator_name=coordinator_name
+        )
         flash("Appointment slot booked successfully.", "success")
         
     except Exception as e:
-        if conn:
-            conn.rollback()
         app.logger.error(f"Appointment slot booking failed: {e}")
         flash("Unable to book this appointment slot.", "error")
-    finally:
-        if conn:
-            conn.close()
 
     return redirect(url_for("appointments"))
 
@@ -3443,10 +3661,10 @@ def is_current_time_near_scheduled(scheduled_date, scheduled_time):
     now_local = datetime.now()
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     
-    # 15 minutes before to 120 minutes after (7200 seconds)
+    # Allow joining 15 minutes before the meeting up to 3 hours (10800 seconds) after
     def in_window(now_time, target_time):
         diff = now_time - target_time
-        return -900 <= diff.total_seconds() <= 7200
+        return -900 <= diff.total_seconds() <= 10800
         
     return in_window(now_local, parsed_dt) or in_window(now_utc, parsed_dt)
 
@@ -3462,48 +3680,10 @@ def render_jitsi_room(record, seed_text, title, return_url):
         user_id=getattr(current_user, "id", "") or JITSI_DEFAULT_USER_ID,
     )
     
-    appointment_uuid = record.get("uuid") if record else None
-    is_slot = record and "slot_date" in record and "purpose" not in record
-    if is_slot:
-        try:
-            appt_res = supabase.table("appointments").select("uuid").eq("slot_id", record["id"]).neq("status", "cancelled").limit(1).execute()
-            if appt_res.data:
-                appointment_uuid = appt_res.data[0]["uuid"]
-        except Exception as e:
-            app.logger.warning(f"Failed to find appointment for slot: {e}")
-
-    # Fetch all participants for this meeting sharing the same meet_url
-    participants = []
-    meet_url = (record or {}).get("meet_url")
-    if meet_url:
-        try:
-            participants_res = supabase.table("appointments").select("name,email,status").eq("meet_url", meet_url).neq("status", "cancelled").execute()
-            participants = participants_res.data or []
-        except Exception as e:
-            app.logger.warning(f"Failed to fetch meeting participants: {e}")
-
-    # Extract meeting UI settings
-    meeting_settings = ensure_meeting_settings_defaults((record or {}).get("meeting_settings"))
-    
-    return render_template(
-        "meeting_room.html",
-        title=title,
-        domain=jitsi_domain(),
-        api_script_url=jitsi_api_script_url(),
-        room_name=room_name,
-        jwt_token=jwt_token,
-        display_name=current_user.name or current_user.email,
-        user_email=current_user.email,
-        direct_meet_url=f"{jitsi_origin()}/{room_name}",
-        return_url=return_url,
-        jwt_required=bool(read_jitsi_private_key()),
-        jwt_enabled=bool(jwt_token),
-        is_coordinator=is_moderator,
-        appointment_uuid=appointment_uuid,
-        meeting_settings=meeting_settings,
-        participants=participants,
-        is_invalid=False
-    )
+    direct_meet_url = f"{jitsi_origin()}/{room_name}"
+    if jwt_token:
+        direct_meet_url += f"?jwt={jwt_token}"
+    return redirect(direct_meet_url)
 
 
 @app.route("/meeting/<uuid:appointment_uuid>")
@@ -3517,6 +3697,10 @@ def meeting_room(appointment_uuid):
         appointment = None
 
     if not appointment or not can_join_appointment(appointment):
+        if not current_user.is_authenticated:
+            flash("Please log in to join the meeting.", "error")
+            session["next"] = request.url
+            return redirect(url_for("login"))
         flash("You do not have access to this meeting.", "error")
         return redirect(url_for("appointments"))
 
@@ -3598,24 +3782,176 @@ def end_meeting(appointment_uuid):
         return redirect(url_for("appointments"))
 
     try:
+        now_utc = datetime.now(timezone.utc)
+        
+        # Calculate actual_duration_minutes
+        actual_duration = 30
+        actual_start_time_str = appointment.get("actual_start_time")
+        if actual_start_time_str:
+            try:
+                start_dt = datetime.fromisoformat(actual_start_time_str.replace("Z", "+00:00"))
+                diff = now_utc - start_dt
+                actual_duration = int(diff.total_seconds() / 60)
+            except Exception:
+                pass
+                
+        # Get scheduled duration from slot if possible, defaulting to 30
+        scheduled_duration = appointment.get("duration_minutes", 30)
+        
+        # Check if duration exceeded
+        duration_exceeded = actual_duration > scheduled_duration
+
+        update_payload = {
+            "status": "completed",
+            "actual_end_time": now_utc.isoformat(),
+            "actual_duration_minutes": actual_duration,
+            "updated_at": now_utc.isoformat(),
+        }
+
         # Mark all appointments sharing the same meet_url as completed to lock the meeting
         meet_url = appointment.get("meet_url")
         if meet_url:
-            supabase.table("appointments").update({
-                "status": "completed",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }).eq("meet_url", meet_url).execute()
+            supabase.table("appointments").update(update_payload).eq("meet_url", meet_url).execute()
         else:
-            supabase.table("appointments").update({
-                "status": "completed",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }).eq("id", appointment["id"]).execute()
-        flash("Meeting ended successfully.", "success")
+            supabase.table("appointments").update(update_payload).eq("id", appointment["id"]).execute()
+            
+        # Conflict Resolution: Check if next meeting overlaps
+        try:
+            coordinator_id = current_user.id
+            next_meetings_res = supabase.table("appointments")\
+                .select("*")\
+                .eq("coordinator_id", coordinator_id)\
+                .in_("status", ["scheduled", "booked"])\
+                .execute()
+            
+            now_local = datetime.now()
+            for next_apt in (next_meetings_res.data or []):
+                date_str = str(next_apt.get("scheduled_date") or next_apt.get("appointment_date")).strip()
+                time_str = str(next_apt.get("scheduled_time") or next_apt.get("appointment_time") or "").strip()
+                dt_str = f"{date_str} {time_str}".strip()
+                next_dt = None
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M"):
+                    try:
+                        next_dt = datetime.strptime(dt_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                        
+                if next_dt and now_local > next_dt:
+                    supabase.table("appointments").update({
+                        "status": "rescheduled",
+                        "notes": (next_apt.get("notes") or "") + "\n[Auto-Rescheduled: Coordinator's previous meeting ran overtime.]"
+                    }).eq("id", next_apt["id"]).execute()
+                    
+                    send_email_async(
+                        subject="Think.4U Meeting Rescheduled",
+                        recipients=[next_apt.get("email")],
+                        html=f"<p>Hello {html.escape(next_apt.get('name') or 'User')},</p><p>We apologize, but your coordinator's previous meeting ran over time. Your meeting has been rescheduled. Please log in to your dashboard to request a new time slot.</p>"
+                    )
+        except Exception as ce:
+            app.logger.error(f"Error in conflict resolution: {ce}")
+            
+        # Email reporting to user and coordinator
+        report_subject = f"Think.4U Meeting Summary - {appointment.get('purpose', 'Session')}"
+        report_html = f"<p>The meeting has concluded.</p><p><strong>Actual Duration:</strong> {actual_duration} minutes (Scheduled for {scheduled_duration} minutes).</p>"
+        recipients = [appointment.get("email")]
+        if getattr(current_user, "email", None):
+            recipients.append(current_user.email)
+            
+        if duration_exceeded:
+            report_html += f"<p><em>Because the meeting exceeded its scheduled time, a new appointment request has been automatically created for you to schedule a follow-up.</em></p>"
+            # Create a duplicate requested appointment for follow-up
+            try:
+                supabase.table("appointments").insert({
+                    "user_id": appointment.get("user_id"),
+                    "coordinator_id": appointment.get("coordinator_id"),
+                    "name": appointment.get("name"),
+                    "email": appointment.get("email"),
+                    "purpose": f"Follow-up: {appointment.get('purpose', 'Session')}",
+                    "notes": "[Auto-created] Previous meeting exceeded duration.",
+                    "status": "requested",
+                    "uuid": str(uuid.uuid4())
+                }).execute()
+            except Exception as re:
+                app.logger.error(f"Auto-reschedule failed: {re}")
+                
+        send_email_async(subject=report_subject, recipients=recipients, html=report_html)
+
+
+        flash(f"Meeting ended successfully. Duration: {actual_duration} mins.", "success")
     except Exception as e:
         app.logger.error(f"Error ending meeting: {e}")
         flash("Unable to end meeting.", "error")
 
     return redirect(url_for("coordinator_portal") if is_staff else url_for("appointments"))
+
+@app.route("/api/meeting/<uuid:appointment_uuid>/start", methods=["POST"])
+@login_required
+def start_meeting(appointment_uuid):
+    try:
+        response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
+        appointment = (response.data or [None])[0]
+        if not appointment:
+            return jsonify({"error": "Not found"}), 404
+            
+        is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
+        if not is_staff:
+            return jsonify({"error": "Unauthorized"}), 403
+            
+        if not appointment.get("actual_start_time"):
+            supabase.table("appointments").update({
+                "actual_start_time": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }).eq("uuid", str(appointment_uuid)).execute()
+            
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        app.logger.error(f"Failed to start meeting: {e}")
+        return jsonify({"error": "Internal error"}), 500
+
+@app.route("/appointments/<uuid:appointment_uuid>/calendar.ics")
+def download_calendar(appointment_uuid):
+    try:
+        response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
+        appointment = (response.data or [None])[0]
+        if not appointment:
+            # Fallback to appointment_slots for grouped meetings
+            slot_res = supabase.table("appointment_slots").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
+            appointment = (slot_res.data or [None])[0]
+            if not appointment:
+                return "Not found", 404
+            # Map slot fields to match what the function expects
+            appointment["scheduled_date"] = appointment.get("slot_date")
+            appointment["scheduled_time"] = appointment.get("slot_time")
+            appointment["purpose"] = "Meeting Slot"
+        date_str = str(appointment.get("scheduled_date") or appointment.get("appointment_date")).strip()
+        time_str = str(appointment.get("scheduled_time") or appointment.get("appointment_time") or "").strip()
+        dt_str = f"{date_str} {time_str}".strip()
+        
+        parsed_dt = None
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M"):
+            try:
+                parsed_dt = datetime.strptime(dt_str, fmt)
+                break
+            except ValueError:
+                continue
+                
+        if not parsed_dt:
+            parsed_dt = datetime.now() + timedelta(days=1)
+            
+        start_ics = parsed_dt.strftime("%Y%m%dT%H%M%S")
+        end_ics = (parsed_dt + timedelta(minutes=30)).strftime("%Y%m%dT%H%M%S")
+        now_ics = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        
+        ics_content = f"BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Think.4U//Appointments//EN\nBEGIN:VEVENT\nUID:{appointment.get('uuid')}@think4u.org\nDTSTAMP:{now_ics}\nDTSTART:{start_ics}\nDTEND:{end_ics}\nSUMMARY:Think.4U Appointment: {appointment.get('purpose', 'Meeting')}\nDESCRIPTION:Join your secure Think.4U meeting via your dashboard.\nEND:VEVENT\nEND:VCALENDAR"
+        
+        response_obj = make_response(ics_content)
+        response_obj.headers["Content-Disposition"] = f"attachment; filename=meeting_{appointment_uuid}.ics"
+        response_obj.headers["Content-Type"] = "text/calendar"
+        return response_obj
+    except Exception as e:
+        app.logger.error(f"Error generating ICS: {e}")
+        return "Internal Error", 500
 
 
 @app.route("/meeting/<uuid:appointment_uuid>/upload_recording_auto", methods=["POST"])
@@ -3688,6 +4024,11 @@ def meeting_slot_room(slot_uuid):
     if not slot:
         flash("Meeting slot not found.", "error")
         return redirect(url_for("coordinator_portal"))
+    if not current_user.is_authenticated:
+        flash("Please log in to join the meeting.", "error")
+        session["next"] = request.url
+        return redirect(url_for("login"))
+        
     if not current_user.is_admin and slot.get("coordinator_id") not in {None, "", current_db_user_id(), str(current_db_user_id())}:
         flash("You do not have access to this meeting slot.", "error")
         return redirect(url_for("coordinator_portal"))
@@ -4087,6 +4428,11 @@ def policy_terms():
 @app.route("/contact", methods=["GET", "POST"])
 def contact():
     if request.method == "POST":
+        turnstile_token = get_turnstile_token()
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
+            return redirect(url_for("contact"))
+
         name = clean_text(request.form.get("name"), 120)
         email = normalize_email(request.form.get("email"))
         phone = normalize_phone(request.form.get("phone"))
@@ -4426,6 +4772,27 @@ def admin_media_toggle(media_id):
     return redirect(url_for("admin_media"))
 
 
+@app.route("/admin/media/<int:media_id>/delete", methods=["POST"])
+@login_required
+def admin_media_delete(media_id):
+    try:
+        res = supabase.table("media_assets").select("storage_path").eq("id", media_id).execute()
+        if res.data:
+            storage_path = res.data[0].get("storage_path")
+            if storage_path:
+                try:
+                    supabase.storage.from_("site_media").remove([storage_path])
+                except Exception as e:
+                    app.logger.warning(f"Could not remove from storage: {e}")
+        
+        supabase.table("media_assets").delete().eq("id", media_id).execute()
+        flash("Media deleted successfully.", "success")
+    except Exception as e:
+        app.logger.error(f"Media delete failed: {e}")
+        flash("Unable to delete media.", "error")
+    return redirect(url_for("admin_media"))
+
+
 @app.route("/admin/events", methods=["GET", "POST"])
 @login_required
 def admin_events():
@@ -4687,7 +5054,14 @@ def do_reschedule_past_meetings(coordinator_id):
                     f"Your meeting '{appt.get('purpose')}' has been rescheduled to {next_date_str} at {new_time}."
                 )
             
-            send_meeting_update_email(appt.get("email"), appt.get("name"), {**appt, **update_payload}, "Think.4U meeting rescheduled")
+            send_meeting_update_email(
+                appt.get("email"), 
+                appt.get("name"), 
+                {**appt, **update_payload}, 
+                "Think.4U meeting rescheduled",
+                coordinator_email=current_user.email if hasattr(current_user, 'email') else None,
+                coordinator_name=current_user.name if hasattr(current_user, 'name') else None
+            )
             rescheduled_count += 1
         except Exception as e:
             app.logger.error(f"Failed to update rescheduled appointment {appt['id']}: {e}")
@@ -4811,6 +5185,7 @@ def coordinator_portal():
         requests=requests,
         meetings=display_meetings,
         slots=display_slots,
+        all_slots=slots,
         events=events,
         participant_counts=participant_counts,
         meet_domain=jitsi_domain(),
@@ -4849,21 +5224,7 @@ def coordinator_create_slot():
         flash("Slot date and time are required.", "error")
         return redirect(url_for("coordinator_portal"))
 
-    if slot_date and slot_time:
-        try:
-            slot_dt = datetime.strptime(f"{slot_date} {slot_time}", "%Y-%m-%d %H:%M")
-            if slot_dt < datetime.now():
-                flash("Cannot create an available slot in the past.", "error")
-                return redirect(url_for("coordinator_portal"))
-        except Exception:
-            pass
-
-    # Release Limit Date check
     global_settings = ensure_meeting_settings_defaults(getattr(current_user, "global_meeting_settings", None))
-    lim = global_settings.get("release_limit_date")
-    if lim and slot_date and slot_date > lim:
-        flash(f"Cannot create a slot past the release limit date of {lim}.", "error")
-        return redirect(url_for("coordinator_portal"))
 
     try:
         supabase.table("appointment_slots").insert({
@@ -4883,6 +5244,53 @@ def coordinator_create_slot():
         app.logger.error(f"Coordinator slot create failed: {e}")
         flash("Unable to create slot.", "error")
     return redirect(url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/slot/<int:slot_id>/delete", methods=["POST"])
+@coordinator_required
+def coordinator_slot_delete(slot_id):
+    try:
+        supabase.table("appointments").update({"status": "cancelled", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("slot_id", slot_id).neq("status", "completed").execute()
+        supabase.table("appointment_slots").delete().eq("id", slot_id).execute()
+        flash("Slot deleted and associated appointments cancelled.", "success")
+    except Exception as e:
+        app.logger.error(f"Coordinator slot delete failed: {e}")
+        flash("Unable to delete slot.", "error")
+    return redirect(request.referrer or url_for("coordinator_portal"))
+
+
+@app.route("/coordinator/slot/<int:slot_id>/merge", methods=["POST"])
+@coordinator_required
+def coordinator_slot_merge(slot_id):
+    target_slot_id = request.form.get("target_slot_id")
+    if not target_slot_id:
+        flash("Target slot must be selected to merge.", "error")
+        return redirect(request.referrer or url_for("coordinator_portal"))
+        
+    try:
+        target_res = supabase.table("appointment_slots").select("*").eq("id", target_slot_id).execute()
+        if not target_res.data:
+            flash("Target slot not found.", "error")
+            return redirect(request.referrer or url_for("coordinator_portal"))
+            
+        target_slot = target_res.data[0]
+        
+        update_data = {
+            "slot_id": target_slot_id,
+            "scheduled_date": target_slot.get("slot_date"),
+            "scheduled_time": target_slot.get("slot_time"),
+            "meet_url": target_slot.get("meet_url"),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        supabase.table("appointments").update(update_data).eq("slot_id", slot_id).execute()
+        supabase.table("appointment_slots").delete().eq("id", slot_id).execute()
+        
+        flash("Slot merged successfully.", "success")
+    except Exception as e:
+        app.logger.error(f"Coordinator slot merge failed: {e}")
+        flash("Unable to merge slot.", "error")
+    return redirect(request.referrer or url_for("coordinator_portal"))
 
 
 @app.route("/coordinator/meeting/<int:appointment_id>/add_participant", methods=["POST"])
@@ -4935,12 +5343,20 @@ def coordinator_add_participant(appointment_id):
             "status": "scheduled",
             "meeting_settings": src_meeting.get("meeting_settings"),
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "uuid": str(uuid.uuid4())
         }
         supabase.table("appointments").insert(new_appointment).execute()
 
         # Send email update to added participant
-        send_meeting_update_email(email, user_row.get("name") or email, new_appointment, "Think.4U meeting invitation")
+        send_meeting_update_email(
+            email, 
+            user_row.get("name") or email, 
+            new_appointment, 
+            "Think.4U meeting invitation",
+            coordinator_email=current_user.email,
+            coordinator_name=current_user.name
+        )
         create_notification_for_user(user_row["id"], "Added to meeting", f"You have been added to the meeting on {new_appointment['scheduled_date']} at {new_appointment['scheduled_time']}.")
 
         flash(f"Successfully added {email} to the meeting.", "success")
@@ -4959,13 +5375,19 @@ def coordinator_update_meeting_settings(appointment_id):
     show_raise_hand = request.form.get("show_raise_hand") == "on"
     show_participants = request.form.get("show_participants") == "on"
     record_meeting = request.form.get("record_meeting") == "on"
+    start_audio_muted = request.form.get("start_audio_muted") == "on"
+    start_video_hidden = request.form.get("start_video_hidden") == "on"
+    follow_me_enabled = request.form.get("follow_me_enabled") == "on"
 
     settings = {
         "show_chat": show_chat,
         "show_screen_share": show_screen_share,
         "show_raise_hand": show_raise_hand,
         "show_participants": show_participants,
-        "record_meeting": record_meeting
+        "record_meeting": record_meeting,
+        "start_audio_muted": start_audio_muted,
+        "start_video_hidden": start_video_hidden,
+        "follow_me_enabled": follow_me_enabled
     }
 
     try:
@@ -5005,6 +5427,9 @@ def coordinator_settings():
         show_raise_hand = request.form.get("show_raise_hand") == "on"
         show_participants = request.form.get("show_participants") == "on"
         record_meeting = request.form.get("record_meeting") == "on"
+        start_audio_muted = request.form.get("start_audio_muted") == "on"
+        start_video_hidden = request.form.get("start_video_hidden") == "on"
+        follow_me_enabled = request.form.get("follow_me_enabled") == "on"
         
         holidays_raw = request.form.get("holidays_list", "")
         holidays_list = []
@@ -5019,6 +5444,9 @@ def coordinator_settings():
             "show_raise_hand": show_raise_hand,
             "show_participants": show_participants,
             "record_meeting": record_meeting,
+            "start_audio_muted": start_audio_muted,
+            "start_video_hidden": start_video_hidden,
+            "follow_me_enabled": follow_me_enabled,
             "holidays": holidays_list
         }
         
@@ -5279,9 +5707,14 @@ def coordinator_schedule_appointment(appointment_id):
                 "Appointment scheduled",
                 f"Your meeting is {status} for {scheduled_date} at {scheduled_time}."
             )
-        send_meeting_update_email(appointment.get("email"), appointment.get("name"), appointment, "Think.4U appointment scheduled")
-        if current_user.email:
-            send_meeting_update_email(current_user.email, current_user.name, appointment, "Think.4U coordinator meeting schedule")
+        send_meeting_update_email(
+            appointment.get("email"), 
+            appointment.get("name"), 
+            appointment, 
+            "Think.4U appointment scheduled",
+            coordinator_email=current_user.email,
+            coordinator_name=current_user.name
+        )
         flash("Appointment schedule updated.", "success")
     except Exception as e:
         app.logger.error(f"Coordinator schedule failed: {e}")
@@ -5340,10 +5773,7 @@ def coordinator_bulk_slots():
                             except Exception:
                                 continue
                                 
-                    lim = global_settings.get("release_limit_date")
-                    if lim and slot_date > lim:
-                        flash(f"Cannot upload slots past the release limit date of {lim}.", "error")
-                        return redirect(url_for("coordinator_bulk_slots"))
+                    pass
                                 
                     # Standardize time HH:MM
                     if not re.match(r"^\d{2}:\d{2}$", slot_time):
@@ -5414,10 +5844,7 @@ def coordinator_bulk_slots():
                 flash("Start date, end date, start time, and end time are required.", "error")
                 return redirect(url_for("coordinator_bulk_slots"))
                 
-            lim = global_settings.get("release_limit_date")
-            if lim and end_date_str > lim:
-                flash(f"Cannot generate slots past the release limit date of {lim}.", "error")
-                return redirect(url_for("coordinator_bulk_slots"))
+            pass
                 
             try:
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
@@ -5435,7 +5862,7 @@ def coordinator_bulk_slots():
                 for cur_date in dates_list:
                     if selected_weekdays and cur_date.weekday() not in selected_weekdays:
                         continue
-                    if cur_date.weekday() == 6:  # Skip Sunday automatically
+                    if cur_date.weekday() == 6 and 6 not in selected_weekdays:  # Skip Sunday automatically unless selected
                         continue
                     if cur_date.isoformat() in holidays:
                         continue

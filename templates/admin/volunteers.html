@@ -142,7 +142,7 @@
                         <div class="flex flex-wrap gap-2">
                             <!-- View Info Button -->
                             <button 
-                                onclick="showVolunteerInfo({{ volunteer.id }})"
+                                onclick="showVolunteerInfo('{{ volunteer.id }}')"
                                 class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition flex items-center gap-2"
                                 title="View Full Info"
                             >
@@ -180,7 +180,7 @@
 
                             <!-- Remove Button -->
                             <button 
-                                onclick="deleteVolunteer({{ volunteer.id }}, '{{ volunteer.name }}')"
+                                onclick="deleteVolunteer('{{ volunteer.id }}', '{{ volunteer.name }}')"
                                 class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition flex items-center gap-2"
                                 title="Remove Volunteer"
                             >

@@ -261,7 +261,7 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="flex items-center justify-between gap-3">
                             <div>
-                                <p class="font-bold text-slate-900">{{ slot.slot_date }} at {{ slot.slot_time }}</p>
+                                <p class="font-bold text-slate-900">{{ slot.slot_date }} at {{ slot.slot_time[:5] if slot.slot_time else '' }}</p>
                                 <p class="text-sm text-slate-500">{{ slot.duration_minutes or 30 }} minutes{% if slot.auto_accept %} - auto accepted{% endif %}</p>
                             </div>
                             <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold">Book</button>
@@ -280,38 +280,33 @@
             </div>
         </div>
 
+        <!-- Active/Upcoming Meetings -->
         <div class="bg-white rounded-lg shadow border border-stone-200 p-6 mt-6">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">My Requests & Meetings</h2>
-            {% if appointments %}
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">Upcoming & Active Requests</h2>
+            {% if active_appointments %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {% for a in appointments %}
+                {% for a in active_appointments %}
                 <div class="border rounded-lg p-4 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between gap-3">
                             <p class="font-semibold text-slate-900">{{ a.scheduled_date or a.appointment_date }} {{ a.scheduled_time or a.appointment_time }}</p>
-                            <span class="text-xs font-bold {% if a.status in ['scheduled','booked','completed'] %}text-green-700{% elif a.status == 'cancelled' %}text-red-700{% else %}text-amber-700{% endif %}">
+                            <span class="text-xs font-bold {% if a.status in ['scheduled','booked'] %}text-green-700{% else %}text-amber-700{% endif %}">
                                 {{ a.status|replace('_',' ')|title if a.status else 'Requested' }}
                             </span>
                         </div>
                         <p class="text-slate-700 mt-1">{{ a.purpose }}</p>
                         {% if a.notes %}<p class="text-sm text-slate-500 mt-1">{{ a.notes }}</p>{% endif %}
-                        
-                        {% if a.recording_url and a.share_recording %}
-                        <div class="mt-3 p-3 bg-stone-50 rounded-lg border border-stone-200">
-                            <p class="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path></svg>
-                                Meeting Recording
-                            </p>
-                            <video controls class="w-full rounded border border-stone-300 max-h-64 shadow-sm bg-black">
-                                <source src="{{ a.recording_url }}" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                        </div>
-                        {% endif %}
                     </div>
                     {% if a.meet_url and a.status not in ['completed', 'cancelled'] %}
-                    <div class="mt-3 pt-2">
-                        <a href="{{ url_for('meeting_room', appointment_uuid=a.uuid) }}" target="_blank" rel="noopener" class="inline-flex text-sm font-bold text-blue-700 hover:text-blue-900">Open secure meeting</a>
+                    <div class="mt-3 pt-2 meeting-timer-container" 
+                         data-date="{{ a.scheduled_date or a.appointment_date }}" 
+                         data-time="{{ a.scheduled_time or a.appointment_time }}" 
+                         data-url="{{ url_for('meeting_room', appointment_uuid=a.uuid) }}">
+                        <p class="text-sm font-bold text-amber-700 timer-text">Calculating time...</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <a href="{{ url_for('meeting_room', appointment_uuid=a.uuid) }}" target="_blank" rel="noopener" class="hidden inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow join-btn">Open secure meeting</a>
+                            <a href="{{ url_for('download_calendar', appointment_uuid=a.uuid) }}" data-no-loader="true" class="inline-flex items-center justify-center px-4 py-2 bg-stone-100 text-stone-700 text-sm font-bold rounded-lg hover:bg-stone-200 border border-stone-200 transition">Add to Calendar</a>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -329,7 +324,57 @@
             {% endif %}
             
             {% else %}
-            <p class="text-slate-600">No appointment requests yet.</p>
+            <p class="text-slate-600">No active appointment requests right now.</p>
+            {% endif %}
+        </div>
+
+        <!-- Past Meetings -->
+        <div class="bg-white rounded-lg shadow border border-stone-200 p-6 mt-6">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">Past Meetings</h2>
+            {% if past_appointments %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for a in past_appointments %}
+                <div class="border rounded-lg p-4 flex flex-col justify-between bg-slate-50 opacity-90">
+                    <div>
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="font-semibold text-slate-900">{{ a.scheduled_date or a.appointment_date }} {{ a.scheduled_time or a.appointment_time }}</p>
+                            <span class="text-xs font-bold {% if a.status == 'completed' %}text-green-700{% elif a.status == 'cancelled' %}text-red-700{% else %}text-slate-500{% endif %}">
+                                {{ a.status|replace('_',' ')|title if a.status else 'Past' }}
+                            </span>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-500 mt-1">Duration: {{ a.actual_duration_minutes or a.duration_minutes or 30 }} minutes</p>
+                        <p class="text-slate-700 mt-2">{{ a.purpose }}</p>
+                        {% if a.notes %}<p class="text-sm text-slate-500 mt-1">{{ a.notes }}</p>{% endif %}
+                        
+                        {% if a.recording_url and a.share_recording %}
+                        <div class="mt-3 p-3 bg-white rounded-lg border border-stone-200 shadow-sm">
+                            <p class="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path></svg>
+                                Meeting Recording
+                            </p>
+                            <video controls class="w-full rounded border border-stone-300 max-h-64 shadow-sm bg-black">
+                                <source src="{{ a.recording_url }}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if has_more %}
+            <div class="mt-6 flex justify-start">
+                {% if not show_all %}
+                <a href="{{ url_for('appointments', show_all='true') }}" class="px-5 py-2.5 bg-amber-800 text-white font-bold rounded-lg hover:bg-amber-900 transition text-sm shadow">View More Meetings</a>
+                {% else %}
+                <a href="{{ url_for('appointments') }}" class="px-5 py-2.5 bg-stone-900 text-white font-bold rounded-lg hover:bg-stone-850 transition text-sm shadow">Show Less</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <p class="text-slate-600">No past meetings found.</p>
             {% endif %}
         </div>
     </div>
@@ -341,16 +386,17 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // Collect all available slot date-times from context
-        const availableSlots = [
+        const availableSlotsStr = `[
             {% for slot in slots %}
             {% if not (global_settings and global_settings.release_limit_date) or slot.slot_date <= global_settings.release_limit_date %}
             {
-                date: "{{ slot.slot_date }}",
-                time: "{{ slot.slot_time }}"
-            },
+                "date": "{{ slot.slot_date }}",
+                "time": "{{ slot.slot_time[:5] if slot.slot_time else '' }}"
+            }{% if not loop.last %},{% endif %}
             {% endif %}
             {% endfor %}
-        ];
+        ]`.replace(/,\s*\]$/, ']'); // Remove trailing comma if present
+        const availableSlots = JSON.parse(availableSlotsStr);
 
         // Create a unique set of available slot dates
         const availableDatesSet = new Set(availableSlots.map(s => s.date));
@@ -399,7 +445,7 @@
         });
 
         const releaseLimitDateStr = "{{ global_settings.release_limit_date if (global_settings and global_settings.release_limit_date) else '' }}";
-        const activeUserDates = new Set({{ active_user_dates | tojson }});
+        const activeUserDates = new Set(JSON.parse('{{ active_user_dates | tojson | safe }}'));
 
         // Initialize inline flatpickr inside the #picker-calendar-inline container
         const calendarFp = flatpickr("#picker-calendar-inline", {
@@ -409,11 +455,14 @@
             disableMobile: true,
             disable: [
                 function(date) {
-                    // Disable Sundays (0)
-                    if (date.getDay() === 0) return true;
+                    const dateStr = flatpickr.formatDate(date, "Y-m-d");
+                    
+                    // Disable Sundays (0) if there are no available coordinator slots on that Sunday
+                    if (date.getDay() === 0) {
+                        return !availableDatesSet.has(dateStr);
+                    }
                     
                     // Disable dates where user already has an active appointment
-                    const dateStr = flatpickr.formatDate(date, "Y-m-d");
                     if (activeUserDates.has(dateStr)) return true;
                     
                     return false;
@@ -449,7 +498,7 @@
         });
 
         // Settings fetched from coordinator global config
-        const allowCustomRequests = {{ 'true' if (global_settings and global_settings.allow_custom_requests) else 'false' }};
+        const allowCustomRequests = JSON.parse('{{ "true" if (global_settings and global_settings.allow_custom_requests) else "false" }}');
         const requestStartTime = "{{ global_settings.request_start_time if (global_settings and global_settings.request_start_time) else '09:00' }}";
         const requestEndTime = "{{ global_settings.request_end_time if (global_settings and global_settings.request_end_time) else '17:00' }}";
 
@@ -618,6 +667,56 @@
 
         // Initialize default view
         renderTimeList(null);
+
+        // --- Countdown Timer Logic ---
+        function updateTimers() {
+            const now = new Date();
+            const timers = document.querySelectorAll('.meeting-timer-container');
+            
+            timers.forEach(container => {
+                const dateStr = container.getAttribute('data-date');
+                const timeStr = container.getAttribute('data-time');
+                if (!dateStr || !timeStr || timeStr === 'TBA') {
+                    container.querySelector('.timer-text').textContent = 'Time TBA';
+                    return;
+                }
+                
+                // Parse date assuming local timezone
+                const [year, month, day] = dateStr.split('-');
+                const [hour, minute] = timeStr.split(':');
+                const meetingTime = new Date(year, month - 1, day, hour, minute);
+                
+                const diffMs = meetingTime - now;
+                const diffMins = Math.floor(diffMs / 60000);
+                
+                const timerText = container.querySelector('.timer-text');
+                const joinBtn = container.querySelector('.join-btn');
+                
+                // Window logic: 15 mins before to 3 hours after
+                if (diffMins > 15) {
+                    // Future meeting, calculate countdown
+                    const hours = Math.floor(diffMins / 60);
+                    const mins = diffMins % 60;
+                    const secs = Math.floor((diffMs % 60000) / 1000);
+                    timerText.textContent = `Available in ${hours}h ${mins}m ${secs}s`;
+                    timerText.classList.remove('hidden');
+                    if (joinBtn) joinBtn.classList.add('hidden');
+                } else if (diffMins <= 15 && diffMins >= -180) {
+                    // Meeting is active or about to start
+                    timerText.classList.add('hidden');
+                    if (joinBtn) joinBtn.classList.remove('hidden');
+                } else if (diffMins < -180) {
+                    // Meeting ended
+                    timerText.textContent = 'Meeting ended';
+                    timerText.classList.remove('hidden');
+                    if (joinBtn) joinBtn.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Run immediately and then every second
+        updateTimers();
+        setInterval(updateTimers, 1000);
     });
 </script>
 {% endblock %}

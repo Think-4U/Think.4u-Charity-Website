@@ -68,7 +68,7 @@ class TestMeetingFeatures(unittest.TestCase):
 
         # psycopg2 select queries mock
         self.mock_cursor.fetchone.side_effect = [
-            {"id": 1, "status": "available", "registration_limit": 2, "slot_date": "2026-06-26", "slot_time": "10:00"}, # Slot query
+            {"id": 1, "status": "available", "registration_limit": 2, "slot_date": "2035-06-26", "slot_time": "10:00"}, # Slot query
             {"id": 99} # Duplicate check
         ]
 
@@ -83,7 +83,7 @@ class TestMeetingFeatures(unittest.TestCase):
 
         # psycopg2 select queries mock
         self.mock_cursor.fetchone.side_effect = [
-            {"id": 1, "status": "available", "registration_limit": 1, "slot_date": "2026-06-26", "slot_time": "10:00"}, # Slot query
+            {"id": 1, "status": "available", "registration_limit": 1, "slot_date": "2035-06-26", "slot_time": "10:00"}, # Slot query
             None, # Duplicate check
             {"count": 1} # Count check (reached limit)
         ]
@@ -106,7 +106,7 @@ class TestMeetingFeatures(unittest.TestCase):
         # 1. Source meeting query -> valid scheduled meeting
         # 2. Check duplicate booking (already participant) -> empty
         queries["appointments"].execute.side_effect = [
-            MagicMock(data=[{"id": 10, "meet_url": "https://meet.domain.com/room", "purpose": "Testing", "appointment_date": "2026-06-26", "appointment_time": "10:00"}]),
+            MagicMock(data=[{"id": 10, "meet_url": "https://meet.domain.com/room", "purpose": "Testing", "appointment_date": "2035-06-26", "appointment_time": "10:00"}]),
             MagicMock(data=[])
         ]
 
@@ -166,7 +166,7 @@ class TestMeetingFeatures(unittest.TestCase):
 
         # Return 5 meetings
         queries["appointments"].execute.return_value = MagicMock(data=[
-            {"id": i, "purpose": f"Meeting {i}", "created_at": "2026-06-25", "status": "scheduled"} for i in range(1, 6)
+            {"id": i, "purpose": f"Meeting {i}", "created_at": "2035-06-25", "status": "scheduled"} for i in range(1, 6)
         ])
 
         # Request default dashboard list (should slice to 3)
@@ -238,7 +238,7 @@ class TestMeetingFeatures(unittest.TestCase):
             {"id": 1, "purpose": "History Meeting", "status": "scheduled"}
         ])
         queries["appointment_slots"].execute.return_value = MagicMock(data=[
-            {"id": 1, "slot_date": "2026-06-25", "slot_time": "12:00", "status": "available"}
+            {"id": 1, "slot_date": "2035-06-25", "slot_time": "12:00", "status": "available"}
         ])
 
         response = self.client.get('/coordinator/history')
@@ -302,7 +302,7 @@ class TestMeetingFeatures(unittest.TestCase):
         queries = self.setup_supabase_mock(mock_supabase)
         
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-06-28',
+            'appointment_date': '2035-06-24',
             'appointment_time': '10:00',
             'purpose': 'Sunday Discussion'
         })
@@ -317,11 +317,11 @@ class TestMeetingFeatures(unittest.TestCase):
         queries = self.setup_supabase_mock(mock_supabase)
         
         queries["users"].execute.return_value = MagicMock(data=[
-            {"global_meeting_settings": {"holidays": ["2026-07-04"]}}
+            {"global_meeting_settings": {"holidays": ["2035-07-04"]}}
         ])
         
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-07-04',
+            'appointment_date': '2035-07-04',
             'appointment_time': '10:00',
             'purpose': 'Holiday Discussion'
         })
@@ -337,11 +337,11 @@ class TestMeetingFeatures(unittest.TestCase):
         
         queries["users"].execute.return_value = MagicMock(data=[])
         queries["appointment_slots"].execute.return_value = MagicMock(data=[
-            {"slot_date": "2026-07-06"}
+            {"slot_date": "2035-07-06"}
         ])
         
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-07-06',
+            'appointment_date': '2035-07-06',
             'appointment_time': '10:00',
             'purpose': 'Valid Slot Discussion'
         })
@@ -366,7 +366,7 @@ class TestMeetingFeatures(unittest.TestCase):
         queries["appointment_slots"].execute.return_value = MagicMock(data=[]) # No available pre-created slots
         
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-07-06',
+            'appointment_date': '2035-07-06',
             'appointment_time': '10:30',  # Within 09:00 - 17:00 range
             'purpose': 'Custom Request Window Discussion'
         })
@@ -382,8 +382,8 @@ class TestMeetingFeatures(unittest.TestCase):
         
         response = self.client.post('/coordinator/bulk_slots', data={
             'action': 'generate_slots',
-            'start_date': '2026-07-01',
-            'end_date': '2026-07-03',
+            'start_date': '2035-07-01',
+            'end_date': '2035-07-03',
             'start_time': '09:00',
             'end_time': '11:00',
             'duration_minutes': '60',
@@ -393,6 +393,28 @@ class TestMeetingFeatures(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         # Should call insert on appointment_slots
         queries["appointment_slots"].insert.assert_called_once()
+
+    @patch('app.supabase')
+    def test_coordinator_bulk_generate_slots_sunday(self, mock_supabase):
+        self.mock_login(user_role="coordinator", user_id=111)
+        queries = self.setup_supabase_mock(mock_supabase)
+        
+        response = self.client.post('/coordinator/bulk_slots', data={
+            'action': 'generate_slots',
+            'start_date': '2035-07-01', # Sunday
+            'end_date': '2035-07-01', # Sunday
+            'start_time': '09:00',
+            'end_time': '11:00',
+            'duration_minutes': '60',
+            'registration_limit': '1',
+            'days_of_week': ['6'] # Sunday
+        })
+        self.assertEqual(response.status_code, 302)
+        # Should call insert on appointment_slots because Sunday was explicitly chosen
+        queries["appointment_slots"].insert.assert_called_once()
+        inserted_slots = queries["appointment_slots"].insert.call_args[0][0]
+        self.assertTrue(len(inserted_slots) > 0)
+        self.assertEqual(inserted_slots[0]["slot_date"], "2035-07-01")
 
     @patch('app.supabase')
     def test_coordinator_reschedule_past_meetings(self, mock_supabase):
@@ -461,12 +483,12 @@ class TestMeetingFeatures(unittest.TestCase):
             'request_start_time': '09:00',
             'request_end_time': '17:00',
             'reschedule_default_time': '10:00',
-            'release_limit_date': '2026-10-15'
+            'release_limit_date': '2035-10-15'
         })
         self.assertEqual(response.status_code, 302)
         queries["users"].update.assert_called_once()
         updated_settings = queries["users"].update.call_args[0][0]["global_meeting_settings"]
-        self.assertEqual(updated_settings["release_limit_date"], "2026-10-15")
+        self.assertEqual(updated_settings["release_limit_date"], "2035-10-15")
 
     @patch('app.supabase')
     def test_user_request_past_release_limit(self, mock_supabase):
@@ -477,13 +499,13 @@ class TestMeetingFeatures(unittest.TestCase):
             {
                 "global_meeting_settings": {
                     "allow_custom_requests": True,
-                    "release_limit_date": "2026-07-10"
+                    "release_limit_date": "2035-07-10"
                 }
             }
         ])
 
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-07-12', # Past the limit 2026-07-10
+            'appointment_date': '2035-07-12', # Past the limit 2035-07-10
             'appointment_time': '10:00',
             'purpose': 'Request past limit'
         })
@@ -499,11 +521,11 @@ class TestMeetingFeatures(unittest.TestCase):
 
         # Mock coordinator settings returning release_limit_date
         user.global_meeting_settings = {
-            "release_limit_date": "2026-07-10"
+            "release_limit_date": "2035-07-10"
         }
 
         response = self.client.post('/coordinator/slots', data={
-            'slot_date': '2026-07-12', # Past the limit 2026-07-10
+            'slot_date': '2035-07-12', # Past the limit 2035-07-10
             'slot_time': '10:00'
         })
         self.assertEqual(response.status_code, 302)
@@ -516,14 +538,14 @@ class TestMeetingFeatures(unittest.TestCase):
 
         # Mock coordinator settings returning release_limit_date
         user.global_meeting_settings = {
-            "release_limit_date": "2026-07-10"
+            "release_limit_date": "2035-07-10"
         }
 
         # 1. Generator range end date past limit
         response = self.client.post('/coordinator/bulk_slots', data={
             'action': 'generate_slots',
-            'start_date': '2026-07-01',
-            'end_date': '2026-07-15', # Past the limit 2026-07-10
+            'start_date': '2035-07-01',
+            'end_date': '2035-07-15', # Past the limit 2035-07-10
             'start_time': '09:00',
             'end_time': '11:00',
             'duration_minutes': '60',
@@ -534,7 +556,7 @@ class TestMeetingFeatures(unittest.TestCase):
         queries["appointment_slots"].insert.assert_not_called()
 
         # 2. CSV slot past limit
-        csv_data = "date,time,duration_minutes,registration_limit,auto_accept\n2026-07-12,09:00,30,1,true\n"
+        csv_data = "date,time,duration_minutes,registration_limit,auto_accept\n2035-07-12,09:00,30,1,true\n"
         response = self.client.post('/coordinator/bulk_slots', data={
             'action': 'upload_csv',
             'csv_file': (BytesIO(csv_data.encode('utf-8')), 'test.csv')
@@ -553,7 +575,7 @@ class TestMeetingFeatures(unittest.TestCase):
         self.mock_cursor.fetchone.side_effect = [None, {"id": 456}]
 
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-07-06',
+            'appointment_date': '2035-07-06',
             'appointment_time': '10:00',
             'purpose': 'Request matching slot'
         })
@@ -570,7 +592,7 @@ class TestMeetingFeatures(unittest.TestCase):
         self.mock_cursor.fetchone.return_value = {"id": 88}
 
         response = self.client.post('/appointments', data={
-            'appointment_date': '2026-07-06',
+            'appointment_date': '2035-07-06',
             'appointment_time': '10:00',
             'purpose': 'Duplicate Request'
         })
@@ -586,7 +608,7 @@ class TestMeetingFeatures(unittest.TestCase):
         # 1. Fetch slot details
         # 2. Daily limit check -> returns active booking {"id": 88}
         self.mock_cursor.fetchone.side_effect = [
-            {"id": 1, "status": "available", "registration_limit": 2, "slot_date": "2026-06-26", "slot_time": "10:00"},
+            {"id": 1, "status": "available", "registration_limit": 2, "slot_date": "2035-06-26", "slot_time": "10:00"},
             {"id": 88}
         ]
 

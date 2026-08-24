@@ -137,11 +137,10 @@
             </div>
         </div>
     </nav>
-
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <script>
-        window.__flashMessages = {{ messages|tojson }};
+        window.__flashMessages = JSON.parse('{{ messages|tojson|safe }}');
     </script>
     {% endif %}
     {% endwith %}
@@ -155,8 +154,8 @@
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         window.CSRF_TOKEN = csrfToken;
-        const userIsAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
-        const inactivityTimeoutMinutes = {{ inactivity_timeout_minutes|int }};
+        const userIsAuthenticated = JSON.parse('{{ "true" if current_user.is_authenticated else "false" }}');
+        const inactivityTimeoutMinutes = JSON.parse('{{ inactivity_timeout_minutes|int }}');
         const inactivityTimeoutMs = inactivityTimeoutMinutes * 60 * 1000;
 
         const categoryToIcon = {

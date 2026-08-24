@@ -22,10 +22,13 @@ try:
         ADD COLUMN IF NOT EXISTS meeting_settings JSONB DEFAULT '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb;
     """)
     
-    print("Altering public.appointments to add meeting_settings...")
+    print("Altering public.appointments to add meeting_settings and duration columns...")
     cursor.execute("""
         ALTER TABLE public.appointments 
-        ADD COLUMN IF NOT EXISTS meeting_settings JSONB DEFAULT '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb;
+        ADD COLUMN IF NOT EXISTS meeting_settings JSONB DEFAULT '{"show_chat": true, "show_screen_share": true, "show_raise_hand": true, "show_participants": true}'::jsonb,
+        ADD COLUMN IF NOT EXISTS actual_start_time TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS actual_end_time TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS actual_duration_minutes INTEGER;
     """)
     
     conn.commit()

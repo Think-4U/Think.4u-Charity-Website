@@ -610,6 +610,10 @@ grant select, insert, update on public.grievances to authenticated;
 grant select, insert, update on public.event_participants to authenticated;
 grant select on public.event_certificates to authenticated;
 
+alter table if exists public.appointments add column if not exists actual_start_time text;
+alter table if exists public.appointments add column if not exists actual_end_time text;
+alter table if exists public.appointments add column if not exists actual_duration_minutes integer;
+
 -- =====================================================
 -- 7) ROW LEVEL SECURITY
 -- =====================================================
@@ -637,11 +641,14 @@ drop policy if exists users_service_all on public.users;
 drop policy if exists users_self_read on public.users;
 drop policy if exists users_self_update on public.users;
 drop policy if exists users_self_insert on public.users;
+drop policy if exists users_anon_insert on public.users;
+drop policy if exists users_anon_read on public.users;
 
 drop policy if exists donations_service_all on public.donations;
 drop policy if exists donations_self_read on public.donations;
 drop policy if exists donations_self_insert on public.donations;
 drop policy if exists donations_self_update on public.donations;
+drop policy if exists donations_anon_all on public.donations;
 
 drop policy if exists volunteers_service_all on public.volunteers;
 drop policy if exists volunteers_self_read on public.volunteers;
@@ -658,10 +665,12 @@ drop policy if exists appointments_service_all on public.appointments;
 drop policy if exists appointments_self_read on public.appointments;
 drop policy if exists appointments_self_insert on public.appointments;
 drop policy if exists appointments_self_update on public.appointments;
+drop policy if exists appointments_anon_all on public.appointments;
 drop policy if exists appointment_slots_service_all on public.appointment_slots;
 drop policy if exists appointment_slots_authenticated_read on public.appointment_slots;
 drop policy if exists appointment_slots_coordinator_insert on public.appointment_slots;
 drop policy if exists appointment_slots_coordinator_update on public.appointment_slots;
+drop policy if exists appointment_slots_anon_all on public.appointment_slots;
 drop policy if exists grievances_service_all on public.grievances;
 drop policy if exists grievances_self_read on public.grievances;
 drop policy if exists grievances_self_insert on public.grievances;
@@ -678,6 +687,7 @@ drop policy if exists fundraisers_service_all on public.fundraisers;
 drop policy if exists fundraisers_public_read on public.fundraisers;
 drop policy if exists media_assets_service_all on public.media_assets;
 drop policy if exists media_assets_public_read on public.media_assets;
+drop policy if exists media_assets_anon_all on public.media_assets;
 drop policy if exists contact_messages_service_all on public.contact_messages;
 drop policy if exists contact_messages_public_insert on public.contact_messages;
 drop policy if exists cookie_consents_service_all on public.cookie_consents;
@@ -721,8 +731,14 @@ for select to anon, authenticated
 using (coalesce(status, 'active') = 'active');
 
 create policy media_assets_public_read on public.media_assets
-for select to anon, authenticated
-using (is_published = true);
+for select to public
+using (is_published = true or auth.role() = 'authenticated');
+
+-- Policies for anon role (used by backend without service key)
+create policy media_assets_anon_all on public.media_assets
+for all to anon
+using (true)
+with check (true);
 
 -- Public contact and cookie consent submissions.
 create policy contact_messages_public_insert on public.contact_messages
@@ -746,6 +762,15 @@ with check (email = auth.jwt() ->> 'email');
 create policy users_self_insert on public.users
 for insert to authenticated
 with check (email = auth.jwt() ->> 'email');
+
+-- Policies for anon role (used by backend without service key)
+create policy users_anon_insert on public.users
+for insert to anon
+with check (true);
+
+create policy users_anon_read on public.users
+for select to anon
+using (true);
 
 create policy donations_self_read on public.donations
 for select to authenticated
@@ -793,6 +818,11 @@ for update to authenticated
 using (user_id = public.request_user_id() or coordinator_id = public.request_user_id())
 with check (user_id = public.request_user_id() or coordinator_id = public.request_user_id());
 
+create policy appointments_anon_all on public.appointments
+for all to anon
+using (true)
+with check (true);
+
 create policy appointment_slots_authenticated_read on public.appointment_slots
 for select to authenticated
 using (
@@ -823,6 +853,11 @@ with check (
     or booked_by_user_id = public.request_user_id()
 );
 
+create policy appointment_slots_anon_all on public.appointment_slots
+for all to anon
+using (true)
+with check (true);
+
 create policy grievances_self_read on public.grievances
 for select to authenticated
 using (user_id = public.request_user_id());
@@ -835,6 +870,11 @@ create policy grievances_self_update on public.grievances
 for update to authenticated
 using (user_id = public.request_user_id())
 with check (user_id = public.request_user_id());
+
+create policy donations_anon_all on public.donations
+for all to anon
+using (true)
+with check (true);
 
 create policy event_participants_self_read on public.event_participants
 for select to authenticated
@@ -875,6 +915,14 @@ create policy "think4u_service_storage_all"
 on storage.objects
 for all
 to service_role
+using (bucket_id in ('program-images', 'site-media'))
+with check (bucket_id in ('program-images', 'site-media'));
+
+drop policy if exists "think4u_anon_storage_all" on storage.objects;
+create policy "think4u_anon_storage_all"
+on storage.objects
+for all
+to anon
 using (bucket_id in ('program-images', 'site-media'))
 with check (bucket_id in ('program-images', 'site-media'));
 

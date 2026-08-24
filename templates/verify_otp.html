@@ -21,6 +21,12 @@
                        placeholder="000000" maxlength="6">
             </div>
 
+            {% if turnstile_site_key %}
+            <div class="flex justify-center my-4">
+                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
+            </div>
+            {% endif %}
+
             <button type="submit"
                     class="w-full py-4 px-4 bg-[#4b2618] text-white font-bold rounded-lg shadow-lg hover:bg-[#30140a] transition">
                 Verify
@@ -28,15 +34,67 @@
         </form>
 
         <div class="text-center pt-6 mt-6 border-t border-stone-100">
-            <p class="text-sm text-slate-600">
-                Didn't receive the OTP?
+            <div class="text-sm text-slate-600 flex flex-col gap-2 items-center justify-center">
+                <span>Didn't receive the OTP?</span>
+                <button type="button" id="resendOtpBtn" class="font-bold text-amber-800 hover:underline disabled:opacity-50 disabled:no-underline">Resend OTP</button>
+                <span class="text-xs text-slate-400 mt-2">or</span>
                 {% if flow == 'profile_update' %}
-                <a href="{{ url_for('profile') }}" class="font-bold text-amber-800 hover:underline">Start again</a>
+                <a href="{{ url_for('profile') }}" class="font-bold text-amber-800 hover:underline text-xs">Start over with a different email</a>
                 {% else %}
-                <a href="{{ url_for(flow) }}" class="font-bold text-amber-800 hover:underline">Resend or try again</a>
+                <a href="{{ url_for(flow) }}" class="font-bold text-amber-800 hover:underline text-xs">Start over with a different email</a>
                 {% endif %}
-            </p>
+            </div>
         </div>
     </div>
 </section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        let resendInterval = null;
+        
+        function startResendTimer() {
+            let timeLeft = 60;
+            const resendBtn = document.getElementById("resendOtpBtn");
+            resendBtn.disabled = true;
+            resendBtn.textContent = `Resend in ${timeLeft}s`;
+            
+            if (resendInterval) clearInterval(resendInterval);
+            resendInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft <= 0) {
+                    clearInterval(resendInterval);
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = "Resend OTP";
+                } else {
+                    resendBtn.textContent = `Resend in ${timeLeft}s`;
+                }
+            }, 1000);
+        }
+
+        // Start countdown immediately when page loads
+        startResendTimer();
+
+        document.getElementById("resendOtpBtn").addEventListener("click", async () => {
+            const resendBtn = document.getElementById("resendOtpBtn");
+            resendBtn.disabled = true;
+            resendBtn.textContent = "Sending...";
+            
+            try {
+                const res = await fetch("{{ url_for('resend_otp', flow=flow) }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Failed to resend OTP");
+                
+                await window.showUiAlert(data.message || "OTP Resent", "success", "OTP Sent");
+                startResendTimer();
+            } catch (err) {
+                await window.showUiAlert(err.message, "error", "Resend Failed");
+                resendBtn.disabled = false;
+                resendBtn.textContent = "Resend OTP";
+            }
+        });
+    });
+</script>
 {% endblock %}

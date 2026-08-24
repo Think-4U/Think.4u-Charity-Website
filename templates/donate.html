@@ -70,7 +70,10 @@
               class="flex-1 p-3 rounded-lg border-2 border-amber-200 focus:outline-none focus:border-amber-700 tracking-widest font-bold text-center">
             <button id="verifyOtpBtn" type="button" class="px-5 py-3 rounded-lg bg-amber-800 text-white font-bold">Verify OTP</button>
           </div>
-          <p class="text-sm text-amber-800 mt-2">After verification, a secure account is created and the temporary password is emailed to you.</p>
+          <div class="mt-3 flex items-center justify-between">
+            <p class="text-sm text-amber-800">After verification, a secure account is created and the temporary password is emailed to you.</p>
+            <button id="resendOtpBtn" type="button" class="text-sm font-bold text-amber-900 hover:underline hidden disabled:opacity-50 disabled:no-underline">Resend OTP</button>
+          </div>
         </div>
 
         <div id="donation-status" class="mb-5 rounded-lg border border-stone-200 bg-stone-50 p-4">
@@ -80,6 +83,12 @@
           </div>
           <p id="status-message" class="text-sm text-slate-600">Fill details and continue. Payment receipt is available only after login.</p>
         </div>
+
+        {% if turnstile_site_key and not current_user.is_authenticated %}
+        <div class="flex justify-center mb-5">
+          <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
+        </div>
+        {% endif %}
 
         <button id="payBtn"
           class="w-full bg-amber-800 hover:bg-amber-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-lg transition">
@@ -105,11 +114,11 @@
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-  const AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};
-  let donationVerified = {{ 'true' if is_donation_verified else 'false' }};
+  const AUTHENTICATED = JSON.parse('{{ "true" if current_user.is_authenticated else "false" }}');
+  let donationVerified = JSON.parse('{{ "true" if is_donation_verified else "false" }}');
   let reusableOrder = null;
   let lastOrderId = "";
-  const RETRY_WINDOW_MINUTES = Math.max(1, Number({{ payment_retry_window_minutes|default(15)|int }}));
+  const RETRY_WINDOW_MINUTES = Math.max(1, Number('{{ payment_retry_window_minutes|default(15)|int }}'));
   const ORDER_RETRY_WINDOW_MS = RETRY_WINDOW_MINUTES * 60 * 1000;
 
   const payBtn = document.getElementById("payBtn");
@@ -151,7 +160,7 @@
   }
 
   function payload() {
-    return {
+    const data = {
       name: (nameInput.value || "").trim(),
       email: (emailInput.value || "").trim(),
       phone: (phoneInput.value || "").trim(),
@@ -161,6 +170,11 @@
       purpose_id: document.getElementById("purpose_id").value,
       purpose_label: document.getElementById("purpose_label").value,
     };
+    const turnstileElem = document.querySelector('[name="cf-turnstile-response"]');
+    if (turnstileElem) {
+      data["cf-turnstile-response"] = turnstileElem.value;
+    }
+    return data;
   }
 
   function validatePayload(data) {
@@ -181,14 +195,61 @@
     return data;
   }
 
+  let resendInterval = null;
+
+  function startResendTimer() {
+    let timeLeft = 60;
+    const resendBtn = document.getElementById("resendOtpBtn");
+    resendBtn.classList.remove("hidden");
+    resendBtn.disabled = true;
+    resendBtn.textContent = `Resend in ${timeLeft}s`;
+    
+    if (resendInterval) clearInterval(resendInterval);
+    resendInterval = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        clearInterval(resendInterval);
+        resendBtn.disabled = false;
+        resendBtn.textContent = "Resend OTP";
+      } else {
+        resendBtn.textContent = `Resend in ${timeLeft}s`;
+      }
+    }, 1000);
+  }
+
+  document.getElementById("resendOtpBtn").addEventListener("click", async () => {
+    const resendBtn = document.getElementById("resendOtpBtn");
+    resendBtn.disabled = true;
+    resendBtn.textContent = "Sending...";
+    try {
+      const data = await postJson("{{ url_for('resend_otp', flow='donation_public') }}", {});
+      await window.showUiAlert(data.message || "OTP Resent", "success", "OTP Sent");
+      startResendTimer();
+    } catch (err) {
+      await window.showUiAlert(err.message || "Failed to resend OTP", "error", "Resend Failed");
+      resendBtn.disabled = false;
+      resendBtn.textContent = "Resend OTP";
+    }
+  });
+
   async function ensureVerified(data) {
     if (donationVerified || AUTHENTICATED) return true;
+    if (!otpPanel.classList.contains("hidden")) {
+      const otpVal = (document.getElementById("donation_otp").value || "").trim();
+      if (otpVal.length === 6) {
+        verifyOtpBtn.click();
+      } else {
+        await window.showUiAlert("Please enter the 6 digit OTP to continue.", "warning", "OTP Required");
+      }
+      return false;
+    }
     setButtonState(true, "Sending OTP...");
     setStatus("loading", "Sending OTP", "Please check your donor email for the verification code.");
     await postJson("{{ url_for('start_public_donation_verification') }}", data);
     otpPanel.classList.remove("hidden");
-    setButtonState(false, "Verify OTP to Continue");
+    setButtonState(false, "Verify OTP & Continue");
     setStatus("warning", "OTP sent", "Enter the OTP sent to your email, then continue payment.");
+    startResendTimer();
     return false;
   }
 
@@ -325,6 +386,9 @@
       });
       rzp.open();
     } catch (err) {
+      if (window.turnstile) {
+        window.turnstile.reset();
+      }
       const message = err?.message || "Payment initiation failed.";
       setStatus("error", "Payment failed", message);
       setButtonState(false, donationVerified ? "Donate Now" : "Verify Email & Donate");

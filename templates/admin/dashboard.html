@@ -183,7 +183,7 @@
     async function loadRecentDonations() {
         const container = document.getElementById('recent-donations');
         try {
-            const donations = {{ recent_donations | tojson | safe }};
+            const donations = JSON.parse('{{ recent_donations | tojson | safe }}');
             
             if (donations && donations.length > 0) {
                 container.innerHTML = donations.slice(0, 5).map(d => `

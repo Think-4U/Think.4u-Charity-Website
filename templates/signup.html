@@ -61,6 +61,12 @@
                            class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-charity-gold focus:outline-none text-center font-bold"
                            placeholder="Your answer">
                 </div>
+
+                {% if turnstile_site_key %}
+                <div class="flex justify-center my-4">
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
+                </div>
+                {% endif %}
             </div>
 
             <button type="submit" 

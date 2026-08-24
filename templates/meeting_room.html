@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,7 @@
     <script src="{{ api_script_url }}" async></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-        
+
         html,
         body,
         #jitsi-container {
@@ -20,7 +21,7 @@
             background: #090d16;
             font-family: 'Outfit', sans-serif;
         }
-        
+
         .meeting-topbar {
             position: fixed;
             top: 12px;
@@ -40,14 +41,14 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
             color: #fff;
         }
-        
+
         .meeting-topbar strong {
             font-weight: 700;
             color: #f1f5f9;
             letter-spacing: -0.01em;
             font-size: 15px;
         }
-        
+
         .meeting-controls {
             display: flex;
             align-items: center;
@@ -58,7 +59,7 @@
         .participants-dropdown {
             position: relative;
         }
-        
+
         .btn-participants {
             background: rgba(59, 130, 246, 0.15);
             color: #93c5fd;
@@ -73,13 +74,13 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .btn-participants:hover {
             background: rgba(59, 130, 246, 0.25);
             border-color: rgba(59, 130, 246, 0.5);
             transform: translateY(-1px);
         }
-        
+
         .participants-panel {
             position: absolute;
             right: 0;
@@ -97,12 +98,12 @@
             gap: 12px;
             z-index: 20;
         }
-        
+
         .participants-panel.show {
             display: flex;
             animation: fadeIn 0.2s ease forwards;
         }
-        
+
         .participants-title {
             font-size: 11px;
             font-weight: 700;
@@ -113,7 +114,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             padding-bottom: 6px;
         }
-        
+
         .participant-list-container {
             max-height: 200px;
             overflow-y: auto;
@@ -121,7 +122,7 @@
             flex-direction: column;
             gap: 8px;
         }
-        
+
         .participant-item {
             display: flex;
             align-items: center;
@@ -129,23 +130,23 @@
             gap: 10px;
             padding: 4px 0;
         }
-        
+
         .participant-info {
             display: flex;
             flex-direction: column;
         }
-        
+
         .participant-name {
             font-size: 13px;
             font-weight: 600;
             color: #f1f5f9;
         }
-        
+
         .participant-email {
             font-size: 11px;
             color: #64748b;
         }
-        
+
         .participant-status {
             font-size: 9px;
             font-weight: 700;
@@ -153,12 +154,12 @@
             border-radius: 4px;
             text-transform: uppercase;
         }
-        
+
         .status-allowed {
             background: rgba(16, 185, 129, 0.15);
             color: #34d399;
         }
-        
+
         .btn-end {
             background: #ef4444;
             color: #fff;
@@ -170,12 +171,12 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .btn-end:hover {
             background: #dc2626;
             transform: translateY(-1px);
         }
-        
+
         .btn-back {
             color: #fff;
             font-weight: 600;
@@ -187,12 +188,12 @@
             transition: all 0.2s ease;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
+
         .btn-back:hover {
             background: rgba(255, 255, 255, 0.18);
             transform: translateY(-1px);
         }
-        
+
         .meeting-status {
             position: fixed;
             left: 50%;
@@ -210,59 +211,106 @@
             text-align: center;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         }
-        
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
+
 <body>
     <!-- Auto Recording UI Banner -->
-    <div id="recording-banner" style="display: none; position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 100; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(220, 38, 38, 0.9); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); color: #fff; font-size: 12px; font-weight: bold; pointer-events: none;">
-        <span style="display: inline-block; width: 8px; height: 8px; background: #fff; border-radius: 50%; animation: pulse 1.2s infinite;"></span>
+    <div id="recording-banner"
+        style="display: none; position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 100; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(220, 38, 38, 0.9); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); color: #fff; font-size: 12px; font-weight: bold; pointer-events: none;">
+        <span
+            style="display: inline-block; width: 8px; height: 8px; background: #fff; border-radius: 50%; animation: pulse 1.2s infinite;"></span>
         <span>REC: Auto-Recording Active (Do not close tab)</span>
     </div>
-    
+
     {% if not is_invalid and is_coordinator and meeting_settings.record_meeting %}
-    <div id="record-prompt-modal" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px);">
-        <div style="background: rgba(15, 23, 42, 0.95); max-width: 440px; width: calc(100% - 32px); padding: 30px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); color: #fff;">
-            <div style="width: 56px; height: 56px; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 20px;">
-                <svg style="width: 28px; height: 28px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+    <div id="record-prompt-modal"
+        style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px);">
+        <div
+            style="background: rgba(15, 23, 42, 0.95); max-width: 440px; width: calc(100% - 32px); padding: 30px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); color: #fff;">
+            <div
+                style="width: 56px; height: 56px; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 20px;">
+                <svg style="width: 28px; height: 28px;" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                        clip-rule="evenodd"></path>
+                </svg>
             </div>
-            <h3 style="font-size: 18px; font-weight: 800; margin-top: 0; margin-bottom: 8px;">Auto-Recording Enabled</h3>
-            <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin-bottom: 24px;">This meeting is configured to be recorded automatically. Please select the browser tab/screen representing this meeting to start.</p>
-            <button onclick="startAutoRecording()" style="width: 100%; padding: 12px; background: #ef4444; border: none; border-radius: 8px; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);">Start Auto-Record & Join</button>
+            <h3 style="font-size: 18px; font-weight: 800; margin-top: 0; margin-bottom: 8px;">Auto-Recording Enabled
+            </h3>
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin-bottom: 24px;">This meeting is
+                configured to be recorded automatically. Please select the browser tab/screen representing this meeting
+                to start.</p>
+            <button onclick="startAutoRecording()"
+                style="width: 100%; padding: 12px; background: #ef4444; border: none; border-radius: 8px; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);">Start
+                Auto-Record & Join</button>
         </div>
     </div>
     {% endif %}
 
     <!-- Uploading Overlay -->
-    <div id="upload-overlay" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px); flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: 'Outfit', sans-serif;">
-        <div style="border: 4px solid rgba(255, 255, 255, 0.1); border-top: 4px solid #ef4444; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-        <p id="upload-status-text" style="font-size: 16px; font-weight: bold;">Uploading meeting recording. Do not close this tab...</p>
+    <div id="upload-overlay"
+        style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px); flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: 'Outfit', sans-serif;">
+        <div
+            style="border: 4px solid rgba(255, 255, 255, 0.1); border-top: 4px solid #ef4444; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px;">
+        </div>
+        <p id="upload-status-text" style="font-size: 16px; font-weight: bold;">Uploading meeting recording. Do not close
+            this tab...</p>
     </div>
-    
+
     <style>
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
+
         @keyframes pulse {
-            0% { opacity: 0.3; transform: scale(0.9); }
-            50% { opacity: 1; transform: scale(1.15); }
-            100% { opacity: 0.3; transform: scale(0.9); }
+            0% {
+                opacity: 0.3;
+                transform: scale(0.9);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.15);
+            }
+
+            100% {
+                opacity: 0.3;
+                transform: scale(0.9);
+            }
         }
     </style>
 
     {% if not is_invalid %}
     <div class="meeting-topbar">
-        <strong>{{ title }}</strong>
+        <strong>{{ title }} <span id="meeting-timer"
+                style="margin-left: 10px; font-family: monospace; font-size: 14px; color: #cbd5e1; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; display: none;">00:00:00</span></strong>
         <div class="meeting-controls">
             <div class="participants-dropdown">
                 <button type="button" class="btn-participants" onclick="toggleParticipantsList()">
-                    <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
                     </svg>
                     Allowed Participants ({{ participants|length }})
                 </button>
@@ -283,24 +331,32 @@
                     </div>
                 </div>
             </div>
-            
+
             {% if is_coordinator and appointment_uuid %}
-            <form id="end-meeting-form" action="{{ url_for('end_meeting', appointment_uuid=appointment_uuid) }}" method="POST" style="margin: 0;">
+            <button type="button" class="btn-end" style="background: #3b82f6;" onclick="requestLeaveMeeting()">Leave
+                Meeting</button>
+            <form id="end-meeting-form" action="{{ url_for('end_meeting', appointment_uuid=appointment_uuid) }}"
+                method="POST" style="margin: 0;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn-end">End Meeting</button>
+                <button type="submit" class="btn-end">End Meeting for All</button>
             </form>
             {% endif %}
-            
+
             <a href="{{ return_url }}" class="btn-back" id="back-btn">Back</a>
         </div>
     </div>
     {% endif %}
-    
+
     {% if is_invalid %}
     <div class="meeting-status" style="border: 1px solid rgba(239, 68, 68, 0.4); z-index: 100;">
-        <h2 style="color: #ef4444; font-size: 24px; font-weight: 800; margin-top: 0; margin-bottom: 12px; letter-spacing: -0.02em;">Meeting Closed</h2>
-        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; font-weight: 500;">{{ invalid_reason or "This meeting link is not active or has already ended." }}</p>
-        <a href="{{ return_url }}" class="btn-back" style="display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.05); font-weight: bold;">Back to Dashboard</a>
+        <h2
+            style="color: #ef4444; font-size: 24px; font-weight: 800; margin-top: 0; margin-bottom: 12px; letter-spacing: -0.02em;">
+            Meeting Closed</h2>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; font-weight: 500;">{{
+            invalid_reason or "This meeting link is not active or has already ended." }}</p>
+        <a href="{{ return_url }}" class="btn-back"
+            style="display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.05); font-weight: bold;">Back
+            to Dashboard</a>
     </div>
     {% else %}
     <div id="meeting-status" class="meeting-status">
@@ -313,20 +369,44 @@
     {% endif %}
     <div id="jitsi-container"></div>
 
+    <!-- Host Transfer Modal -->
+    <div id="host-transfer-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div
+            style="background: #1e293b; border-radius: 12px; padding: 24px; max-width: 400px; width: 100%; border: 1px solid #334155;">
+            <h3 style="color: white; margin-top: 0;">Transfer Host Privileges</h3>
+            <p style="color: #cbd5e1; font-size: 14px;">You are the last coordinator. Please select someone to make the
+                host before leaving, or end the meeting for everyone.</p>
+            <select id="new-host-select"
+                style="width: 100%; padding: 8px; margin-bottom: 16px; border-radius: 6px; background: #0f172a; color: white; border: 1px solid #475569;">
+            </select>
+            <div style="display: flex; gap: 10px; justify-content: space-between;">
+                <button type="button" class="btn-back"
+                    onclick="document.getElementById('host-transfer-modal').style.display='none'">Cancel</button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn-end" style="background: #ef4444;"
+                        onclick="document.getElementById('end-meeting-form').submit()">End for All</button>
+                    <button type="button" class="btn-end" style="background: #10b981;"
+                        onclick="grantHostAndLeave()">Grant & Leave</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const isInvalid = {{ (is_invalid if (is_invalid is defined and is_invalid is not none) else false)|tojson }};
+        const isInvalid = JSON.parse('{{ is_invalid|default(false)|tojson|safe }}');
         const meetingConfig = {
-            domain: {{ (domain if (domain is defined and domain is not none) else '')|tojson }},
-            roomName: {{ (room_name if (room_name is defined and room_name is not none) else '')|tojson }},
-            jwt: {{ (jwt_token if (jwt_token is defined and jwt_token is not none) else '')|tojson }},
-            displayName: {{ (display_name if (display_name is defined and display_name is not none) else '')|tojson }},
-            email: {{ (user_email if (user_email is defined and user_email is not none) else '')|tojson }},
-            returnUrl: {{ (return_url if (return_url is defined and return_url is not none) else '')|tojson }},
-            directMeetUrl: {{ (direct_meet_url if (direct_meet_url is defined and direct_meet_url is not none) else '')|tojson }},
-            settings: {{ (meeting_settings if (meeting_settings is defined and meeting_settings is not none) else {})|tojson }},
-            csrfToken: {{ (csrf_token() if (csrf_token is defined and csrf_token is callable) else (csrf_token if csrf_token is defined else ''))|tojson }},
-            appointmentUuid: {{ (appointment_uuid if (appointment_uuid is defined and appointment_uuid is not none) else '')|tojson }},
-            isCoordinator: {{ (is_coordinator if (is_coordinator is defined and is_coordinator is not none) else false)|tojson }}
+            domain: JSON.parse('{{ domain|default("")|tojson|safe }}'),
+            roomName: JSON.parse('{{ room_name|default("")|tojson|safe }}'),
+            jwt: JSON.parse('{{ jwt_token|default("")|tojson|safe }}'),
+            displayName: JSON.parse('{{ display_name|default("")|tojson|safe }}'),
+            email: JSON.parse('{{ user_email|default("")|tojson|safe }}'),
+            returnUrl: JSON.parse('{{ return_url|default("")|tojson|safe }}'),
+            directMeetUrl: JSON.parse('{{ direct_meet_url|default("")|tojson|safe }}'),
+            settings: JSON.parse('{{ meeting_settings|default({})|tojson|safe }}'),
+            csrfToken: "{{ csrf_token() }}",
+            appointmentUuid: JSON.parse('{{ appointment_uuid|default("")|tojson|safe }}'),
+            isCoordinator: JSON.parse('{{ is_coordinator|default(false)|tojson|safe }}')
         };
 
         let mediaRecorder = null;
@@ -339,7 +419,7 @@
         }
 
         // Close dropdown when clicking outside
-        window.addEventListener('click', function(e) {
+        window.addEventListener('click', function (e) {
             const dropdown = document.querySelector('.participants-dropdown');
             if (dropdown && !dropdown.contains(e.target)) {
                 document.getElementById('participants-panel').classList.remove('show');
@@ -364,13 +444,13 @@
                 }
 
                 mediaRecorder = new MediaRecorder(stream, options);
-                mediaRecorder.ondataavailable = function(e) {
+                mediaRecorder.ondataavailable = function (e) {
                     if (e.data && e.data.size > 0) {
                         recordedChunks.push(e.data);
                     }
                 };
 
-                mediaRecorder.onstop = async function() {
+                mediaRecorder.onstop = async function () {
                     if (window.recordingStream) {
                         window.recordingStream.getTracks().forEach(track => track.stop());
                     }
@@ -382,7 +462,7 @@
                 // Handle case where coordinator stops sharing tab manually
                 const videoTracks = stream.getVideoTracks();
                 if (videoTracks && videoTracks.length > 0) {
-                    videoTracks[0].onended = function() {
+                    videoTracks[0].onended = function () {
                         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                             mediaRecorder.stop();
                         }
@@ -409,7 +489,7 @@
         }
 
         // Warn if trying to unload the page during active upload or recording
-        window.addEventListener('beforeunload', function(e) {
+        window.addEventListener('beforeunload', function (e) {
             if (isUploading || (mediaRecorder && mediaRecorder.state !== 'inactive')) {
                 const confirmationMessage = 'A meeting recording is currently active or uploading. If you leave, the recording may not be saved.';
                 (e || window.event).returnValue = confirmationMessage;
@@ -436,7 +516,7 @@
         async function uploadRecordingBlob(blob, onCompleteCallback) {
             if (isUploading) return;
             isUploading = true;
-            
+
             showUploadStatus("Uploading meeting recording to database...");
 
             const formData = new FormData();
@@ -460,8 +540,10 @@
                     } else {
                         showUploadStatus("Upload complete, but database link failed: " + result.message);
                     }
+                } else if (response.status === 413) {
+                    showUploadStatus("Upload failed: The recording is too large. For long meetings, please use local screen recording instead.");
                 } else {
-                    showUploadStatus("Upload failed with server error: " + response.statusText);
+                    showUploadStatus(`Upload failed with server error (${response.status}): ` + response.statusText);
                 }
             } catch (error) {
                 console.error("Error uploading recording:", error);
@@ -533,8 +615,8 @@
                 },
                 configOverwrite: {
                     prejoinPageEnabled: true,
-                    startWithAudioMuted: false,
-                    startWithVideoMuted: false,
+                    startWithAudioMuted: Boolean(meetingConfig.settings.start_audio_muted),
+                    startWithVideoMuted: Boolean(meetingConfig.settings.start_video_hidden),
                     hideWatermark: true,
                     disableLinkToApp: true,
                     enableWelcomePage: false,
@@ -548,8 +630,37 @@
             }
 
             const api = new JitsiMeetExternalAPI(meetingConfig.domain, options);
+            window.jitsiApi = api;
             api.addListener('readyToClose', () => {
                 safeRedirect(meetingConfig.returnUrl);
+            });
+            api.addListener('videoConferenceJoined', () => {
+                document.getElementById('meeting-status').style.display = 'none';
+
+                // Track start time
+                fetch(`/api/meeting/${meetingConfig.appointmentUuid}/start`, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' } }).catch(e => console.error(e));
+
+                // Start timer
+                const timerEl = document.getElementById('meeting-timer');
+                timerEl.style.display = 'inline-block';
+                const startTime = Date.now();
+                window.meetingTimerInterval = setInterval(() => {
+                    const diffSeconds = Math.floor((Date.now() - startTime) / 1000);
+                    const h = String(Math.floor(diffSeconds / 3600)).padStart(2, '0');
+                    const m = String(Math.floor((diffSeconds % 3600) / 60)).padStart(2, '0');
+                    const s = String(diffSeconds % 60).padStart(2, '0');
+                    timerEl.textContent = `${h}:${m}:${s}`;
+                }, 1000);
+
+                if (meetingConfig.isCoordinator && meetingConfig.settings.follow_me_enabled) {
+                    api.executeCommand('toggleFollowMe');
+                }
+
+                if (meetingConfig.isCoordinator && meetingConfig.settings.record_meeting) {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                        showUploadStatus("Screen recording not supported in this browser.");
+                    }
+                }
             });
         }
 
@@ -557,7 +668,7 @@
             // Setup exit button intercepts
             const backBtn = document.getElementById('back-btn');
             if (backBtn) {
-                backBtn.addEventListener('click', function(e) {
+                backBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     safeRedirect(meetingConfig.returnUrl);
                 });
@@ -565,7 +676,7 @@
 
             const endForm = document.getElementById('end-meeting-form');
             if (endForm) {
-                endForm.addEventListener('submit', function(e) {
+                endForm.addEventListener('submit', function (e) {
                     e.preventDefault();
                     if (isUploading) {
                         window.pendingSubmitForm = endForm;
@@ -574,7 +685,11 @@
                         window.pendingSubmitForm = endForm;
                         mediaRecorder.stop();
                     } else {
-                        endForm.submit();
+                        if (window.jitsiApi) {
+                            window.jitsiApi.executeCommand('endMeeting');
+                        }
+                        // Allow Jitsi a moment to send the command before redirecting
+                        setTimeout(() => endForm.submit(), 500);
                     }
                 });
             }
@@ -587,6 +702,43 @@
                 launchMeeting();
             }
         });
+        function requestLeaveMeeting() {
+            if (!window.jitsiApi) return;
+            const participants = window.jitsiApi.getParticipantsInfo();
+            const localUser = participants.find(p => p.isLocal);
+            // If local user is moderator, check if there's another moderator
+            if (localUser && localUser.role === 'moderator') {
+                const otherModerator = participants.find(p => !p.isLocal && p.role === 'moderator');
+                if (!otherModerator && participants.length > 1) {
+                    // Prompt to assign new host
+                    const select = document.getElementById('new-host-select');
+                    select.innerHTML = '';
+                    participants.forEach(p => {
+                        if (!p.isLocal) {
+                            const opt = document.createElement('option');
+                            opt.value = p.participantId;
+                            opt.textContent = p.displayName || 'Unknown User';
+                            select.appendChild(opt);
+                        }
+                    });
+                    document.getElementById('host-transfer-modal').style.display = 'flex';
+                    return;
+                }
+            }
+            // Just leave
+            window.location.href = "{{ return_url }}";
+        }
+
+        function grantHostAndLeave() {
+            const select = document.getElementById('new-host-select');
+            if (select.value && window.jitsiApi) {
+                window.jitsiApi.executeCommand('grantModerator', select.value);
+            }
+            setTimeout(() => {
+                window.location.href = "{{ return_url }}";
+            }, 500);
+        }
     </script>
 </body>
+
 </html>

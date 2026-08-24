@@ -151,8 +151,8 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Applicable Weekdays (Excludes Sundays)</label>
-                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs font-semibold text-slate-700 bg-stone-50 p-3 rounded-lg border border-stone-200">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Applicable Weekdays</label>
+                            <div class="grid grid-cols-4 sm:grid-cols-7 gap-2 text-xs font-semibold text-slate-700 bg-stone-50 p-3 rounded-lg border border-stone-200">
                                 <label class="flex items-center gap-1.5 cursor-pointer">
                                     <input type="checkbox" name="days_of_week" value="0" checked class="rounded border-stone-300 text-amber-800"> Mon
                                 </label>
@@ -170,6 +170,9 @@
                                 </label>
                                 <label class="flex items-center gap-1.5 cursor-pointer">
                                     <input type="checkbox" name="days_of_week" value="5" class="rounded border-stone-300 text-amber-800"> Sat
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" name="days_of_week" value="6" class="rounded border-stone-300 text-amber-800"> Sun
                                 </label>
                             </div>
                         </div>
@@ -263,32 +266,19 @@
 
         // Flatpickr range dates
         flatpickr("#start_date", {
-            minDate: "today",
-            maxDate: releaseLimitDateStr || null,
             disableMobile: true,
-            dateFormat: "Y-m-d",
-            disable: [
-                function(date) { return date.getDay() === 0; }
-            ]
+            dateFormat: "Y-m-d"
         });
 
         flatpickr("#end_date", {
-            minDate: "today",
-            maxDate: releaseLimitDateStr || null,
             disableMobile: true,
-            dateFormat: "Y-m-d",
-            disable: [
-                function(date) { return date.getDay() === 0; }
-            ]
+            dateFormat: "Y-m-d"
         });
 
         flatpickr("#release_limit_date", {
             minDate: "today",
             disableMobile: true,
-            dateFormat: "Y-m-d",
-            disable: [
-                function(date) { return date.getDay() === 0; }
-            ]
+            dateFormat: "Y-m-d"
         });
 
         // Prepopulate time selects

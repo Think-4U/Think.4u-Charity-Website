@@ -23,6 +23,7 @@
         #jitsi-container {
             position: fixed;
             inset: 82px 12px 12px;
+            z-index: 1;
             min-height: 0;
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -35,7 +36,7 @@
             top: 12px;
             left: 12px;
             right: 12px;
-            z-index: 10;
+            z-index: 100;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -455,6 +456,9 @@
             e2eeEnabled: JSON.parse('{{ e2ee_enabled|default(false)|tojson|safe }}'),
             waitForCoordinator: JSON.parse('{{ wait_for_coordinator|default(false)|tojson|safe }}')
         };
+        // Client-side capture and upload are deliberately disabled. Recording,
+        // if enabled later, must be performed by an approved server-side service.
+        meetingConfig.settings.record_meeting = false;
 
         let mediaRecorder = null;
         let recordedChunks = [];
@@ -664,6 +668,12 @@
                     prejoinPageEnabled: true,
                     startWithAudioMuted: Boolean(meetingConfig.settings.start_audio_muted),
                     startWithVideoMuted: Boolean(meetingConfig.settings.start_video_hidden),
+                    // The Think4U header already provides the meeting context. Hide
+                    // Jitsi's duplicate elapsed-time and connection-indicator widgets.
+                    hideConferenceTimer: true,
+                    connectionIndicators: {
+                        disabled: true
+                    },
                     hideWatermark: true,
                     disableLinkToApp: true,
                     enableWelcomePage: false,
@@ -685,16 +695,23 @@
             api.addListener('videoConferenceJoined', () => {
                 document.getElementById('meeting-status').style.display = 'none';
 
-                // Track start time
-                fetch(`/api/meeting/${meetingConfig.appointmentUuid}/start`, {
+                // Record the authenticated attendee, not arbitrary Jitsi data.
+                fetch(`/api/meeting/${meetingConfig.appointmentUuid}/attendance`, {
                     method: 'POST',
                     headers: { 'X-CSRF-Token': meetingConfig.csrfToken },
                     credentials: 'same-origin'
-                }).then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Unable to mark coordinator as joined (${response.status})`);
-                    }
-                }).catch(e => console.error(e));
+                }).catch(e => console.warn('Attendance audit unavailable.', e));
+
+                if (meetingConfig.isCoordinator) {
+                    // Only the coordinator unlocks the application waiting room.
+                    fetch(`/api/meeting/${meetingConfig.appointmentUuid}/start`, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': meetingConfig.csrfToken },
+                        credentials: 'same-origin'
+                    }).then(response => {
+                        if (!response.ok) throw new Error(`Unable to mark coordinator as joined (${response.status})`);
+                    }).catch(e => console.error(e));
+                }
 
                 // Start timer
                 const timerEl = document.getElementById('meeting-timer');

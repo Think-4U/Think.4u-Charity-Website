@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a;">
+  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;">{{ preheader }}</span>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px;"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #dbe3ee;">
+      <tr><td style="background:#0f172a;padding:24px 30px;text-align:center;">
+        <img src="{{ logo_url }}" alt="{{ organization_name }}" height="42" style="max-width:180px;height:42px;object-fit:contain;">
+        <div style="color:#cbd5e1;font-size:12px;margin-top:9px;letter-spacing:.08em;text-transform:uppercase;">{{ organization_name }}</div>
+      </td></tr>
+      <tr><td style="padding:30px;"><h1 style="font-size:24px;margin:0 0 18px;color:#0f172a;">{{ email_title }}</h1>{{ body_html|safe }}</td></tr>
+      <tr><td style="padding:18px 30px;background:#f8fafc;color:#64748b;font-size:12px;line-height:1.5;">This is a service message from Think.4U. Please do not share account or payment credentials by email.</td></tr>
+    </table>
+  </td></tr></table>
+</body>
+</html>

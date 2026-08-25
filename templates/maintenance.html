@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Scheduled Maintenance - Think.4U{% endblock %}
+{% block content %}
+<section class="min-h-screen flex items-center justify-center px-4 py-24 bg-slate-950">
+  <div class="max-w-lg w-full rounded-3xl bg-white p-8 text-center shadow-2xl">
+    <img src="{{ url_for('static', filename='images/logo-black.png') }}" alt="Think.4U" class="h-12 max-w-48 object-contain mx-auto mb-6">
+    <p class="text-xs uppercase tracking-[0.2em] font-bold text-amber-700">Scheduled maintenance</p>
+    <h1 class="text-3xl font-black text-slate-900 mt-2">We’ll be back shortly</h1>
+    <p class="text-slate-600 leading-7 mt-4">{{ message }}</p>
+    <p class="text-xs text-slate-500 mt-7">Please refresh later. Your account, donations, and appointments remain protected.</p>
+  </div>
+</section>
+{% endblock %}

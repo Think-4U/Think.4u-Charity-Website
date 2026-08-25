@@ -3,10 +3,13 @@
 {% block content %}
 <section class="pt-28 pb-14 px-4 min-h-screen bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white">
   <div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden print:shadow-none print:border-slate-300">
+    <div class="receipt-sheet bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden print:shadow-none print:border-slate-300 relative">
+      <div class="receipt-watermark" aria-hidden="true">THINK.4U</div>
       <div class="px-6 sm:px-8 py-7 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white">
-        <p class="text-xs font-semibold uppercase tracking-wider text-cyan-100">Think.4U Trust</p>
-        <h1 class="text-3xl sm:text-4xl font-black mt-1">Donation Receipt</h1>
+        <div class="flex items-center gap-4">
+          <img src="{{ url_for('static', filename='images/logo-white.png') }}" alt="Think.4U Trust" class="h-12 w-12 rounded-xl object-contain bg-white/10 p-1">
+          <div><p class="text-xs font-semibold uppercase tracking-wider text-cyan-100">{{ get_cms('org_name', 'Think.4U Trust') }}</p><h1 class="text-3xl sm:text-4xl font-black mt-1">Donation Receipt</h1></div>
+        </div>
         <p class="text-sm text-cyan-100 mt-2">Thank you for supporting our programs and community initiatives.</p>
       </div>
 
@@ -93,6 +96,9 @@
 </section>
 
 <style>
+.receipt-sheet { min-height: 258mm; }
+.receipt-watermark { position:absolute; top:43%; left:50%; transform:translate(-50%,-50%) rotate(-28deg); font-size:68px; font-weight:900; letter-spacing:.14em; color:rgba(15,118,110,.055); pointer-events:none; white-space:nowrap; z-index:0; }
+.receipt-sheet > :not(.receipt-watermark) { position:relative; z-index:1; }
 @media print {
   nav,
   footer,
@@ -112,6 +118,13 @@
   @page {
     size: A4;
     margin: 14mm;
+  }
+
+  .receipt-sheet {
+    width: 182mm;
+    min-height: 268mm;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 }
 </style>

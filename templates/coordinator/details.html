@@ -23,8 +23,29 @@
                 </div>
 
                 <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Meeting Summary</h3>
+                    <p class="text-sm text-slate-700 mt-1">Started: {{ appointment.actual_start_time[:19].replace('T', ' ') if appointment.actual_start_time else 'Not started' }}</p>
+                    <p class="text-sm text-slate-700 mt-1">Ended: {{ appointment.actual_end_time[:19].replace('T', ' ') if appointment.actual_end_time else 'Not ended' }}</p>
+                    <p class="text-sm font-semibold text-slate-900 mt-1">Duration: {{ appointment.actual_duration_minutes or 0 }} minute(s)</p>
+                </div>
+
+                <div>
                     <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Purpose</h3>
                     <p class="text-slate-800 text-sm mt-1 font-semibold">{{ appointment.purpose }}</p>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 mb-3">Join Audit</h2>
+                    <div class="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto bg-stone-50/50">
+                        {% for attendee in attendance %}
+                        <div class="flex justify-between gap-3 text-sm py-1 border-b border-stone-100 last:border-b-0">
+                            <div><span class="font-bold text-slate-800">{{ attendee.name }}</span><span class="text-xs text-slate-500"> ({{ attendee.email }})</span></div>
+                            <span class="text-xs text-slate-600">{{ attendee.role|title }} · {{ attendee.joined_at[:19].replace('T', ' ') if attendee.joined_at else '' }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-500">No authenticated joins recorded yet.</p>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 {% if appointment.notes %}
@@ -80,28 +101,8 @@
                         </label>
                     </form>
                     {% else %}
-                    <p class="text-sm text-slate-500 mb-4 bg-stone-50 p-4 rounded-lg border border-stone-200">No recorded video uploaded yet for this meeting.</p>
+                    <p class="text-sm text-slate-500 mb-4 bg-stone-50 p-4 rounded-lg border border-stone-200">No server-side recording is available for this meeting.</p>
                     {% endif %}
-
-                    <!-- Upload Form -->
-                    <details class="group mt-4">
-                        <summary class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 cursor-pointer list-none select-none hover:text-amber-900 transition">
-                            <span>{% if appointment.recording_url %}Upload a different video{% else %}Upload meeting recording{% endif %}</span>
-                            <svg class="w-4 h-4 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </summary>
-                        
-                        <form method="POST" action="{{ url_for('coordinator_meeting_detail', appointment_id=appointment.id) }}" enctype="multipart/form-data" class="mt-3 p-4 bg-stone-50 rounded-lg border border-stone-200/85 space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="upload_recording">
-                            
-                            <div>
-                                <label class="block text-xs font-bold text-stone-700 mb-1.5">Select Video File (.mp4, .webm, .mov)</label>
-                                <input type="file" name="video_file" accept="video/*" required class="w-full text-xs text-stone-700 border border-stone-300 rounded-lg bg-white file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-xs file:font-bold file:bg-stone-900 file:text-white hover:file:bg-stone-850 transition">
-                            </div>
-                            
-                            <button type="submit" class="px-4 py-2 text-xs bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-lg transition shadow-sm">Upload to Supabase DB</button>
-                        </form>
-                    </details>
                 </div>
 
                 <!-- Meeting Settings Section -->
@@ -122,9 +123,6 @@
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer font-semibold">
                                 <input type="checkbox" name="show_participants" {% if appointment.meeting_settings.show_participants %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Enable Participant List
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer font-semibold sm:col-span-2">
-                                <input type="checkbox" name="record_meeting" {% if appointment.meeting_settings.record_meeting %}checked{% endif %} class="h-4 w-4 text-amber-800 border-stone-300 rounded focus:ring-amber-700"> Auto-Record Meeting
                             </label>
                         </div>
                         <button type="submit" class="px-4 py-2 text-xs bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-lg transition shadow-sm">Save Settings</button>

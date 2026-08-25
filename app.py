@@ -177,6 +177,7 @@ JITSI_FEATURE_LIST_VISITORS = os.getenv("JITSI_FEATURE_LIST_VISITORS", "false").
 JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "false").lower() == "true"
 JITSI_FEATURE_FLIP = os.getenv("JITSI_FEATURE_FLIP", "false").lower() == "true"
 JITSI_FEATURE_SCREEN_SHARING = os.getenv("JITSI_FEATURE_SCREEN_SHARING", "true").lower() == "true"
+MAIL_ASYNC_DELIVERY = os.getenv("MAIL_ASYNC_DELIVERY", "false").lower() == "true"
 JITSI_JWT_ALGORITHM = os.getenv("JITSI_JWT_ALGORITHM", "RS256").strip()
 MEETING_TIMEZONE_NAME = os.getenv("MEETING_TIMEZONE", "Asia/Kolkata").strip() or "Asia/Kolkata"
 try:
@@ -373,9 +374,12 @@ app.config.update(
     MAIL_PORT=587,
     MAIL_USE_TLS=True,
     MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    # Gmail app passwords are commonly copied with display spaces. SMTP expects
+    # the underlying value, so normalize only whitespace around that value.
+    MAIL_PASSWORD=(os.getenv("MAIL_PASSWORD") or "").replace(" ", "").strip(),
     MAIL_DEFAULT_SENDER=("Think.4U", os.getenv("MAIL_USERNAME"))
 )
+app.config["MAIL_TIMEOUT"] = 20
 
 mail = Mail(app)
 
@@ -890,6 +894,10 @@ CMS_DEFAULTS = {
     "social_twitter": "",
     "social_instagram": "",
     "social_linkedin": "",
+    "maintenance_enabled": "false",
+    "maintenance_start": "",
+    "maintenance_end": "",
+    "maintenance_message": "We are performing scheduled maintenance. Please try again shortly.",
 }
 
 
@@ -1017,21 +1025,17 @@ def generated_password():
 
 
 def send_generated_password_email(email, name, password):
-    safe_name = html.escape(clean_text(name, 120) or "Supporter")
-    safe_password = html.escape(password)
+    safe_name = clean_text(name, 120) or "Supporter"
+    body = render_template(
+        "emails/account_created_email.html",
+        recipient_name=safe_name,
+        email=normalize_email(email),
+        temporary_password=password,
+    )
     send_email_async(
         subject="Think.4U account created",
         recipients=[email],
-        html=f"""
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-            <h2 style="color:#7c2d12;">Your Think.4U account is ready</h2>
-            <p>Hello {safe_name},</p>
-            <p>Your email was verified for donation checkout. We created an account so you can access donation receipts securely.</p>
-            <p><strong>Login email:</strong> {html.escape(email)}</p>
-            <p><strong>Temporary password:</strong> {safe_password}</p>
-            <p>Please log in and update your password/profile details after donation.</p>
-        </div>
-        """
+        html=build_branded_email("Your Think.4U account is ready", body)
     )
 
 
@@ -1321,7 +1325,7 @@ def send_meeting_update_email(recipient, name, appointment, subject="Think.4U me
         subject=subject,
         recipients=[recipient],
         attachments=attachments_user,
-        html=user_html
+        html=build_branded_email("Think.4U Meeting Schedule", user_html)
     )
     
     # 2. Send to Coordinator
@@ -1341,7 +1345,7 @@ def send_meeting_update_email(recipient, name, appointment, subject="Think.4U me
             subject=f"Coordinator: {subject}",
             recipients=[coordinator_email],
             attachments=attachments_coord,
-            html=coord_html
+            html=build_branded_email("Think.4U Meeting Schedule", coord_html)
         )
 
 
@@ -1471,11 +1475,13 @@ def validate_pending_otp(flow, otp_code):
 
 def send_otp_email(email, otp_code, flow_label):
     subject = f"Think.4U {flow_label} OTP"
+    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
     html_content = render_template(
         "emails/otp_email.html",
         otp=otp_code,
         expires_minutes=max(1, OTP_EXPIRY_SECONDS // 60),
-        flow_label=flow_label
+        flow_label=flow_label,
+        logo_url=f"{site_url}/static/images/logo-white.png",
     )
     ok, _err = send_email_sync(subject=subject, recipients=[email], html=html_content)
     return ok
@@ -1658,6 +1664,22 @@ def expire_stale_pending_donations(user_id=None, email=None):
     return updated_count
 
 
+def maintenance_window_is_active():
+    """Return whether the administrator-scheduled maintenance window is active."""
+    if get_cms_content("maintenance_enabled", "false").strip().lower() != "true":
+        return False
+    start_value = get_cms_content("maintenance_start", "").strip()
+    end_value = get_cms_content("maintenance_end", "").strip()
+    try:
+        start = datetime.fromisoformat(start_value)
+        end = datetime.fromisoformat(end_value)
+        return start <= meeting_now_naive() < end
+    except (TypeError, ValueError):
+        # An enabled but invalid configuration must never lock users out.
+        app.logger.warning("Ignoring invalid maintenance window configuration")
+        return False
+
+
 @app.before_request
 def apply_security_controls():
     if ENFORCE_HTTPS and not app.debug and not request.is_secure:
@@ -1666,6 +1688,22 @@ def apply_security_controls():
             return redirect(request.url.replace("http://", "https://", 1), code=301)
 
     endpoint = request.endpoint or ""
+
+    # During an active, scheduled maintenance window, only administrators may
+    # use the application. Login/static/error paths stay reachable so an admin
+    # can authenticate and end maintenance early. This protects web and API
+    # requests equally instead of relying on client-side hiding.
+    maintenance_exempt_endpoints = {"static", "login", "logout", "favicon", "health"}
+    if (
+        endpoint not in maintenance_exempt_endpoints
+        and not request.path.startswith("/static/")
+        and maintenance_window_is_active()
+        and not (current_user.is_authenticated and getattr(current_user, "is_admin", False))
+    ):
+        message = get_cms_content("maintenance_message", "We are performing scheduled maintenance. Please try again shortly.")
+        if request.path.startswith("/api/") or request.is_json:
+            return jsonify({"error": "Maintenance in progress", "message": message}), 503
+        return render_template("maintenance.html", message=message), 503
     if current_user.is_authenticated and endpoint != "static":
         now_ts = int(datetime.now(timezone.utc).timestamp())
         last_activity = session.get("last_activity_ts")
@@ -1780,8 +1818,27 @@ def set_security_headers(response):
 # ===================================
 # HELPER FUNCTIONS
 # ===================================
+def build_branded_email(title, body_html, preheader=""):
+    """Render the reusable branded transactional-email layout."""
+    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    logo_url = f"{site_url}/static/images/logo-white.png"
+    return render_template(
+        "emails/base_email.html",
+        email_title=title,
+        preheader=preheader or title,
+        body_html=body_html,
+        logo_url=logo_url,
+        organization_name=get_cms_content("org_name", "Think.4U Trust"),
+    )
+
+
 def send_email_async(subject, recipients, html, attachments=None):
-    """Send email in background thread"""
+    """Send email reliably; background mode is opt-in for persistent servers."""
+    # Serverless hosts may terminate work after the response is returned.
+    # Deliver synchronously by default so transactional messages are not lost.
+    if not MAIL_ASYNC_DELIVERY:
+        return send_email_sync(subject, recipients, html, attachments)
+
     def send():
         try:
             with app.app_context():
@@ -3449,6 +3506,7 @@ def appointments():
         items = response.data or []
     except Exception:
         items = []
+    attach_meeting_audit_details(items)
 
     try:
         response = supabase.table("appointment_slots") \
@@ -3799,6 +3857,26 @@ def meeting_allowed_participants(record):
     return participants
 
 
+def attach_meeting_audit_details(records):
+    """Add non-sensitive joined counts/recording state for authorised dashboards."""
+    records = records or []
+    keys = list({row.get("meet_url") or str(row.get("uuid")) for row in records if row.get("meet_url") or row.get("uuid")})
+    counts = {}
+    if keys:
+        try:
+            audit = supabase.table("meeting_attendance").select("meeting_key,user_id").in_("meeting_key", keys).limit(1000).execute()
+            for row in audit.data or []:
+                key = row.get("meeting_key")
+                counts.setdefault(key, set()).add(str(row.get("user_id")))
+        except Exception as exc:
+            app.logger.debug("Meeting audit details unavailable: %s", exc)
+    for record in records:
+        key = record.get("meet_url") or str(record.get("uuid"))
+        record["joined_participant_count"] = len(counts.get(key, set()))
+        record["recording_available"] = bool(record.get("recording_url"))
+    return records
+
+
 def render_jitsi_room(record, seed_text, title, return_url):
     room_name = jitsi_room_from_url_or_seed((record or {}).get("meet_url"), seed_text)
     is_moderator = bool(getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator")
@@ -4022,7 +4100,21 @@ def end_meeting(appointment_uuid):
             
         # Email reporting to user and coordinator
         report_subject = f"Think.4U Meeting Summary - {appointment.get('purpose', 'Session')}"
-        report_html = f"<p>The meeting has concluded.</p><p><strong>Actual Duration:</strong> {actual_duration} minutes (Scheduled for {scheduled_duration} minutes).</p>"
+        joined_count = 0
+        try:
+            meeting_key = meet_url or str(appointment.get("uuid"))
+            attendance_res = supabase.table("meeting_attendance").select("user_id").eq("meeting_key", meeting_key).limit(500).execute()
+            joined_count = len({str(row.get("user_id")) for row in (attendance_res.data or [])})
+        except Exception as exc:
+            app.logger.debug("Meeting summary attendance unavailable: %s", exc)
+        recording_text = "No recording is available." if not appointment.get("recording_url") else "A server-side recording is available to authorised staff."
+        report_html = render_template(
+            "emails/meeting_summary_email.html",
+            recipient_name=appointment.get("name") or "there",
+            started_at=appointment.get("actual_start_time") or now_utc.isoformat(),
+            ended_at=now_utc.isoformat(), duration_minutes=actual_duration,
+            joined_count=joined_count, recording_status=recording_text,
+        )
         recipients = [appointment.get("email")]
         if getattr(current_user, "email", None):
             recipients.append(current_user.email)
@@ -4044,7 +4136,7 @@ def end_meeting(appointment_uuid):
             except Exception as re:
                 app.logger.error(f"Auto-reschedule failed: {re}")
                 
-        send_email_async(subject=report_subject, recipients=recipients, html=report_html)
+        send_email_async(subject=report_subject, recipients=recipients, html=build_branded_email("Meeting summary", report_html))
 
 
         flash(f"Meeting ended successfully. Duration: {actual_duration} mins.", "success")
@@ -4093,6 +4185,55 @@ def meeting_host_status(appointment_uuid):
             app.logger.warning("Meeting group host status lookup failed: %s", exc)
 
     return jsonify({"host_ready": host_ready, "meeting_closed": False}), 200
+
+
+@app.route("/api/meeting/<uuid:appointment_uuid>/attendance", methods=["POST"])
+@login_required
+def record_meeting_attendance(appointment_uuid):
+    """Record an authenticated join for the meeting audit trail.
+
+    The endpoint derives identity and the meeting key from server-side records;
+    the browser cannot submit an arbitrary participant or room.
+    """
+    try:
+        response = supabase.table("appointments").select("id,uuid,meet_url,status,user_id,email").eq(
+            "uuid", str(appointment_uuid)
+        ).limit(1).execute()
+        appointment = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Attendance lookup failed: %s", exc)
+        appointment = None
+
+    if not appointment:
+        return jsonify({"error": "Meeting not found"}), 404
+    if not can_join_appointment(appointment):
+        return jsonify({"error": "Unauthorized"}), 403
+    if appointment.get("status") in {"completed", "cancelled"}:
+        return jsonify({"error": "Meeting closed"}), 409
+
+    meeting_key = appointment.get("meet_url") or str(appointment_uuid)
+    payload = {
+        "meeting_key": meeting_key,
+        "appointment_id": appointment.get("id"),
+        "user_id": str(current_db_user_id()),
+        "email": normalize_email(current_user.email),
+        "name": clean_text(current_user.name, 120) or "User",
+        "role": "admin" if getattr(current_user, "is_admin", False) else (
+            "coordinator" if getattr(current_user, "role", "") == "coordinator" else "participant"
+        ),
+        "joined_at": datetime.now(timezone.utc).isoformat(),
+        "last_seen_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        supabase.table("meeting_attendance").upsert(
+            payload, on_conflict="meeting_key,user_id"
+        ).execute()
+        return jsonify({"success": True}), 200
+    except Exception as exc:
+        # Deployments without the migration remain usable; the data migration
+        # below enables this audit feature without changing access control.
+        app.logger.warning("Meeting attendance audit unavailable: %s", exc)
+        return jsonify({"success": False, "message": "Audit storage unavailable"}), 503
 
 
 @app.route("/api/meeting/<uuid:appointment_uuid>/start", methods=["POST"])
@@ -4189,58 +4330,9 @@ def download_calendar(appointment_uuid):
 @app.route("/meeting/<uuid:appointment_uuid>/upload_recording_auto", methods=["POST"])
 @login_required
 def upload_recording_auto(appointment_uuid):
-    try:
-        response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
-        appointment = (response.data or [None])[0]
-    except Exception as exc:
-        app.logger.error("Failed to load appointment for auto upload: %s", exc)
-        return jsonify({"success": False, "message": "Database query error"}), 500
-
-    is_slot = False
-    if not appointment:
-        try:
-            slot_res = supabase.table("appointment_slots").select("id").eq("uuid", str(appointment_uuid)).limit(1).execute()
-            if slot_res.data:
-                appointment = slot_res.data[0]
-                is_slot = True
-        except Exception as exc:
-            app.logger.error("Failed to load slot for auto upload: %s", exc)
-            return jsonify({"success": False, "message": "Database query error"}), 500
-
-    if not appointment:
-        return jsonify({"success": False, "message": "Meeting not found"}), 404
-
-    is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
-    if not is_staff or (not getattr(current_user, "is_admin", False) and not can_join_appointment(appointment)):
-        return jsonify({"success": False, "message": "Unauthorized access to upload recording"}), 403
-
-    video_file = request.files.get("video_file")
-    if not video_file or video_file.filename == "":
-        return jsonify({"success": False, "message": "No video file found"}), 400
-
-    try:
-        public_url = upload_site_media(video_file, "video", folder="recordings")
-        if is_slot:
-            supabase.table("appointments").update({
-                "recording_url": public_url,
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }).eq("slot_id", appointment["id"]).execute()
-        else:
-            meet_url = appointment.get("meet_url")
-            if meet_url:
-                supabase.table("appointments").update({
-                    "recording_url": public_url,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }).eq("meet_url", meet_url).execute()
-            else:
-                supabase.table("appointments").update({
-                    "recording_url": public_url,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }).eq("id", appointment["id"]).execute()
-        return jsonify({"success": True, "recording_url": public_url})
-    except Exception as e:
-        app.logger.error(f"Failed to auto-upload video: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
+    # Browser capture/video uploads were removed: recordings must come from a
+    # controlled server-side recorder and be attached by an administrator.
+    return jsonify({"success": False, "message": "Browser video uploads are disabled."}), 410
 
 
 @app.route("/meeting/slot/<uuid:slot_uuid>")
@@ -5080,6 +5172,66 @@ def admin_events():
 @login_required
 def admin_notifications():
     if request.method == "POST":
+        action = request.form.get("action", "notification")
+        if action == "maintenance":
+            enabled = request.form.get("maintenance_enabled") == "on" and request.form.get("force_end") != "true"
+            start_value = clean_text(request.form.get("maintenance_start"), 40)
+            end_value = clean_text(request.form.get("maintenance_end"), 40)
+            message = clean_text(request.form.get("maintenance_message"), 500, keep_new_lines=True)
+            if enabled:
+                try:
+                    start_dt = datetime.fromisoformat(start_value)
+                    end_dt = datetime.fromisoformat(end_value)
+                except ValueError:
+                    flash("Enter valid maintenance start and end date/time values.", "error")
+                    return redirect(url_for("admin_notifications"))
+                if end_dt <= start_dt:
+                    flash("Maintenance end must be after the start.", "error")
+                    return redirect(url_for("admin_notifications"))
+            try:
+                upsert_cms_value("maintenance_enabled", "true" if enabled else "false")
+                upsert_cms_value("maintenance_start", start_value if enabled else "")
+                upsert_cms_value("maintenance_end", end_value if enabled else "")
+                upsert_cms_value("maintenance_message", message or CMS_DEFAULTS["maintenance_message"])
+                if enabled and request.form.get("send_maintenance_email") == "on":
+                    users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
+                    start_label = html.escape(start_dt.strftime("%d %b %Y, %I:%M %p"))
+                    end_label = html.escape(end_dt.strftime("%d %b %Y, %I:%M %p"))
+                    for user_row in users:
+                        create_notification_for_user(user_row["id"], "Scheduled maintenance", message or CMS_DEFAULTS["maintenance_message"])
+                        if user_row.get("email"):
+                            body = render_template("emails/maintenance_email.html", recipient_name=user_row.get("name") or "there", message=message or CMS_DEFAULTS["maintenance_message"], start_label=start_label, end_label=end_label)
+                            send_email_async("Think.4U scheduled maintenance", [user_row["email"]], build_branded_email("Scheduled maintenance", body))
+                flash("Maintenance schedule saved." if enabled else "Maintenance ended. User access has been restored.", "success")
+            except Exception as exc:
+                app.logger.error("Maintenance schedule failed: %s", exc)
+                flash("Unable to save the maintenance schedule.", "error")
+            return redirect(url_for("admin_notifications"))
+
+        if action == "service_restored":
+            try:
+                upsert_cms_value("maintenance_enabled", "false")
+                users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
+                for user_row in users:
+                    create_notification_for_user(user_row["id"], "Service restored", "Scheduled maintenance has been completed. Think.4U is available again.")
+                    if user_row.get("email"):
+                        body = render_template("emails/service_restored_email.html", recipient_name=user_row.get("name") or "there")
+                        send_email_async("Think.4U services restored", [user_row["email"]], build_branded_email("Service restored", body))
+                flash(f"Access restored and notification sent to {len(users)} user(s).", "success")
+            except Exception as exc:
+                app.logger.error("Service restoration notice failed: %s", exc)
+                flash("Access was restored, but one or more notices could not be sent.", "warning")
+            return redirect(url_for("admin_notifications"))
+
+        if action == "test_email":
+            recipient = normalize_email(request.form.get("test_email")) or normalize_email(current_user.email)
+            body = "<p>This confirms that Think.4U can deliver authenticated transactional email from the current mail configuration.</p>"
+            ok, error = send_email_sync("Think.4U email delivery test", [recipient], build_branded_email("Email delivery test", body))
+            flash("Test email sent." if ok else "Test email failed. Check the server mail log.", "success" if ok else "error")
+            if error:
+                app.logger.warning("Admin mail test failed: %s", error)
+            return redirect(url_for("admin_notifications"))
+
         target = clean_text(request.form.get("target"), 40)
         email = normalize_email(request.form.get("email"))
         title = clean_text(request.form.get("title"), 120)
@@ -5104,15 +5256,11 @@ def admin_notifications():
             for user_row in recipients:
                 create_notification_for_user(user_row["id"], title, body)
                 if send_mail and user_row.get("email"):
+                    message_body = render_template("emails/announcement_email.html", recipient_name=user_row.get("name") or "there", message=body, action_url=os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app"))
                     send_email_async(
                         subject=f"Think.4U: {title}",
                         recipients=[user_row["email"]],
-                        html=f"""
-                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-                            <h2 style="color:#7c2d12;">{html.escape(title)}</h2>
-                            <p>{html.escape(body).replace(chr(10), '<br>')}</p>
-                        </div>
-                        """
+                        html=build_branded_email(title, message_body)
                     )
 
             flash(f"Notification sent to {len(recipients)} user(s).", "success")
@@ -5130,7 +5278,13 @@ def admin_notifications():
         users = users_response.data or []
     except Exception as e:
         app.logger.warning(f"Admin notification page load failed: {e}")
-    return render_template("admin/notifications.html", recent_notifications=recent_notifications, users=users)
+    maintenance_settings = {
+        "enabled": get_cms_content("maintenance_enabled", "false").lower() == "true",
+        "start": get_cms_content("maintenance_start", ""),
+        "end": get_cms_content("maintenance_end", ""),
+        "message": get_cms_content("maintenance_message", CMS_DEFAULTS["maintenance_message"]),
+    }
+    return render_template("admin/notifications.html", recent_notifications=recent_notifications, users=users, maintenance_settings=maintenance_settings)
 
 
 @app.route("/admin/coordinators", methods=["GET", "POST"])
@@ -5839,25 +5993,8 @@ def coordinator_meeting_detail(appointment_id):
                 flash("Unable to update sharing preference.", "error")
             return redirect(url_for("coordinator_meeting_detail", appointment_id=appointment_id))
 
-        elif action == "upload_recording":
-            video_file = request.files.get("video_file")
-            if not video_file or video_file.filename == "":
-                flash("No file selected for upload.", "error")
-                return redirect(url_for("coordinator_meeting_detail", appointment_id=appointment_id))
-            try:
-                public_url = upload_site_media(video_file, "video", folder="recordings")
-                meet_url = appointment.get("meet_url")
-                if meet_url:
-                    supabase.table("appointments").update({"recording_url": public_url}).eq("meet_url", meet_url).execute()
-                else:
-                    supabase.table("appointments").update({"recording_url": public_url}).eq("id", appointment_id).execute()
-                flash("Recorded meeting video uploaded successfully.", "success")
-            except Exception as e:
-                app.logger.error(f"Failed to upload video: {e}")
-                flash(f"Upload failed: {e}", "error")
-            return redirect(url_for("coordinator_meeting_detail", appointment_id=appointment_id))
-
     participants = []
+    attendance = []
     meet_url = appointment.get("meet_url")
     if meet_url:
         try:
@@ -5866,7 +6003,16 @@ def coordinator_meeting_detail(appointment_id):
         except Exception as e:
             app.logger.warning(f"Failed to fetch meeting participants: {e}")
 
-    return render_template("coordinator/details.html", appointment=appointment, participants=participants)
+    try:
+        meeting_key = meet_url or str(appointment.get("uuid"))
+        attendance_res = supabase.table("meeting_attendance").select(
+            "name,email,role,joined_at,last_seen_at"
+        ).eq("meeting_key", meeting_key).order("joined_at").limit(200).execute()
+        attendance = attendance_res.data or []
+    except Exception as e:
+        app.logger.debug("Meeting attendance detail unavailable: %s", e)
+
+    return render_template("coordinator/details.html", appointment=appointment, participants=participants, attendance=attendance)
 
 
 @app.route("/coordinator/events", methods=["POST"])

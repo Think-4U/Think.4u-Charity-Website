@@ -4077,23 +4077,41 @@ def start_meeting(appointment_uuid):
     try:
         response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
         appointment = (response.data or [None])[0]
-        if not appointment or not can_join_appointment(appointment):
+        slot = None
+        if not appointment:
+            # Coordinators can open an unbooked/group slot directly.  That
+            # page sends the slot UUID, not an appointment UUID.
+            slot_response = supabase.table("appointment_slots").select("*").eq(
+                "uuid", str(appointment_uuid)
+            ).limit(1).execute()
+            slot = (slot_response.data or [None])[0]
+
+        if not appointment and not slot:
             return jsonify({"error": "Not found"}), 404
-            
+
         is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
-        if not is_staff or not can_manage_coordinator_record(appointment):
+        if not is_staff:
             return jsonify({"error": "Unauthorized"}), 403
-            
-        if not appointment.get("actual_start_time"):
-            update_payload = {
-                "actual_start_time": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }
-            if appointment.get("meet_url"):
-                supabase.table("appointments").update(update_payload).eq("meet_url", appointment["meet_url"]).execute()
-            else:
-                supabase.table("appointments").update(update_payload).eq("uuid", str(appointment_uuid)).execute()
-            
+
+        if appointment:
+            if not can_join_appointment(appointment) or not can_manage_coordinator_record(appointment):
+                return jsonify({"error": "Unauthorized"}), 403
+        elif not can_manage_coordinator_record(slot):
+            return jsonify({"error": "Unauthorized"}), 403
+
+        update_payload = {
+            "actual_start_time": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        if slot:
+            # A slot may have multiple booked appointment rows. Marking all
+            # of them ready releases every authorized participant together.
+            supabase.table("appointments").update(update_payload).eq("slot_id", slot["id"]).execute()
+        elif appointment.get("meet_url"):
+            supabase.table("appointments").update(update_payload).eq("meet_url", appointment["meet_url"]).execute()
+        else:
+            supabase.table("appointments").update(update_payload).eq("uuid", str(appointment_uuid)).execute()
+
         return jsonify({"success": True}), 200
     except Exception as e:
         app.logger.error(f"Failed to start meeting: {e}")

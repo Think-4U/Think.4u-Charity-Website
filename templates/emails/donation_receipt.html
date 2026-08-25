@@ -1,131 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Donation Receipt - Think.4U{% endblock %}
 {% block content %}
-<section class="pt-28 pb-14 px-4 min-h-screen bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white">
-  <div class="max-w-4xl mx-auto">
-    <div class="receipt-sheet bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden print:shadow-none print:border-slate-300 relative">
-      <div class="receipt-watermark" aria-hidden="true">THINK.4U</div>
-      <div class="px-6 sm:px-8 py-7 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white">
-        <div class="flex items-center gap-4">
-          <img src="{{ url_for('static', filename='images/logo-white.png') }}" alt="Think.4U Trust" class="h-12 w-12 rounded-xl object-contain bg-white/10 p-1">
-          <div><p class="text-xs font-semibold uppercase tracking-wider text-cyan-100">{{ get_cms('org_name', 'Think.4U Trust') }}</p><h1 class="text-3xl sm:text-4xl font-black mt-1">Donation Receipt</h1></div>
-        </div>
-        <p class="text-sm text-cyan-100 mt-2">Thank you for supporting our programs and community initiatives.</p>
-      </div>
-
-      <div class="p-6 sm:p-8 space-y-7">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Receipt Number</p>
-              <p class="text-lg font-black text-slate-900 mt-1">{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</p>
-            </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Status</p>
-              <p class="text-lg font-black text-emerald-600 mt-1">Paid</p>
-            </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Amount</p>
-              <p class="text-xl font-black text-emerald-700 mt-1">Rs {{ "%.2f"|format(amount/100) }}</p>
-            </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs text-slate-500 uppercase tracking-wide">Date</p>
-              <p class="text-sm font-semibold text-slate-900 mt-1">{{ donation.created_at.strftime('%d %b %Y, %I:%M %p') if donation.created_at else '' }}</p>
-            </div>
-          </div>
-
-          <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col items-center justify-center text-center">
-            {% if qr_code %}
-            <img src="data:image/png;base64,{{ qr_code }}" alt="Receipt verification QR" class="w-24 h-24 mb-2">
-            {% endif %}
-            <p class="text-xs text-slate-500">Scan to open this receipt</p>
-          </div>
-        </div>
-
-        <div class="rounded-2xl border border-slate-200 overflow-hidden">
-          <table class="w-full text-sm">
-            <tbody class="divide-y divide-slate-200">
-              <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Donor Name</th>
-                <td class="px-4 py-3 text-slate-900 font-semibold">{{ donation.name or 'Anonymous' }}</td>
-              </tr>
-              <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Email</th>
-                <td class="px-4 py-3 text-slate-900 break-all">{{ donation.email or 'N/A' }}</td>
-              </tr>
-              <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Phone</th>
-                <td class="px-4 py-3 text-slate-900 break-all">{{ donation.phone or 'N/A' }}</td>
-              </tr>
-              <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Address</th>
-                <td class="px-4 py-3 text-slate-900">{{ donation.address or 'N/A' }}</td>
-              </tr>
-              <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Purpose</th>
-                <td class="px-4 py-3 text-slate-900">{{ donation.purpose_label or 'Self donation' }}</td>
-              </tr>
-              <tr>
-                <th class="w-40 px-4 py-3 text-left bg-slate-50 text-slate-600 font-semibold">Payment Type</th>
-                <td class="px-4 py-3 text-slate-900">Online donation</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <p class="text-sm text-emerald-800">
-            This receipt confirms donation payment. Tax exemption details under Section 80G will be shared as per eligibility and document verification.
-          </p>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3 print:hidden">
-          <button onclick="window.print()" class="px-5 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition">
-            Print Receipt
-          </button>
-          <a href="{{ url_for('user_donations') }}" class="px-5 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition text-center">
-            Back to Donations
-          </a>
-          <a href="{{ url_for('dashboard') }}" class="px-5 py-3 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 transition text-center">
-            Go to Dashboard
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
+<section class="receipt-page"><article class="receipt" aria-labelledby="receipt-title"><div class="watermark">THINK.4U</div>
+<header class="receipt-header"><div class="brand-block"><img src="{{ url_for('static', filename='images/logo-black.png') }}" alt="{{ get_cms('org_name', 'Think.4U Trust') }}"><div><p class="org-name">{{ get_cms('org_name', 'Think.4U Trust') }}</p><p class="org-meta">{{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</p><p class="org-meta">PAN: {{ get_cms('tax_id', 'Pending') }} | 80G: {{ get_cms('cert_80g', 'Pending') }}</p></div></div><div class="receipt-label"><p>OFFICIAL RECEIPT</p><h1 id="receipt-title">Donation Receipt</h1><span class="paid">PAID</span></div></header>
+<section class="receipt-meta"><div><span>Receipt number</span><strong>{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</strong></div><div><span>Receipt date</span><strong>{{ donation.created_at.strftime('%d %B %Y') if donation.created_at else '' }}</strong></div><div><span>Payment reference</span><strong>{{ donation.razorpay_payment_id or donation.payment_id or donation.id }}</strong></div></section>
+<section class="donor-section"><div><p class="section-kicker">RECEIVED FROM</p><h2>{{ donation.name or 'Anonymous Donor' }}</h2><p>{{ donation.email or 'N/A' }}{% if donation.phone %} · {{ donation.phone }}{% endif %}</p><p>{{ donation.address or '' }}</p></div><div class="amount-box"><span>Donation amount</span><strong>Rs {{ "%.2f"|format(amount/100) }}</strong><small>Indian Rupees</small></div></section>
+<table class="receipt-table"><tbody><tr><th>Donation purpose</th><td>{{ donation.purpose_label or 'General charitable donation' }}</td></tr><tr><th>Payment method</th><td>{{ payment_method or 'Online payment' }}</td></tr><tr><th>Transaction status</th><td class="success">Payment verified</td></tr></tbody></table>
+<section class="declaration"><strong>Declaration</strong><p>This receipt confirms that the amount above was received as a voluntary donation by {{ get_cms('org_name', 'Think.4U Trust') }}. Tax benefits, including those under Section 80G, are subject to applicable law and the organisation's registration status.</p></section>
+<footer class="receipt-footer"><div class="verify">{% if qr_code %}<img src="data:image/png;base64,{{ qr_code }}" alt="Receipt verification QR">{% endif %}<span>Scan to verify this receipt online</span></div><div class="signature"><div class="sign-line"></div><strong>Authorised Signatory</strong><span>{{ get_cms('org_name', 'Think.4U Trust') }}</span></div></footer></article>
+<div class="receipt-actions print-hidden"><button type="button" onclick="window.print()">Print / Save PDF</button><a href="{{ url_for('user_donations') }}">Back to Donations</a></div></section>
 <style>
-.receipt-sheet { min-height: 258mm; }
-.receipt-watermark { position:absolute; top:43%; left:50%; transform:translate(-50%,-50%) rotate(-28deg); font-size:68px; font-weight:900; letter-spacing:.14em; color:rgba(15,118,110,.055); pointer-events:none; white-space:nowrap; z-index:0; }
-.receipt-sheet > :not(.receipt-watermark) { position:relative; z-index:1; }
-@media print {
-  nav,
-  footer,
-  .sticky-donate,
-  #cookie-banner {
-    display: none !important;
-  }
-
-  body {
-    background: #ffffff !important;
-  }
-
-  main {
-    padding: 0 !important;
-  }
-
-  @page {
-    size: A4;
-    margin: 14mm;
-  }
-
-  .receipt-sheet {
-    width: 182mm;
-    min-height: 268mm;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-}
+.receipt-page{min-height:100vh;padding:118px 16px 44px;background:#eef2f7}.receipt{position:relative;width:min(210mm,100%);min-height:297mm;margin:0 auto;background:#fff;color:#1f2937;padding:15mm 16mm 13mm;border:1px solid #d1d5db;box-shadow:0 18px 46px rgba(15,23,42,.18);overflow:hidden;font-family:Arial,sans-serif}.watermark{position:absolute;left:50%;top:53%;transform:translate(-50%,-50%) rotate(-32deg);font-size:68px;font-weight:900;letter-spacing:.16em;color:rgba(15,118,110,.06);white-space:nowrap;pointer-events:none}.receipt-header,.receipt-meta,.donor-section,.receipt-table,.declaration,.receipt-footer{position:relative;z-index:1}.receipt-header{display:flex;justify-content:space-between;gap:18px;padding-bottom:13px;border-bottom:3px solid #0f766e}.brand-block{display:flex;align-items:center;gap:12px;min-width:0}.brand-block img{width:72px;height:72px;object-fit:contain}.org-name{font-weight:800;font-size:19px;margin:0 0 5px;color:#0f172a}.org-meta{font-size:10px;color:#475569;margin:2px 0}.receipt-label{text-align:right}.receipt-label p{color:#0f766e;font-weight:800;font-size:10px;letter-spacing:.12em;margin:0}.receipt-label h1{font-size:24px;margin:5px 0 9px;color:#0f172a}.paid{display:inline-block;border:1px solid #059669;color:#047857;border-radius:999px;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:.08em}.receipt-meta{display:grid;grid-template-columns:1.1fr .9fr 1fr;border:1px solid #dbe4ea;margin:16px 0}.receipt-meta>div{padding:10px 11px;border-right:1px solid #dbe4ea;min-width:0}.receipt-meta>div:last-child{border-right:0}.receipt-meta span,.amount-box span,.section-kicker{display:block;color:#64748b;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}.receipt-meta strong{display:block;overflow-wrap:anywhere;font-size:11px;color:#0f172a}.donor-section{display:flex;justify-content:space-between;gap:20px;padding:8px 0 17px}.donor-section h2{font-size:18px;margin:0 0 6px;color:#0f172a}.donor-section p{font-size:11px;margin:3px 0;color:#475569;max-width:370px}.amount-box{min-width:185px;text-align:right;background:#ecfdf5;border-left:4px solid #0f766e;padding:13px 16px}.amount-box strong{display:block;color:#047857;font-size:23px}.amount-box small{font-size:10px;color:#64748b}.receipt-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:17px}.receipt-table th,.receipt-table td{padding:10px 12px;border:1px solid #dbe4ea;text-align:left}.receipt-table th{width:35%;background:#f8fafc;color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:.04em}.success{font-weight:700;color:#047857}.declaration{border:1px solid #bae6fd;border-left:4px solid #0284c7;background:#f0f9ff;padding:12px 14px}.declaration strong{font-size:11px;color:#075985}.declaration p{font-size:10px;line-height:1.55;margin:6px 0 0;color:#334155}.receipt-footer{margin-top:23px;display:flex;justify-content:space-between;align-items:end}.verify{display:flex;align-items:center;gap:9px;font-size:10px;color:#64748b}.verify img{width:54px;height:54px}.signature{text-align:center;min-width:180px;font-size:10px;color:#475569}.signature span{display:block;font-size:9px;margin-top:3px}.sign-line{height:1px;background:#64748b;margin:0 0 7px}.receipt-actions{width:min(210mm,100%);margin:16px auto;display:flex;justify-content:center;gap:10px}.receipt-actions button,.receipt-actions a{border:0;border-radius:8px;padding:11px 15px;background:#0f766e;color:#fff;text-decoration:none;font-weight:700;cursor:pointer}.receipt-actions a{background:#334155}@media(max-width:640px){.receipt-page{padding-top:92px}.receipt{padding:22px;min-height:0}.receipt-header,.donor-section,.receipt-footer{flex-direction:column;align-items:flex-start}.receipt-label,.amount-box{text-align:left}.receipt-meta{grid-template-columns:1fr}.receipt-meta>div{border-right:0;border-bottom:1px solid #dbe4ea}.receipt-meta>div:last-child{border-bottom:0}.amount-box{min-width:100%;border-left:4px solid #0f766e}.watermark{font-size:38px}}@media print{nav,footer,.print-hidden,#cookie-banner{display:none!important}body,.receipt-page{background:#fff!important;padding:0!important}.receipt{width:210mm;min-height:297mm;margin:0;border:0;box-shadow:none;padding:15mm 16mm 13mm}@page{size:A4;margin:0}}
 </style>
 {% endblock %}

@@ -188,7 +188,17 @@ except ZoneInfoNotFoundError:
     MEETING_TIMEZONE = timezone.utc
     logging.getLogger(__name__).warning("Unknown MEETING_TIMEZONE %s; using UTC.", MEETING_TIMEZONE_NAME)
 SITE_MEDIA_BUCKET = os.getenv("SITE_MEDIA_BUCKET", "site-media")
-APP_VERSION = "2.4.0"
+APP_RELEASE_VERSION = os.getenv("APP_RELEASE_VERSION", "2.4.0").strip() or "2.4.0"
+# Vercel exposes this on Git-connected deployments. GitHub Actions/other hosts
+# can supply GITHUB_SHA or APP_BUILD_SHA. The short revision makes every push
+# visible without hand-editing a version string.
+APP_BUILD_SHA = (
+    os.getenv("VERCEL_GIT_COMMIT_SHA")
+    or os.getenv("GITHUB_SHA")
+    or os.getenv("APP_BUILD_SHA")
+    or "local"
+).strip()
+APP_VERSION = f"{APP_RELEASE_VERSION}+{APP_BUILD_SHA[:7]}"
 
 # Cloudflare Turnstile Configuration
 TURNSTILE_SITE_KEY = (os.getenv("TURNSTILE_SITE_KEY") or "").strip() or None
@@ -905,6 +915,10 @@ CMS_DEFAULTS = {
     "maintenance_start": "",
     "maintenance_end": "",
     "maintenance_message": "We are performing scheduled maintenance. Please try again shortly.",
+    "maintenance_status": "Maintenance in progress",
+    "maintenance_components": "Website and user dashboard\nAppointment booking and secure meetings\nDonations and payment verification\nNotifications and account services",
+    "app_version": APP_RELEASE_VERSION,
+    "app_version_notes": "",
 }
 
 
@@ -1670,6 +1684,8 @@ def get_maintenance_settings_live():
         "maintenance_start": "",
         "maintenance_end": "",
         "maintenance_message": CMS_DEFAULTS["maintenance_message"],
+        "maintenance_status": CMS_DEFAULTS["maintenance_status"],
+        "maintenance_components": CMS_DEFAULTS["maintenance_components"],
     }
     # A deliberate deployment-level emergency switch is independent of the
     # database. It is for use only when Supabase itself is unavailable.
@@ -1679,6 +1695,8 @@ def get_maintenance_settings_live():
             "maintenance_start": "2000-01-01T00:00",
             "maintenance_end": "2100-01-01T00:00",
             "maintenance_message": os.getenv("MAINTENANCE_EMERGENCY_MESSAGE", defaults["maintenance_message"]),
+            "maintenance_status": "Emergency maintenance in progress",
+            "maintenance_components": defaults["maintenance_components"],
         }
     try:
         response = supabase.table("cms_content").select("key,value").in_("key", list(defaults)).execute()
@@ -1751,7 +1769,8 @@ def apply_security_controls():
             message=message,
             start_time=format_maintenance_time(maintenance_settings["maintenance_start"]),
             restoration_time=format_maintenance_time(maintenance_settings["maintenance_end"]),
-            affected_components=["Website and user dashboard", "Appointment booking and secure meetings", "Donations and payment verification", "Notifications and account services"],
+            status=maintenance_settings["maintenance_status"],
+            affected_components=[item.strip() for item in maintenance_settings["maintenance_components"].splitlines() if item.strip()][:12],
         ), 503
     if current_user.is_authenticated and endpoint != "static":
         now_ts = int(datetime.now(timezone.utc).timestamp())
@@ -5225,10 +5244,13 @@ def admin_notifications():
         action = request.form.get("action", "notification")
         if action == "maintenance":
             force_start = request.form.get("force_start") == "true"
+            extend_minutes = request.form.get("extend_minutes", "").strip()
             enabled = (request.form.get("maintenance_enabled") == "on" or force_start) and request.form.get("force_end") != "true"
             start_value = clean_text(request.form.get("maintenance_start"), 40)
             end_value = clean_text(request.form.get("maintenance_end"), 40)
             message = clean_text(request.form.get("maintenance_message"), 500, keep_new_lines=True)
+            status_text = clean_text(request.form.get("maintenance_status"), 120) or CMS_DEFAULTS["maintenance_status"]
+            components_text = clean_text(request.form.get("maintenance_components"), 1600, keep_new_lines=True) or CMS_DEFAULTS["maintenance_components"]
             if enabled:
                 try:
                     start_dt = meeting_now_naive() if force_start else datetime.fromisoformat(start_value)
@@ -5241,6 +5263,16 @@ def admin_notifications():
                 if end_dt <= start_dt:
                     flash("Maintenance end must be after the start.", "error")
                     return redirect(url_for("admin_notifications"))
+                if extend_minutes:
+                    try:
+                        extension = int(extend_minutes)
+                    except ValueError:
+                        flash("Extension must be a whole number of minutes.", "error")
+                        return redirect(url_for("admin_notifications"))
+                    if not 1 <= extension <= 1440:
+                        flash("Extension must be between 1 and 1440 minutes.", "error")
+                        return redirect(url_for("admin_notifications"))
+                    end_dt += timedelta(minutes=extension)
                 start_value = start_dt.isoformat(timespec="minutes")
                 end_value = end_dt.isoformat(timespec="minutes")
             try:
@@ -5248,6 +5280,8 @@ def admin_notifications():
                 upsert_cms_value("maintenance_start", start_value if enabled else "")
                 upsert_cms_value("maintenance_end", end_value if enabled else "")
                 upsert_cms_value("maintenance_message", message or CMS_DEFAULTS["maintenance_message"])
+                upsert_cms_value("maintenance_status", status_text)
+                upsert_cms_value("maintenance_components", components_text)
                 if enabled and request.form.get("send_maintenance_email") == "on":
                     users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
                     start_label = start_dt.strftime("%d %B %Y — %I:%M %p IST")
@@ -5262,7 +5296,8 @@ def admin_notifications():
                             if isinstance(delivered, tuple) and not delivered[0]:
                                 email_failures += 1
                 detail = f" {email_failures} email(s) failed; use Email delivery test and server logs." if enabled and request.form.get("send_maintenance_email") == "on" and email_failures else ""
-                flash(("Maintenance schedule saved." if enabled else "Maintenance ended. User access has been restored.") + detail, "warning" if detail else "success")
+                action_label = "Maintenance extended." if enabled and extend_minutes else ("Maintenance schedule saved." if enabled else "Maintenance ended. User access has been restored.")
+                flash(action_label + detail, "warning" if detail else "success")
             except Exception as exc:
                 app.logger.error("Maintenance schedule failed: %s", exc)
                 flash("Unable to save the maintenance schedule.", "error")
@@ -5352,8 +5387,10 @@ def admin_notifications():
         "start": live_maintenance["maintenance_start"],
         "end": live_maintenance["maintenance_end"],
         "message": live_maintenance["maintenance_message"],
+        "status": live_maintenance["maintenance_status"],
+        "components": live_maintenance["maintenance_components"],
     }
-    return render_template("admin/notifications.html", recent_notifications=recent_notifications, users=users, maintenance_settings=maintenance_settings)
+    return render_template("admin/notifications.html", recent_notifications=recent_notifications, users=users, maintenance_settings=maintenance_settings, deployment_version=APP_VERSION, release_version=APP_RELEASE_VERSION)
 
 
 @app.route("/admin/coordinators", methods=["GET", "POST"])

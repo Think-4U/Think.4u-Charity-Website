@@ -7,6 +7,7 @@
         <div class="mb-8">
             <h1 class="text-4xl font-black mb-2"><span class="gradient-text">Notifications</span></h1>
             <p class="text-slate-600">Send web notifications to one user or all users. User dashboards auto-fetch the last four.</p>
+            <p class="text-xs font-bold text-slate-500 mt-2">Deployed version: <code class="bg-slate-100 px-2 py-1 rounded">{{ deployment_version }}</code> · automatically derived from the Git deployment revision.</p>
         </div>
 
         <div class="glass rounded-2xl border-2 border-slate-200/50 p-6 mb-6">
@@ -50,7 +51,10 @@
                 <label class="md:col-span-2 flex items-center gap-2 font-bold text-slate-800"><input type="checkbox" name="maintenance_enabled" {% if maintenance_settings.enabled %}checked{% endif %}> Enable scheduled maintenance lock</label>
                 <div><label class="block text-sm font-bold text-slate-700 mb-2">Start (local meeting time)</label><input type="datetime-local" name="maintenance_start" value="{{ maintenance_settings.start }}" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200"></div>
                 <div><label class="block text-sm font-bold text-slate-700 mb-2">End (local meeting time)</label><input type="datetime-local" name="maintenance_end" value="{{ maintenance_settings.end }}" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-2">Current status</label><input type="text" name="maintenance_status" value="{{ maintenance_settings.status }}" maxlength="120" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-2">Extend end time (minutes)</label><input type="number" name="extend_minutes" min="1" max="1440" placeholder="Example: 30" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200"><p class="text-xs text-slate-500 mt-1">Adds time to the entered end time.</p></div>
                 <div class="md:col-span-2"><label class="block text-sm font-bold text-slate-700 mb-2">User message</label><textarea name="maintenance_message" rows="3" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">{{ maintenance_settings.message }}</textarea></div>
+                <div class="md:col-span-2"><label class="block text-sm font-bold text-slate-700 mb-2">Affected components <span class="font-normal text-slate-500">(one per line)</span></label><textarea name="maintenance_components" rows="5" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200">{{ maintenance_settings.components }}</textarea></div>
                 <label class="md:col-span-2 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="send_maintenance_email" checked> Send maintenance notice by email and dashboard notification</label>
                 <div class="md:col-span-2 flex flex-wrap gap-3"><button type="submit" class="px-6 py-3 rounded-xl bg-amber-600 text-white font-bold">Save maintenance schedule</button><button type="submit" name="force_start" value="true" class="px-6 py-3 rounded-xl bg-red-600 text-white font-bold">Start maintenance now</button><button type="submit" name="force_end" value="true" class="px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold">End maintenance now</button></div>
             </form>

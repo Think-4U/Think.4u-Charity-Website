@@ -9,7 +9,7 @@
 </head>
 <body><main><section class="card" aria-labelledby="maintenance-title">
   <div class="brand"><img src="{{ url_for('static', filename='images/logo-white.png') }}" alt="Think.4U"></div>
-  <span class="status">🔧 Maintenance in progress</span><h1 id="maintenance-title">We’ll be back shortly</h1><p class="lead">{{ message }}</p>
+  <span class="status">🔧 {{ status }}</span><h1 id="maintenance-title">We’ll be back shortly</h1><p class="lead">{{ message }}</p>
   <div class="window"><div class="info"><p class="label">Maintenance started</p><p class="value">{{ start_time }}</p></div><div class="info"><p class="label">Expected restoration</p><p class="value">{{ restoration_time }}</p></div></div>
   <h2>Affected components</h2><ul>{% for component in affected_components %}<li>{{ component }}</li>{% endfor %}</ul>
   <p class="footer">Our team is applying final checks for security, stability, and reliability. Some services may be temporarily unavailable or intermittent until restoration is complete. Thank you for your patience.</p>

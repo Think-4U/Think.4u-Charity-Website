@@ -411,7 +411,8 @@
             csrfToken: "{{ csrf_token() }}",
             appointmentUuid: JSON.parse('{{ appointment_uuid|default("")|tojson|safe }}'),
             isCoordinator: JSON.parse('{{ is_coordinator|default(false)|tojson|safe }}'),
-            e2eeEnabled: JSON.parse('{{ e2ee_enabled|default(false)|tojson|safe }}')
+            e2eeEnabled: JSON.parse('{{ e2ee_enabled|default(false)|tojson|safe }}'),
+            waitForCoordinator: JSON.parse('{{ wait_for_coordinator|default(false)|tojson|safe }}')
         };
 
         let mediaRecorder = null;
@@ -670,6 +671,42 @@
             });
         }
 
+        function showWaitingForCoordinator() {
+            const status = document.getElementById('meeting-status');
+            if (status) {
+                status.innerHTML = '<h2 style="margin:0 0 10px;font-size:22px;">Waiting for coordinator</h2>' +
+                    '<p style="margin:0;color:#cbd5e1;line-height:1.6;">You are checked in securely. This meeting will open automatically when the coordinator joins.</p>';
+            }
+        }
+
+        async function waitForCoordinator() {
+            showWaitingForCoordinator();
+            try {
+                const response = await fetch(`/api/meeting/${meetingConfig.appointmentUuid}/host-status`, {
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                });
+                if (response.ok) {
+                    const state = await response.json();
+                    if (state.host_ready) {
+                        launchMeeting();
+                        return;
+                    }
+                    if (state.meeting_closed) {
+                        const status = document.getElementById('meeting-status');
+                        if (status) {
+                            status.innerHTML = '<h2 style="margin:0 0 10px;font-size:22px;">Meeting unavailable</h2>' +
+                                '<p style="margin:0;color:#cbd5e1;line-height:1.6;">This meeting is no longer available.</p>';
+                        }
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('Coordinator status check failed; retrying.', error);
+            }
+            window.setTimeout(waitForCoordinator, 5000);
+        }
+
         window.addEventListener('load', () => {
             // Setup exit button intercepts
             const backBtn = document.getElementById('back-btn');
@@ -704,6 +741,8 @@
             if (meetingConfig.isCoordinator && meetingConfig.settings.record_meeting) {
                 const modal = document.getElementById('record-prompt-modal');
                 if (modal) modal.style.display = 'flex';
+            } else if (meetingConfig.waitForCoordinator) {
+                waitForCoordinator();
             } else {
                 launchMeeting();
             }

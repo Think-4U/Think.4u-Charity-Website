@@ -3819,7 +3819,15 @@ def render_jitsi_room(record, seed_text, title, return_url):
         is_coordinator=is_moderator,
         appointment_uuid=(record or {}).get("uuid"),
         meeting_settings=ensure_meeting_settings_defaults((record or {}).get("meeting_settings")),
-        participants=meeting_allowed_participants(record)
+        participants=meeting_allowed_participants(record),
+        # Jitsi's native lobby is incompatible with the strict token-affiliation
+        # policy used here.  Non-coordinators therefore wait in Think.4U until
+        # the authorized coordinator has actually joined the conference.
+        wait_for_coordinator=bool(
+            (record or {}).get("uuid")
+            and not is_moderator
+            and not (record or {}).get("actual_start_time")
+        ),
     )
 
 
@@ -4022,24 +4030,69 @@ def end_meeting(appointment_uuid):
 
     return redirect(url_for("coordinator_portal") if is_staff else url_for("appointments"))
 
+@app.route("/api/meeting/<uuid:appointment_uuid>/host-status")
+@login_required
+def meeting_host_status(appointment_uuid):
+    """Return whether the authorized coordinator has entered this meeting."""
+    try:
+        response = supabase.table("appointments").select(
+            "uuid,status,actual_start_time,scheduled_date,scheduled_time,appointment_date,appointment_time,user_id,email,meet_url,slot_id"
+        ).eq("uuid", str(appointment_uuid)).limit(1).execute()
+        appointment = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Meeting host status lookup failed: %s", exc)
+        appointment = None
+
+    if not appointment:
+        return jsonify({"error": "Not found"}), 404
+    if not can_join_appointment(appointment):
+        return jsonify({"error": "Unauthorized"}), 403
+    if appointment.get("status") in {"completed", "cancelled"}:
+        return jsonify({"host_ready": False, "meeting_closed": True}), 200
+
+    scheduled_date = appointment.get("scheduled_date") or appointment.get("appointment_date")
+    scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time")
+    if not is_current_time_near_scheduled(scheduled_date, scheduled_time):
+        return jsonify({"host_ready": False, "meeting_closed": True}), 200
+
+    host_ready = bool(appointment.get("actual_start_time"))
+    # A group slot creates one appointment row per participant.  Every row
+    # shares the same meeting URL, so check the group rather than making each
+    # participant wait for a coordinator who started a sibling row.
+    if not host_ready and appointment.get("meet_url"):
+        try:
+            response = supabase.table("appointments").select("actual_start_time").eq(
+                "meet_url", appointment["meet_url"]
+            ).limit(100).execute()
+            host_ready = any(row.get("actual_start_time") for row in (response.data or []))
+        except Exception as exc:
+            app.logger.warning("Meeting group host status lookup failed: %s", exc)
+
+    return jsonify({"host_ready": host_ready, "meeting_closed": False}), 200
+
+
 @app.route("/api/meeting/<uuid:appointment_uuid>/start", methods=["POST"])
 @login_required
 def start_meeting(appointment_uuid):
     try:
         response = supabase.table("appointments").select("*").eq("uuid", str(appointment_uuid)).limit(1).execute()
         appointment = (response.data or [None])[0]
-        if not appointment:
+        if not appointment or not can_join_appointment(appointment):
             return jsonify({"error": "Not found"}), 404
             
         is_staff = getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"
-        if not is_staff:
+        if not is_staff or not can_manage_coordinator_record(appointment):
             return jsonify({"error": "Unauthorized"}), 403
             
         if not appointment.get("actual_start_time"):
-            supabase.table("appointments").update({
+            update_payload = {
                 "actual_start_time": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
-            }).eq("uuid", str(appointment_uuid)).execute()
+            }
+            if appointment.get("meet_url"):
+                supabase.table("appointments").update(update_payload).eq("meet_url", appointment["meet_url"]).execute()
+            else:
+                supabase.table("appointments").update(update_payload).eq("uuid", str(appointment_uuid)).execute()
             
         return jsonify({"success": True}), 200
     except Exception as e:

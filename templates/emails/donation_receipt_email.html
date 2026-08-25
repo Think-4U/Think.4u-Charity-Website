@@ -41,6 +41,14 @@
             padding: 24px 18px;
         }
 
+        .brand-logo {
+            display: block;
+            width: 104px;
+            max-width: 104px;
+            height: auto;
+            margin: 0 auto 12px auto;
+        }
+
         .header h1 {
             margin: 0;
             font-size: 30px;
@@ -160,8 +168,11 @@
                 <table role="presentation" class="card" width="100%">
                     <tr>
                         <td class="header">
+                            <a href="{{ url_for('index', _external=True) }}" style="text-decoration:none;">
+                                <img class="brand-logo" src="{{ url_for('static', filename='images/think4u-main-logo.jpeg', _external=True) }}" alt="Think.4U Charitable Trust">
+                            </a>
                             <h1>Think.4U</h1>
-                            <p>Donation Receipt</p>
+                            <p>Donation Receipt · Official PDF attached</p>
                         </td>
                     </tr>
                     <tr>
@@ -169,6 +180,7 @@
                             <p style="margin:0 0 8px 0; font-size:14px;">Hello {{ donation.name or 'Supporter' }},</p>
                             <p style="margin:0 0 16px 0; font-size:14px; color:#334155;">
                                 Thank you for your generous contribution. Your donation has been received successfully.
+                                The official PDF receipt is attached to this email for your records.
                             </p>
 
                             <div class="amount-pill">

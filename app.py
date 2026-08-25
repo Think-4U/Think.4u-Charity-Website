@@ -39,6 +39,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 from io import BytesIO
 from PIL import Image, ImageDraw
 
@@ -2465,6 +2468,7 @@ def payment_success_redirect():
                     apply_paid_donation_effects(donation)
                 except Exception as effect_error:
                     app.logger.warning(f"Donation side effects skipped: {effect_error}")
+                send_donation_receipt_email_if_needed(donation)
             flash('Thank you for your donation!', 'success')
             if current_user.is_authenticated:
                 if str(donation.get("user_id")) == str(current_user.id) or donation.get("email") == current_user.email:
@@ -2516,7 +2520,9 @@ def razorpay_webhook():
                     .eq('razorpay_order_id', order_id) \
                     .execute()
                 if update_response.data and not was_already_paid:
-                    apply_paid_donation_effects(update_response.data[0])
+                    donation = update_response.data[0]
+                    apply_paid_donation_effects(donation)
+                    send_donation_receipt_email_if_needed(donation)
         elif event_type == 'payment.failed':
             payment = event.get('payload', {}).get('payment', {}).get('entity', {})
             order_id = payment.get('order_id')
@@ -2615,29 +2621,10 @@ def donation_receipt(donation_id):
             "amount": donation.get("amount", 0),
             "payment_method": donation.get("payment_method", "Online"),
             "qr_code": qr_code,
+            "receipt_url": receipt_url,
         }
 
-        if not donation.get("receipt_emailed") and donation.get("email"):
-            email_html = render_template(
-                "emails/donation_receipt_email.html",
-                donation=donation,
-                amount=donation.get("amount", 0),
-                receipt_url=receipt_url,
-            )
-            try:
-                email_sent, email_error = send_email_sync(
-                    subject="Thank you for your donation - Think.4U (80G Eligible)",
-                    recipients=[donation.get("email")],
-                    html=email_html,
-                )
-                if email_sent:
-                    supabase.table("donations").update(
-                        {"receipt_emailed": True}
-                    ).eq("id", donation_id).execute()
-                else:
-                    app.logger.warning(f"Receipt email not sent for donation {donation_id}: {email_error}")
-            except Exception as e:
-                app.logger.error(f"Email failed, but receipt shown: {e}")
+        send_donation_receipt_email_if_needed(donation, context)
 
         return render_template("emails/donation_receipt.html", **context)
 
@@ -2647,57 +2634,330 @@ def donation_receipt(donation_id):
         return redirect(url_for("donate"))
 
 
+@app.route("/donation-receipt/<int:donation_id>/download")
+@login_required
+def download_donation_receipt_pdf(donation_id):
+    """Return the signed-in donor's official PDF receipt."""
+    try:
+        response = supabase.table("donations").select("*").eq("id", donation_id).execute()
+        if not response.data:
+            abort(404)
+
+        donation = response.data[0]
+        is_owner = (
+            (donation.get("user_id") is not None and str(donation.get("user_id")) == str(current_user.id))
+            or donation.get("email") == current_user.email
+        )
+        if not current_user.is_admin and not is_owner:
+            abort(403)
+        if donation.get("status") != "paid":
+            abort(404)
+
+        created_at_raw = donation.get("created_at")
+        if isinstance(created_at_raw, str):
+            donation["created_at"] = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+
+        receipt_url = url_for("donation_receipt", donation_id=donation_id, _external=True)
+        pdf = generate_receipt_pdf({
+            "donation": donation,
+            "amount": donation.get("amount", 0),
+            "payment_method": donation.get("payment_method", "Online"),
+            "qr_code": generate_qr(receipt_url),
+            "receipt_url": receipt_url,
+        })
+        receipt_number = secure_filename(str(donation.get("donation_ref") or f"T4U-{donation_id}"))
+        return send_file(
+            BytesIO(pdf),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"Think4U-Donation-Receipt-{receipt_number}.pdf",
+            max_age=0,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        app.logger.exception("Could not generate receipt PDF for donation %s", donation_id)
+        flash("The receipt PDF could not be generated. Please try again.", "error")
+        return redirect(url_for("donation_receipt", donation_id=donation_id))
+
+
 def generate_receipt_pdf(context):
+    """Create a single-page, official Think.4U donation receipt PDF."""
     buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4, pageCompression=1)
+    page_width, page_height = A4
+    donation = context["donation"]
+    created_at = donation.get("created_at") or datetime.now(timezone.utc)
+    if isinstance(created_at, str):
+        created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
 
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=25*mm,
-        leftMargin=25*mm,
-        topMargin=25*mm,
-        bottomMargin=25*mm
-    )
+    navy = colors.HexColor("#12344D")
+    teal = colors.HexColor("#078B98")
+    green = colors.HexColor("#168144")
+    pale_blue = colors.HexColor("#EDF6FA")
+    line = colors.HexColor("#C9D8DF")
+    ink = colors.HexColor("#17252B")
+    muted = colors.HexColor("#62747C")
+    left, right = 38, page_width - 38
+    amount = float(context.get("amount") or 0) / 100
+    receipt_number = str(donation.get("donation_ref") or f"T4U-{donation.get('id')}")
+    reference = str(donation.get("razorpay_payment_id") or donation.get("payment_id") or "Payment verified")
 
-    styles = getSampleStyleSheet()
-    story = []
+    def text(value, limit=96):
+        value = str(value or "—").replace("\n", ", ").strip()
+        return value if len(value) <= limit else value[:limit - 1] + "…"
 
-    story.append(Paragraph(f"<b>{context['org_name']}</b>", styles["Title"]))
-    story.append(Spacer(1, 12))
+    def draw_wrapped(value, x, y, width, size=8, leading=11, color=ink, max_lines=3, font="Helvetica"):
+        words, lines, current = text(value, 240).split(), [], ""
+        for word in words:
+            candidate = (current + " " + word).strip()
+            if pdf.stringWidth(candidate, font, size) <= width or not current:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+        for index, value_line in enumerate(lines[:max_lines]):
+            pdf.setFillColor(color)
+            pdf.setFont(font, size)
+            pdf.drawString(x, y - index * leading, value_line)
+        return y - min(len(lines), max_lines) * leading
 
-    story.append(Paragraph(
-        f"Donation Receipt<br/>"
-        f"Receipt No: T4U-{context['donation']['id']}<br/>"
-        f"Date: {context['created_at'].strftime('%d-%m-%Y')}",
-        styles["Normal"]
-    ))
+    # Background and brand strip.
+    pdf.setFillColor(colors.white)
+    pdf.rect(0, 0, page_width, page_height, stroke=0, fill=1)
+    for offset, width, colour in ((0, 210, teal), (210, 190, colors.HexColor("#8FD4C1")), (400, page_width - 400, colors.HexColor("#F29A3C"))):
+        pdf.setFillColor(colour)
+        pdf.rect(offset, page_height - 8, width, 8, stroke=0, fill=1)
 
-    story.append(Spacer(1, 12))
+    # Subtle watermark; transparency is best-effort on older ReportLab builds.
+    try:
+        pdf.setFillAlpha(0.055)
+    except AttributeError:
+        pass
+    pdf.saveState()
+    pdf.translate(page_width / 2, page_height / 2)
+    pdf.rotate(32)
+    pdf.setFillColor(colors.HexColor("#61B7BA"))
+    pdf.setFont("Helvetica-Bold", 49)
+    pdf.drawCentredString(0, 0, "THINK.4U")
+    pdf.restoreState()
+    try:
+        pdf.setFillAlpha(1)
+    except AttributeError:
+        pass
 
-    story.append(Paragraph(
-        f"<b>Donor:</b> {context['donation'].get('name','Anonymous')}<br/>"
-        f"<b>Email:</b> {context['donation'].get('email','N/A')}<br/>"
-        f"<b>Amount:</b> Rs {context['amount']/100:.2f}",
-        styles["Normal"]
-    ))
+    logo_path = os.path.join(app.root_path, "static", "images", "think4u-main-logo.jpeg")
+    if os.path.isfile(logo_path):
+        try:
+            pdf.drawImage(ImageReader(logo_path), left, page_height - 107, 76, 76, preserveAspectRatio=True, mask="auto")
+        except Exception:
+            app.logger.warning("Receipt logo could not be embedded")
+    pdf.setFillColor(navy)
+    pdf.setFont("Helvetica-Bold", 20)
+    pdf.drawString(left + 87, page_height - 54, get_cms_content("org_name", "Think.4U Charitable Trust"))
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(muted)
+    pdf.drawString(left + 87, page_height - 69, "Love in action, care with compassion")
+    pdf.drawString(left + 87, page_height - 82, "Registered charitable organisation")
+    pdf.setStrokeColor(line)
+    pdf.line(right - 155, page_height - 31, right - 155, page_height - 105)
+    pdf.setFillColor(ink)
+    pdf.setFont("Helvetica", 8)
+    draw_wrapped(get_cms_content("contact_address", "Hyderabad, Telangana, India"), right - 143, page_height - 49, 135, 8, 10, ink, 3)
+    pdf.drawString(right - 143, page_height - 84, text(get_cms_content("contact_email", "info@think4u.org"), 32))
+    pdf.drawString(right - 143, page_height - 97, text(get_cms_content("contact_phone", ""), 32))
 
-    story.append(Spacer(1, 12))
+    y = page_height - 125
+    pdf.setStrokeColor(line)
+    pdf.line(left, y, right, y)
+    y -= 27
+    pdf.setFillColor(navy)
+    pdf.setFont("Times-Bold", 19)
+    pdf.drawCentredString(page_width / 2, y, "OFFICIAL CHARITY DONATION RECEIPT")
+    pdf.setFillColor(teal)
+    pdf.setFont("Times-Italic", 10)
+    pdf.drawCentredString(page_width / 2, y - 16, "Thank you for your generous contribution towards a better tomorrow.")
 
-    story.append(Paragraph(
-        "This donation is eligible under Section 80G of the Income Tax Act, 1961.",
-        styles["Normal"]
-    ))
+    y -= 61
+    # Receipt identity strip.
+    pdf.setFillColor(navy)
+    pdf.roundRect(left, y - 44, 275, 44, 6, stroke=0, fill=1)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 7)
+    pdf.drawString(left + 12, y - 16, "RECEIPT NO.")
+    pdf.drawString(left + 144, y - 16, "PAYMENT REFERENCE ID")
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(left + 12, y - 31, text(receipt_number, 22))
+    pdf.drawString(left + 144, y - 31, text(reference, 24))
+    pdf.setFillColor(colors.HexColor("#EFF4FB"))
+    pdf.roundRect(left + 291, y - 44, 126, 44, 6, stroke=0, fill=1)
+    pdf.setFillColor(navy)
+    pdf.setFont("Helvetica-Bold", 7)
+    pdf.drawString(left + 304, y - 16, "RECEIPT DATE")
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(left + 304, y - 31, created_at.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y"))
+    pdf.setStrokeColor(green)
+    pdf.setFillColor(colors.HexColor("#F0FAF3"))
+    pdf.roundRect(right - 119, y - 44, 119, 44, 6, stroke=1, fill=1)
+    pdf.setFillColor(green)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawCentredString(right - 59, y - 23, "✓  VERIFIED")
+    pdf.setFont("Helvetica", 7)
+    pdf.drawCentredString(right - 59, y - 34, "Transaction verified")
 
-    story.append(Spacer(1, 12))
+    y -= 64
+    column_gap, column_width = 14, (right - left - 14) / 2
+    for x, title in ((left, "DONOR DETAILS"), (left + column_width + column_gap, "DONATION DETAILS")):
+        pdf.setStrokeColor(line)
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(x, y - 143, column_width, 143, 6, stroke=1, fill=1)
+        pdf.setFillColor(pale_blue)
+        pdf.roundRect(x, y - 27, column_width, 27, 6, stroke=0, fill=1)
+        pdf.setFillColor(navy)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(x + 13, y - 17, title)
+    donor_x, details_x = left + 13, left + column_width + column_gap + 13
+    pdf.setFillColor(ink)
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(donor_x, y - 48, text(donation.get("name") or "Anonymous Donor", 40))
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(muted)
+    donor_y = draw_wrapped(donation.get("email") or "", donor_x, y - 64, column_width - 26, 8, 11, muted, 1)
+    donor_y = draw_wrapped(donation.get("phone") or "", donor_x, donor_y - 2, column_width - 26, 8, 11, muted, 1)
+    draw_wrapped(donation.get("address") or "Address not provided", donor_x, donor_y - 5, column_width - 26, 8, 10, muted, 3)
+    pdf.setFillColor(navy)
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(details_x, y - 53, f"Rs {amount:,.2f}")
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(muted)
+    pdf.drawString(details_x, y - 70, f"{amount_to_words(int(amount))} Rupees Only")
+    pdf.setFillColor(ink)
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawString(details_x, y - 93, "Purpose / For")
+    pdf.setFont("Helvetica", 8)
+    draw_wrapped(donation.get("purpose_label") or "General charitable donation", details_x + 84, y - 93, column_width - 98, 8, 10, ink, 2)
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawString(details_x, y - 117, "Payment method")
+    pdf.setFont("Helvetica", 8)
+    pdf.drawString(details_x + 84, y - 117, text(context.get("payment_method") or "Online payment", 30))
 
-    story.append(Paragraph(
-        f"80G Reg No: {context['org_80g']}<br/>PAN: {context['org_pan']}",
-        styles["Normal"]
-    ))
+    y -= 162
+    pdf.setStrokeColor(line)
+    pdf.roundRect(left, y - 86, right - left, 86, 6, stroke=1, fill=0)
+    qr_raw = context.get("qr_code")
+    if qr_raw:
+        try:
+            pdf.drawImage(ImageReader(BytesIO(base64.b64decode(qr_raw))), left + 13, y - 74, 62, 62, mask="auto")
+        except Exception:
+            app.logger.warning("Receipt QR code could not be embedded")
+    pdf.setFillColor(navy)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(left + 89, y - 28, "VERIFY THIS RECEIPT")
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(muted)
+    draw_wrapped("Scan the QR code to verify this digitally recorded donation receipt online.", left + 89, y - 43, 190, 8, 11, muted, 3)
+    pdf.setFillColor(teal)
+    pdf.setFont("Helvetica-Bold", 7)
+    pdf.drawString(left + 89, y - 73, text(context.get("receipt_url") or "", 42))
+    pdf.setStrokeColor(line)
+    pdf.line(right - 160, y - 8, right - 160, y - 78)
+    pdf.setFillColor(green)
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawCentredString(right - 80, y - 30, "PAYMENT RECEIVED")
+    pdf.setFillColor(muted)
+    pdf.setFont("Helvetica", 7)
+    pdf.drawCentredString(right - 80, y - 47, "This receipt is digitally recorded")
+    pdf.drawCentredString(right - 80, y - 59, "and securely verifiable online.")
 
-    doc.build(story)
-    buffer.seek(0)
-    return buffer.read()
+    y -= 108
+    pdf.setStrokeColor(line)
+    pdf.line(left, y, right, y)
+    pdf.setFillColor(navy)
+    pdf.setFont("Times-Bold", 11)
+    pdf.drawCentredString(page_width / 2, y - 17, "OUR STATUTORY DETAILS")
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(ink)
+    statutory = [
+        ("PAN", get_cms_content("tax_id", "Available on request")),
+        ("80G CERTIFICATE", get_cms_content("cert_80g", "Available on request")),
+        ("REGISTRATION NO.", get_cms_content("registration_number", "Available on request")),
+        ("FCRA REGISTRATION", get_cms_content("fcra_registration", "Not applicable")),
+    ]
+    stat_y = y - 40
+    stat_width = (right - left) / 4
+    for index, (label, value) in enumerate(statutory):
+        x = left + index * stat_width
+        if index:
+            pdf.setStrokeColor(line)
+            pdf.line(x, stat_y - 18, x, stat_y + 20)
+        pdf.setFillColor(muted)
+        pdf.setFont("Helvetica-Bold", 6.5)
+        pdf.drawCentredString(x + stat_width / 2, stat_y + 11, label)
+        pdf.setFillColor(ink)
+        pdf.setFont("Helvetica", 7.5)
+        pdf.drawCentredString(x + stat_width / 2, stat_y - 3, text(value, 24))
+
+    y -= 79
+    pdf.setFillColor(colors.HexColor("#EFFAF2"))
+    pdf.setStrokeColor(green)
+    pdf.roundRect(left, y - 28, right - left, 28, 5, stroke=1, fill=1)
+    pdf.setFillColor(green)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawCentredString(page_width / 2, y - 13, "✓  THIS IS AN AUTO-GENERATED RECEIPT AND DOES NOT REQUIRE A SIGNATURE.")
+    pdf.setFont("Helvetica", 7)
+    pdf.drawCentredString(page_width / 2, y - 23, "Computer generated and digitally verified by Think.4U Charitable Trust.")
+    pdf.setFillColor(navy)
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawCentredString(page_width / 2, 25, "THANK YOU FOR BEING THE REASON OF CHANGE.")
+    pdf.showPage()
+    pdf.save()
+    return buffer.getvalue()
+
+
+def send_donation_receipt_email_if_needed(donation, context=None):
+    """Email a paid donation receipt once, with its official PDF attached."""
+    if donation.get("status") != "paid" or donation.get("receipt_emailed") or not donation.get("email"):
+        return False
+    try:
+        donation_id = donation.get("id")
+        created_at_raw = donation.get("created_at")
+        if isinstance(created_at_raw, str):
+            donation["created_at"] = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+        receipt_url = url_for("donation_receipt", donation_id=donation_id, _external=True)
+        context = context or {
+            "donation": donation,
+            "amount": donation.get("amount", 0),
+            "payment_method": donation.get("payment_method", "Online"),
+            "qr_code": generate_qr(receipt_url),
+            "receipt_url": receipt_url,
+        }
+        context.setdefault("receipt_url", receipt_url)
+        email_html = render_template(
+            "emails/donation_receipt_email.html",
+            donation=donation,
+            amount=donation.get("amount", 0),
+            receipt_url=receipt_url,
+        )
+        receipt_number = donation.get("donation_ref") or f"T4U-{donation_id}"
+        sent, error = send_email_sync(
+            subject="Thank you for your donation - Think.4U (80G Eligible)",
+            recipients=[donation["email"]],
+            html=email_html,
+            attachments=[(
+                f"Think4U-Donation-Receipt-{secure_filename(str(receipt_number))}.pdf",
+                "application/pdf",
+                generate_receipt_pdf(context),
+            )],
+        )
+        if sent:
+            supabase.table("donations").update({"receipt_emailed": True}).eq("id", donation_id).execute()
+            return True
+        app.logger.warning("Receipt email not sent for donation %s: %s", donation_id, error)
+    except Exception:
+        app.logger.exception("Receipt email failed for donation %s", donation.get("id"))
+    return False
 
 
 @app.route("/volunteer", methods=["GET", "POST"])

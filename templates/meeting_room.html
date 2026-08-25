@@ -10,16 +10,24 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
         html,
-        body,
-        #jitsi-container {
+        body {
             width: 100%;
             height: 100%;
-            min-height: 100vh;
             margin: 0;
             padding: 0;
             overflow: hidden;
             background: #090d16;
             font-family: 'Outfit', sans-serif;
+        }
+
+        #jitsi-container {
+            position: fixed;
+            inset: 82px 12px 12px;
+            min-height: 0;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            background: #000;
         }
 
         .meeting-topbar {
@@ -32,8 +40,9 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 10px 20px;
-            background: rgba(15, 23, 42, 0.45);
+            min-height: 36px;
+            padding: 10px 18px;
+            background: rgba(15, 23, 42, 0.96);
             backdrop-filter: blur(16px) saturate(180%);
             -webkit-backdrop-filter: blur(16px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -53,6 +62,38 @@
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        @media (max-width: 700px) {
+            .meeting-topbar {
+                left: 8px;
+                right: 8px;
+                top: 8px;
+                padding: 9px 12px;
+            }
+
+            .meeting-topbar strong {
+                max-width: 56vw;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .meeting-controls {
+                gap: 6px;
+            }
+
+            .btn-participants,
+            .btn-end,
+            .btn-back {
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+
+            #jitsi-container {
+                inset: 72px 8px 8px;
+                border-radius: 10px;
+            }
         }
 
         /* Participant Dropdown styles */
@@ -598,7 +639,7 @@
 
             // Determine custom toolbar buttons based on coordinator's settings
             const buttons = ['microphone', 'camera'];
-            if (meetingConfig.settings.show_screen_share) buttons.push('desktop');
+            if (meetingConfig.isCoordinator && meetingConfig.settings.show_screen_share) buttons.push('desktop');
             if (meetingConfig.settings.show_chat) buttons.push('chat');
             if (meetingConfig.settings.show_raise_hand) buttons.push('raisehand');
             if (meetingConfig.settings.show_participants) buttons.push('participants-pane');

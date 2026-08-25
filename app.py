@@ -176,6 +176,7 @@ JITSI_FEATURE_TRANSCRIPTION = os.getenv("JITSI_FEATURE_TRANSCRIPTION", "false").
 JITSI_FEATURE_LIST_VISITORS = os.getenv("JITSI_FEATURE_LIST_VISITORS", "false").lower() == "true"
 JITSI_FEATURE_RECORDING = os.getenv("JITSI_FEATURE_RECORDING", "false").lower() == "true"
 JITSI_FEATURE_FLIP = os.getenv("JITSI_FEATURE_FLIP", "false").lower() == "true"
+JITSI_FEATURE_SCREEN_SHARING = os.getenv("JITSI_FEATURE_SCREEN_SHARING", "true").lower() == "true"
 JITSI_JWT_ALGORITHM = os.getenv("JITSI_JWT_ALGORITHM", "RS256").strip()
 MEETING_TIMEZONE_NAME = os.getenv("MEETING_TIMEZONE", "Asia/Kolkata").strip() or "Asia/Kolkata"
 try:
@@ -1198,6 +1199,9 @@ def build_jitsi_jwt(room_name, display_name, email=None, moderator=False, user_i
                 "list-visitors": JITSI_FEATURE_LIST_VISITORS,
                 "recording": JITSI_FEATURE_RECORDING,
                 "flip": JITSI_FEATURE_FLIP,
+                # A token is the policy boundary: standard participants do
+                # not receive permission to start screen sharing.
+                "screen-sharing": bool(moderator and JITSI_FEATURE_SCREEN_SHARING),
             },
             "user": {
                 "hidden-from-recorder": False,
@@ -1367,7 +1371,13 @@ def verify_csrf_token():
         return True
     if request.endpoint in {"razorpay_webhook", "payment_success_redirect"}:
         return True
-    provided = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+    # Accept the standard header and the legacy spelling used by older cached
+    # meeting pages. Both values are verified against the per-session token.
+    provided = (
+        request.form.get("csrf_token")
+        or request.headers.get("X-CSRF-Token")
+        or request.headers.get("X-CSRFToken")
+    )
     expected = session.get("_csrf_token")
     return bool(expected and provided and secrets.compare_digest(provided, expected))
 
@@ -1686,19 +1696,33 @@ def apply_security_controls():
         if is_rate_limited(rate_limit_key(request.endpoint or "post"), max_requests=limit):
             return (jsonify({"error": "Too many requests"}), 429) if request.is_json else abort(429)
 
+    # Authorize role-specific areas before CSRF validation. This both enforces
+    # IAM consistently for every admin/coordinator route and avoids presenting
+    # a misleading CSRF error to a user who is simply not allowed there.
+    admin_area = request.path.startswith("/admin") or endpoint in {
+        "api_analytics", "chart_donations", "chart_volunteers"
+    }
+    coordinator_area = request.path.startswith("/coordinator")
+    if admin_area:
+        if not current_user.is_authenticated:
+            return unauthorized()
+        if not getattr(current_user, "is_admin", False):
+            if request.path.startswith("/api/") or request.is_json:
+                return jsonify({"error": "Admin access required"}), 403
+            flash("Admin access required.", "error")
+            return redirect(url_for("dashboard"))
+    elif coordinator_area:
+        if not current_user.is_authenticated:
+            return unauthorized()
+        if not (getattr(current_user, "is_admin", False) or getattr(current_user, "role", "") == "coordinator"):
+            flash("Coordinator access required.", "error")
+            return redirect(url_for("dashboard"))
+
     if not verify_csrf_token():
         if request.is_json:
             return jsonify({"error": "Invalid CSRF token"}), 403
         flash("Security validation failed. Please refresh and try again.", "error")
         return redirect(request.referrer or url_for("index"))
-
-    if request.path.startswith("/admin") or request.endpoint in {"api_analytics", "chart_donations", "chart_volunteers"}:
-        if not current_user.is_authenticated:
-            return unauthorized()
-        if not getattr(current_user, "is_admin", False):
-            flash("Admin access required", "error")
-            return redirect(url_for("dashboard"))
-
 
 @app.after_request
 def set_security_headers(response):

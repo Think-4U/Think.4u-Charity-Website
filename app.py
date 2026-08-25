@@ -89,7 +89,10 @@ redact_patterns = [
     os.getenv("SUPABASE_KEY"),
     os.getenv("SECRET_KEY"),
     os.getenv("RAZOR_KEY_SECRET"),
-    os.getenv("JITSI_JWT_PRIVATE_KEY")
+    os.getenv("RAZORPAY_WEBHOOK_SECRET"),
+    os.getenv("JITSI_JWT_PRIVATE_KEY"),
+    os.getenv("JITSI_JWT_SECRET"),
+    os.getenv("MAIL_PASSWORD"),
 ]
 logging.getLogger().addFilter(RedactingFilter(redact_patterns))
 
@@ -157,6 +160,12 @@ JITSI_JWT_ROOM_CLAIM = os.getenv("JITSI_JWT_ROOM_CLAIM", "").strip()
 JITSI_JWT_TTL_SECONDS = int(os.getenv("JITSI_JWT_TTL_SECONDS", "900"))
 JITSI_REQUIRE_JWT = os.getenv("JITSI_REQUIRE_JWT", "true").lower() == "true"
 JITSI_ENABLE_E2EE = os.getenv("JITSI_ENABLE_E2EE", "true").lower() == "true"
+# Let invited participants reach Jitsi before the scheduled start so the
+# server-side waiting room can hold them until the coordinator arrives.
+# This is deliberately bounded; it is not an unrestricted early-entry bypass.
+JITSI_PARTICIPANT_EARLY_JOIN_SECONDS = max(
+    0, int(os.getenv("JITSI_PARTICIPANT_EARLY_JOIN_SECONDS", "3600"))
+)
 JITSI_DEFAULT_USER_ID = os.getenv("JITSI_DEFAULT_USER_ID", "").strip()
 JITSI_DEFAULT_AVATAR_URL = os.getenv("JITSI_DEFAULT_AVATAR_URL", "").strip()
 JITSI_FEATURE_LIVESTREAMING = os.getenv("JITSI_FEATURE_LIVESTREAMING", "false").lower() == "true"
@@ -344,8 +353,11 @@ def verify_checkout_signature(payload):
 
 
 def verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
+    # A webhook endpoint must fail closed. Accepting an unsigned payload would
+    # allow an attacker to mark any pending donation as paid.
     if not webhook_secret:
-        return True
+        app.logger.error("Razorpay webhook rejected because RAZORPAY_WEBHOOK_SECRET is not configured.")
+        return False
     if not webhook_signature:
         return False
     expected = hmac.new(webhook_secret.encode("utf-8"), webhook_body, hashlib.sha256).hexdigest()
@@ -3703,9 +3715,11 @@ def is_current_time_near_scheduled(scheduled_date, scheduled_time):
     if not parsed_dt:
         return True  # Fallback if we cannot parse
         
-    # Allow joining 15 minutes before the meeting up to 3 hours (10800 seconds) after
+    # Participants may open Jitsi before the start and wait in the server-side
+    # coordinator lobby.  They are still restricted to this bounded window and
+    # cannot create or moderate the meeting.
     diff = meeting_now_naive() - parsed_dt
-    return -900 <= diff.total_seconds() <= 10800
+    return -JITSI_PARTICIPANT_EARLY_JOIN_SECONDS <= diff.total_seconds() <= 10800
 
 
 def meeting_allowed_participants(record):

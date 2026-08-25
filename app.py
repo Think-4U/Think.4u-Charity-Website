@@ -87,6 +87,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 # Apply redacting filter to root logger
 redact_patterns = [
     os.getenv("SUPABASE_KEY"),
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
     os.getenv("SECRET_KEY"),
     os.getenv("RAZOR_KEY_SECRET"),
     os.getenv("RAZORPAY_WEBHOOK_SECRET"),
@@ -249,6 +250,8 @@ FAILED_LOGIN_STATE = {}
 CMS_CACHE = {}
 CMS_CACHE_EXPIRY = {}
 CMS_FAILURE_UNTIL = 0
+MAINTENANCE_LAST_KNOWN = {}
+MAINTENANCE_LOOKUP_ERROR_LOGGED = False
 CMS_CACHE_TTL_SECONDS = int(os.getenv("CMS_CACHE_TTL_SECONDS", "300"))
 CMS_FAILURE_BACKOFF_SECONDS = int(os.getenv("CMS_FAILURE_BACKOFF_SECONDS", "30"))
 SUPABASE_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_TIMEOUT_SECONDS", "4"))
@@ -265,7 +268,11 @@ login_manager.session_protection = "strong"
 # Supabase Configuration
 # ------------------------------
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_PUBLIC_KEY = os.getenv('SUPABASE_KEY')
+# The service-role key is backend-only and bypasses Supabase RLS. It must never
+# be exposed to JavaScript, committed, or placed in any public environment.
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_PUBLIC_KEY
 SUPABASE_HOST = urlparse(SUPABASE_URL or "").hostname or ""
 
 SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
@@ -301,8 +308,8 @@ def get_supabase_key_role(key):
 
 supabase_key_role = get_supabase_key_role(SUPABASE_KEY or "")
 if SUPABASE_ENABLED and supabase_key_role != "service_role":
-    app.logger.warning(
-        "SUPABASE_KEY role is '%s'. For backend writes with RLS, use service_role key in .env.",
+    app.logger.error(
+        "Supabase backend key role is '%s'. Set SUPABASE_SERVICE_ROLE_KEY for backend writes protected by RLS.",
         supabase_key_role or "unknown"
     )
 
@@ -1664,13 +1671,33 @@ def get_maintenance_settings_live():
         "maintenance_end": "",
         "maintenance_message": CMS_DEFAULTS["maintenance_message"],
     }
+    # A deliberate deployment-level emergency switch is independent of the
+    # database. It is for use only when Supabase itself is unavailable.
+    if os.getenv("MAINTENANCE_EMERGENCY_LOCK", "false").strip().lower() == "true":
+        return {
+            "maintenance_enabled": "true",
+            "maintenance_start": "2000-01-01T00:00",
+            "maintenance_end": "2100-01-01T00:00",
+            "maintenance_message": os.getenv("MAINTENANCE_EMERGENCY_MESSAGE", defaults["maintenance_message"]),
+        }
     try:
         response = supabase.table("cms_content").select("key,value").in_("key", list(defaults)).execute()
         values = {row.get("key"): row.get("value") for row in (response.data or [])}
-        return {key: str(values.get(key) or default) for key, default in defaults.items()}
+        settings = {key: str(values.get(key) or default) for key, default in defaults.items()}
+        MAINTENANCE_LAST_KNOWN.clear()
+        MAINTENANCE_LAST_KNOWN.update(settings)
+        return settings
     except Exception as exc:
-        app.logger.error("Maintenance state lookup failed; keeping site available: %s", exc)
-        return defaults
+        global MAINTENANCE_LOOKUP_ERROR_LOGGED
+        if not MAINTENANCE_LOOKUP_ERROR_LOGGED:
+            app.logger.error("Maintenance state lookup failed; using last known maintenance state: %s", exc)
+            MAINTENANCE_LOOKUP_ERROR_LOGGED = True
+        # The admin save path stores each new value in this process cache. This
+        # protects a just-enabled lock from a short-lived Supabase interruption.
+        fallback = dict(defaults)
+        fallback.update({key: str(CMS_CACHE[key]) for key in defaults if key in CMS_CACHE})
+        fallback.update(MAINTENANCE_LAST_KNOWN)
+        return fallback
 
 
 def maintenance_window_is_active(settings=None):

@@ -1731,16 +1731,28 @@ def apply_security_controls():
     # can authenticate and end maintenance early. This protects web and API
     # requests equally instead of relying on client-side hiding.
     maintenance_exempt_endpoints = {"static", "login", "logout", "favicon", "health"}
+    maintenance_settings = get_maintenance_settings_live()
     if (
         endpoint not in maintenance_exempt_endpoints
         and not request.path.startswith("/static/")
-        and maintenance_window_is_active()
+        and maintenance_window_is_active(maintenance_settings)
         and not (current_user.is_authenticated and getattr(current_user, "is_admin", False))
     ):
-        message = get_maintenance_settings_live()["maintenance_message"]
+        message = maintenance_settings["maintenance_message"]
         if request.path.startswith("/api/") or request.is_json:
             return jsonify({"error": "Maintenance in progress", "message": message}), 503
-        return render_template("maintenance.html", message=message), 503
+        def format_maintenance_time(value):
+            try:
+                return datetime.fromisoformat(value).strftime("%d %B %Y — %I:%M %p IST")
+            except (TypeError, ValueError):
+                return "To be confirmed"
+        return render_template(
+            "maintenance.html",
+            message=message,
+            start_time=format_maintenance_time(maintenance_settings["maintenance_start"]),
+            restoration_time=format_maintenance_time(maintenance_settings["maintenance_end"]),
+            affected_components=["Website and user dashboard", "Appointment booking and secure meetings", "Donations and payment verification", "Notifications and account services"],
+        ), 503
     if current_user.is_authenticated and endpoint != "static":
         now_ts = int(datetime.now(timezone.utc).timestamp())
         last_activity = session.get("last_activity_ts")

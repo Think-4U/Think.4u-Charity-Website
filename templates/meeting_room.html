@@ -534,7 +534,7 @@
                 const response = await fetch(uploadUrl, {
                     method: "POST",
                     headers: {
-                        "X-CSRFToken": meetingConfig.csrfToken
+                        "X-CSRF-Token": meetingConfig.csrfToken
                     },
                     body: formData
                 });
@@ -645,7 +645,15 @@
                 document.getElementById('meeting-status').style.display = 'none';
 
                 // Track start time
-                fetch(`/api/meeting/${meetingConfig.appointmentUuid}/start`, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' } }).catch(e => console.error(e));
+                fetch(`/api/meeting/${meetingConfig.appointmentUuid}/start`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': meetingConfig.csrfToken },
+                    credentials: 'same-origin'
+                }).then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Unable to mark coordinator as joined (${response.status})`);
+                    }
+                }).catch(e => console.error(e));
 
                 // Start timer
                 const timerEl = document.getElementById('meeting-timer');

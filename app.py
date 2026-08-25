@@ -1296,29 +1296,16 @@ def send_meeting_update_email(recipient, name, appointment, subject="Think.4U me
     scheduled_time = appointment.get("scheduled_time") or appointment.get("appointment_time") or "TBA"
     ics_url = url_for("download_calendar", appointment_uuid=appointment.get("uuid"), _external=True)
     
-    html_template = """
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
-        <h2 style="color:#7c2d12;">Think.4U Meeting Schedule</h2>
-        <p>Hello {recipient_name},</p>
-        <p>Your meeting is scheduled for <strong>{date}</strong> at <strong>{time}</strong>.</p>
-        {meet_link}
-        <p style="margin-top:20px;">
-            <a href="{ics_link}" style="display:inline-block; padding:8px 16px; background:#0ea5e9; color:#fff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">Add to Calendar (.ics)</a>
-        </p>
-        <p>You can also view this inside your Think.4U appointment page.</p>
-    </div>
-    """
-    
     # 1. Send to User
     ics_data_user = generate_ics_string(appointment, attendee_email=recipient, meet_url=meet_url, coordinator_email=coordinator_email)
     attachments_user = [("invite.ics", "text/calendar; method=REQUEST", ics_data_user, "inline", {"Content-Class": "urn:content-classes:calendarmessage"})]
     
-    user_html = html_template.format(
-        recipient_name=html.escape(clean_text(name, 120) or 'Supporter'),
-        date=html.escape(str(scheduled_date)),
-        time=html.escape(str(scheduled_time)),
-        meet_link=f'<p><strong>Meeting link:</strong> <a href="{html.escape(meet_url)}">{html.escape(meet_url)}</a></p>' if meet_url else '',
-        ics_link=html.escape(ics_url)
+    user_html = render_template(
+        "emails/meeting_scheduled_email.html",
+        recipient_name=clean_text(name, 120) or "Supporter",
+        scheduled_date=str(scheduled_date), scheduled_time=str(scheduled_time),
+        coordinator_name=clean_text(coordinator_name, 120), meeting_url=meet_url,
+        calendar_url=ics_url,
     )
     
     send_email_async(
@@ -1333,12 +1320,11 @@ def send_meeting_update_email(recipient, name, appointment, subject="Think.4U me
         ics_data_coord = generate_ics_string(appointment, attendee_email=recipient, meet_url=meet_url, coordinator_email=coordinator_email)
         attachments_coord = [("invite.ics", "text/calendar; method=REQUEST", ics_data_coord, "inline", {"Content-Class": "urn:content-classes:calendarmessage"})]
         
-        coord_html = html_template.format(
-            recipient_name=html.escape(clean_text(coordinator_name, 120) or 'Coordinator'),
-            date=html.escape(str(scheduled_date)),
-            time=html.escape(str(scheduled_time)),
-            meet_link=f'<p><strong>Meeting link:</strong> <a href="{html.escape(meet_url)}">{html.escape(meet_url)}</a></p>' if meet_url else '',
-            ics_link=html.escape(ics_url)
+        coord_html = render_template(
+            "emails/meeting_scheduled_email.html",
+            recipient_name=clean_text(coordinator_name, 120) or "Coordinator",
+            scheduled_date=str(scheduled_date), scheduled_time=str(scheduled_time),
+            coordinator_name="", meeting_url=meet_url, calendar_url=ics_url,
         )
         
         send_email_async(
@@ -1482,6 +1468,7 @@ def send_otp_email(email, otp_code, flow_label):
         expires_minutes=max(1, OTP_EXPIRY_SECONDS // 60),
         flow_label=flow_label,
         logo_url=f"{site_url}/static/images/logo-white.png",
+        website_url=site_url,
     )
     ok, _err = send_email_sync(subject=subject, recipients=[email], html=html_content)
     return ok
@@ -1664,12 +1651,35 @@ def expire_stale_pending_donations(user_id=None, email=None):
     return updated_count
 
 
-def maintenance_window_is_active():
+def get_maintenance_settings_live():
+    """Read lock controls without the CMS cache.
+
+    Maintenance is an access-control feature. In a multi-instance/serverless
+    deployment a cached value can leave one instance open after another has
+    enabled the lock, so this intentionally performs a direct read.
+    """
+    defaults = {
+        "maintenance_enabled": "false",
+        "maintenance_start": "",
+        "maintenance_end": "",
+        "maintenance_message": CMS_DEFAULTS["maintenance_message"],
+    }
+    try:
+        response = supabase.table("cms_content").select("key,value").in_("key", list(defaults)).execute()
+        values = {row.get("key"): row.get("value") for row in (response.data or [])}
+        return {key: str(values.get(key) or default) for key, default in defaults.items()}
+    except Exception as exc:
+        app.logger.error("Maintenance state lookup failed; keeping site available: %s", exc)
+        return defaults
+
+
+def maintenance_window_is_active(settings=None):
     """Return whether the administrator-scheduled maintenance window is active."""
-    if get_cms_content("maintenance_enabled", "false").strip().lower() != "true":
+    settings = settings or get_maintenance_settings_live()
+    if settings["maintenance_enabled"].strip().lower() != "true":
         return False
-    start_value = get_cms_content("maintenance_start", "").strip()
-    end_value = get_cms_content("maintenance_end", "").strip()
+    start_value = settings["maintenance_start"].strip()
+    end_value = settings["maintenance_end"].strip()
     try:
         start = datetime.fromisoformat(start_value)
         end = datetime.fromisoformat(end_value)
@@ -1700,7 +1710,7 @@ def apply_security_controls():
         and maintenance_window_is_active()
         and not (current_user.is_authenticated and getattr(current_user, "is_admin", False))
     ):
-        message = get_cms_content("maintenance_message", "We are performing scheduled maintenance. Please try again shortly.")
+        message = get_maintenance_settings_live()["maintenance_message"]
         if request.path.startswith("/api/") or request.is_json:
             return jsonify({"error": "Maintenance in progress", "message": message}), 503
         return render_template("maintenance.html", message=message), 503
@@ -1828,6 +1838,7 @@ def build_branded_email(title, body_html, preheader=""):
         preheader=preheader or title,
         body_html=body_html,
         logo_url=logo_url,
+        website_url=site_url,
         organization_name=get_cms_content("org_name", "Think.4U Trust"),
     )
 
@@ -5174,20 +5185,25 @@ def admin_notifications():
     if request.method == "POST":
         action = request.form.get("action", "notification")
         if action == "maintenance":
-            enabled = request.form.get("maintenance_enabled") == "on" and request.form.get("force_end") != "true"
+            force_start = request.form.get("force_start") == "true"
+            enabled = (request.form.get("maintenance_enabled") == "on" or force_start) and request.form.get("force_end") != "true"
             start_value = clean_text(request.form.get("maintenance_start"), 40)
             end_value = clean_text(request.form.get("maintenance_end"), 40)
             message = clean_text(request.form.get("maintenance_message"), 500, keep_new_lines=True)
             if enabled:
                 try:
-                    start_dt = datetime.fromisoformat(start_value)
-                    end_dt = datetime.fromisoformat(end_value)
+                    start_dt = meeting_now_naive() if force_start else datetime.fromisoformat(start_value)
+                    end_dt = datetime.fromisoformat(end_value) if end_value else start_dt + timedelta(hours=1)
                 except ValueError:
                     flash("Enter valid maintenance start and end date/time values.", "error")
                     return redirect(url_for("admin_notifications"))
+                if force_start and end_dt <= start_dt:
+                    end_dt = start_dt + timedelta(hours=1)
                 if end_dt <= start_dt:
                     flash("Maintenance end must be after the start.", "error")
                     return redirect(url_for("admin_notifications"))
+                start_value = start_dt.isoformat(timespec="minutes")
+                end_value = end_dt.isoformat(timespec="minutes")
             try:
                 upsert_cms_value("maintenance_enabled", "true" if enabled else "false")
                 upsert_cms_value("maintenance_start", start_value if enabled else "")
@@ -5195,14 +5211,19 @@ def admin_notifications():
                 upsert_cms_value("maintenance_message", message or CMS_DEFAULTS["maintenance_message"])
                 if enabled and request.form.get("send_maintenance_email") == "on":
                     users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
-                    start_label = html.escape(start_dt.strftime("%d %b %Y, %I:%M %p"))
-                    end_label = html.escape(end_dt.strftime("%d %b %Y, %I:%M %p"))
+                    start_label = start_dt.strftime("%d %B %Y — %I:%M %p IST")
+                    end_label = end_dt.strftime("%d %B %Y — %I:%M %p IST")
+                    duration_label = f"Approximately {max(1, round((end_dt - start_dt).total_seconds() / 3600, 1)):g} hour(s)"
+                    email_failures = 0
                     for user_row in users:
                         create_notification_for_user(user_row["id"], "Scheduled maintenance", message or CMS_DEFAULTS["maintenance_message"])
                         if user_row.get("email"):
-                            body = render_template("emails/maintenance_email.html", recipient_name=user_row.get("name") or "there", message=message or CMS_DEFAULTS["maintenance_message"], start_label=start_label, end_label=end_label)
-                            send_email_async("Think.4U scheduled maintenance", [user_row["email"]], build_branded_email("Scheduled maintenance", body))
-                flash("Maintenance schedule saved." if enabled else "Maintenance ended. User access has been restored.", "success")
+                            body = render_template("emails/maintenance_email.html", recipient_name=user_row.get("name") or "there", message=message or CMS_DEFAULTS["maintenance_message"], start_label=start_label, end_label=end_label, duration_label=duration_label)
+                            delivered = send_email_async("Think.4U scheduled maintenance", [user_row["email"]], build_branded_email("Scheduled maintenance in progress", body))
+                            if isinstance(delivered, tuple) and not delivered[0]:
+                                email_failures += 1
+                detail = f" {email_failures} email(s) failed; use Email delivery test and server logs." if enabled and request.form.get("send_maintenance_email") == "on" and email_failures else ""
+                flash(("Maintenance schedule saved." if enabled else "Maintenance ended. User access has been restored.") + detail, "warning" if detail else "success")
             except Exception as exc:
                 app.logger.error("Maintenance schedule failed: %s", exc)
                 flash("Unable to save the maintenance schedule.", "error")
@@ -5212,12 +5233,16 @@ def admin_notifications():
             try:
                 upsert_cms_value("maintenance_enabled", "false")
                 users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
+                email_failures = 0
                 for user_row in users:
                     create_notification_for_user(user_row["id"], "Service restored", "Scheduled maintenance has been completed. Think.4U is available again.")
                     if user_row.get("email"):
-                        body = render_template("emails/service_restored_email.html", recipient_name=user_row.get("name") or "there")
-                        send_email_async("Think.4U services restored", [user_row["email"]], build_branded_email("Service restored", body))
-                flash(f"Access restored and notification sent to {len(users)} user(s).", "success")
+                        body = render_template("emails/service_restored_email.html", recipient_name=user_row.get("name") or "there", restoration_time=meeting_now_naive().strftime("%d %B %Y — %I:%M %p IST"))
+                        delivered = send_email_async("Think.4U services restored", [user_row["email"]], build_branded_email("Service restoration", body))
+                        if isinstance(delivered, tuple) and not delivered[0]:
+                            email_failures += 1
+                detail = f" {email_failures} email(s) failed; use Email delivery test and server logs." if email_failures else ""
+                flash(f"Access restored and notification sent to {len(users)} user(s)." + detail, "warning" if detail else "success")
             except Exception as exc:
                 app.logger.error("Service restoration notice failed: %s", exc)
                 flash("Access was restored, but one or more notices could not be sent.", "warning")
@@ -5253,17 +5278,21 @@ def admin_notifications():
                 user_response = supabase.table("users").select("id,email,name").eq("email", email).limit(1).execute()
                 recipients = user_response.data or []
 
+            email_failures = 0
             for user_row in recipients:
                 create_notification_for_user(user_row["id"], title, body)
                 if send_mail and user_row.get("email"):
                     message_body = render_template("emails/announcement_email.html", recipient_name=user_row.get("name") or "there", message=body, action_url=os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app"))
-                    send_email_async(
+                    delivered = send_email_async(
                         subject=f"Think.4U: {title}",
                         recipients=[user_row["email"]],
                         html=build_branded_email(title, message_body)
                     )
+                    if isinstance(delivered, tuple) and not delivered[0]:
+                        email_failures += 1
 
-            flash(f"Notification sent to {len(recipients)} user(s).", "success")
+            detail = f" {email_failures} email(s) failed; use Email delivery test and server logs." if email_failures else ""
+            flash(f"Notification sent to {len(recipients)} user(s)." + detail, "warning" if detail else "success")
         except Exception as e:
             app.logger.error(f"Admin notification failed: {e}")
             flash("Unable to send notification.", "error")
@@ -5278,11 +5307,12 @@ def admin_notifications():
         users = users_response.data or []
     except Exception as e:
         app.logger.warning(f"Admin notification page load failed: {e}")
+    live_maintenance = get_maintenance_settings_live()
     maintenance_settings = {
-        "enabled": get_cms_content("maintenance_enabled", "false").lower() == "true",
-        "start": get_cms_content("maintenance_start", ""),
-        "end": get_cms_content("maintenance_end", ""),
-        "message": get_cms_content("maintenance_message", CMS_DEFAULTS["maintenance_message"]),
+        "enabled": live_maintenance["maintenance_enabled"].lower() == "true",
+        "start": live_maintenance["maintenance_start"],
+        "end": live_maintenance["maintenance_end"],
+        "message": live_maintenance["maintenance_message"],
     }
     return render_template("admin/notifications.html", recent_notifications=recent_notifications, users=users, maintenance_settings=maintenance_settings)
 

@@ -1,0 +1,8 @@
+<p>Hello {{ recipient_name }},</p>
+<p>Your Think.4U meeting has been scheduled. Please join from your secure appointment page at the scheduled time.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="11" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin:20px 0;">
+  <tr><td><strong>Date:</strong> {{ scheduled_date }}<br><strong>Time:</strong> {{ scheduled_time }}{% if coordinator_name %}<br><strong>Coordinator:</strong> {{ coordinator_name }}{% endif %}</td></tr>
+</table>
+{% if meeting_url %}<p style="margin:24px 0 12px;"><a href="{{ meeting_url }}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:13px 18px;border-radius:8px;font-weight:bold;">Open secure meeting</a></p>{% endif %}
+{% if calendar_url %}<p><a href="{{ calendar_url }}" style="color:#0369a1;font-weight:bold;">Add to calendar (.ics)</a></p>{% endif %}
+<p style="font-size:13px;color:#64748b;">Do not share your meeting link. Only invited, authenticated Think.4U users may join.</p>

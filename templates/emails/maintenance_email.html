@@ -1,4 +1,8 @@
 <p>Hello {{ recipient_name }},</p>
+<p>Hello {{ recipient_name }},</p>
+<p>We are currently performing <strong>scheduled maintenance</strong> to improve system performance, security, stability, and overall reliability.</p>
 <p>{{ message|e|replace('\n', '<br>')|safe }}</p>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin:20px 0;"><tr><td><strong>Starts:</strong> {{ start_label }}<br><strong>Ends:</strong> {{ end_label }}</td></tr></table>
-<p>Administrator access remains available while work is in progress.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="12" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin:20px 0;"><tr><td><strong>Maintenance Window</strong><br><strong>Start:</strong> {{ start_label }}<br><strong>Expected completion:</strong> {{ end_label }}<br><strong>Expected duration:</strong> {{ duration_label }}</td></tr></table>
+<p>During this period the service may be <strong>temporarily unavailable</strong> or intermittently interrupted. Please try again after the maintenance window has ended.</p>
+<p><strong>Service status:</strong> 🔧 Maintenance in Progress</p>
+<p>Thank you for your patience and understanding.</p>

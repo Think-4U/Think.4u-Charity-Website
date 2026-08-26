@@ -19,9 +19,10 @@
     {% endif %}
     <style>
         :root {
-            --charity-dark: #1f0606;
-            --charity-gold: #d58d4b;
-            --charity-gold-hover: #c97835;
+            --charity-dark: #062f3b;
+            --charity-gold: #ef943f;
+            --charity-gold-hover: #d87825;
+            --charity-mint: #84d8c3;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -33,7 +34,7 @@
         }
         /* HEADER */
         header {
-            background:var(--charity-dark);
+            background:linear-gradient(135deg,#062f3b 0%,#0a4654 100%);
             color:white;
             padding:0.5rem 2rem;
             position:sticky;
@@ -85,9 +86,9 @@
         .btn-header:hover { background:var(--charity-gold-hover); }
         /* FOOTER */
         footer {
-            background:var(--charity-dark);
-            color:rgba(255,255,255,0.8);
-            padding:60px 2rem 20px;
+            background:linear-gradient(135deg,#062f3b 0%,#0a4654 100%);
+            color:#dcecf0;
+            padding:46px 2rem 20px;
             position:relative;
             overflow:hidden;
             box-shadow:0 -10px 40px rgba(0,0,0,0.3);
@@ -103,21 +104,21 @@
         }
         .footer-content {
             display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-            gap:2rem;
+            grid-template-columns:repeat(4,minmax(0,1fr));
+            gap:2.25rem;
             max-width:1200px;
             margin:0 auto 2rem;
         }
         .footer-section h3 {
-            color:var(--charity-gold);
-            margin-bottom:1.5rem;
+            color:var(--charity-gold) !important;
+            margin-bottom:1rem;
             font-size:1.2rem;
             text-shadow:0 1px 1px rgba(0,0,0,0.3);
         }
         .footer-section ul { list-style:none; }
-        .footer-section ul li { margin-bottom:0.8rem; }
+        .footer-section ul li { margin-bottom:0.6rem; }
         .footer-section a {
-            color:rgba(255,255,255,0.7);
+            color:#dcecf0 !important;
             text-decoration:none;
             transition:all 0.3s ease;
             position:relative;
@@ -134,7 +135,7 @@
             transition:width 0.3s ease;
         }
         .footer-section a:hover::after { width:100%; }
-        .footer-section a:hover { color:var(--charity-gold); }
+        .footer-section a:hover { color:var(--charity-mint) !important; }
         .footer-bottom {
             border-top:1px solid rgba(255,255,255,0.1);
             padding-top:2rem;
@@ -145,6 +146,11 @@
             font-size:0.9rem;
             text-shadow:0 1px 1px rgba(0,0,0,0.2);
         }
+        .visitor-counter-wrap { display:flex; align-items:center; justify-content:center; gap:.5rem; margin-top:.7rem; color:#a7cbd3; font-size:.72rem; }
+        .visitor-counter-wrap span { color:#a7cbd3 !important; letter-spacing:.04em; text-transform:uppercase; }
+        #visitor-counter { display:flex; align-items:center; min-height:30px; }
+        @media (max-width:900px) { .footer-content { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:560px) { footer { padding:36px 1.25rem 18px; } .footer-content { grid-template-columns:1fr; gap:1.5rem; } .visitor-counter-wrap { flex-direction:column; gap:.2rem; } }
         @keyframes fadeIn {
             from{opacity:0;transform:translateY(20px);}
             to{opacity:1;transform:translateY(0);}
@@ -254,7 +260,7 @@
             <div class="footer-section"><h3>Contact</h3><ul><li>Email: {{ get_cms('contact_email', 'hello@think4u.org') }}</li><li>Phone: {{ get_cms('contact_phone', '+91 9876543210') }}</li><li>Address: {{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</li><li><a href="{{ url_for('contact') }}">Contact Form</a></li></ul></div>
             <div class="footer-section"><h3>Follow Us</h3><ul><li><a href="{{ get_cms('social_facebook', '#') }}">Facebook</a></li><li><a href="{{ get_cms('social_instagram', '#') }}">Instagram</a></li><li><a href="{{ get_cms('social_twitter', '#') }}">Twitter</a></li><li><a href="{{ get_cms('social_linkedin', '#') }}">LinkedIn</a></li></ul></div>
         </div>
-        <div class="footer-bottom"><p>&copy; {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Release v{{ app_release_version }} · Build {{ app_build_id }}</p><div id="visitor-counter" class="mt-3 flex justify-center" aria-label="Visitor counter"></div></div>
+        <div class="footer-bottom"><p>&copy; {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Release v{{ app_release_version }} · Build {{ app_build_id }}</p><div class="visitor-counter-wrap"><span>Visitor count</span><div id="visitor-counter" aria-label="Visitor counter"></div></div></div>
     </footer>
 
     <div id="cookie-banner" class="hidden fixed bottom-4 left-4 right-4 z-[9999] max-w-3xl mx-auto bg-slate-900 text-white rounded-2xl p-4 shadow-2xl">
@@ -316,11 +322,11 @@
                 // this site's page, session, or local storage.
                 const frame = document.createElement('iframe');
                 frame.title = 'Think.4U visitor counter';
-                frame.width = '160'; frame.height = '32';
+                frame.width = '238'; frame.height = '34';
                 frame.loading = 'lazy'; frame.referrerPolicy = 'no-referrer';
                 frame.setAttribute('sandbox', 'allow-scripts');
                 frame.style.cssText = 'border:0;overflow:hidden;background:transparent';
-                frame.srcdoc = '<!doctype html><html><body style="margin:0;text-align:center"><a href="https://free-hit-counters.net/" rel="nofollow noopener" target="_blank">Free-Hit-Counters.net</a><scr' + 'ipt src="https://www.freevisitorcounters.com/auth.php?id=869a268f19908e3eca1ec3136f3a75bfa567d703"></scr' + 'ipt><scr' + 'ipt src="https://www.freevisitorcounters.com/en/home/counter/1627848/t/0"></scr' + 'ipt></body></html>';
+                frame.srcdoc = '<!doctype html><html><head><style>html,body{margin:0;background:transparent;color:#dcecf0;font:12px Arial,sans-serif;text-align:center}a{color:#84d8c3!important;text-decoration:none}select,input,button{background:#0b5160!important;color:#fff!important;border:1px solid #84d8c3!important;border-radius:4px!important;font:11px Arial,sans-serif!important}</style></head><body><a href="https://free-hit-counters.net/" rel="nofollow noopener" target="_blank">Free-Hit-Counters.net</a><scr' + 'ipt src="https://www.freevisitorcounters.com/auth.php?id=869a268f19908e3eca1ec3136f3a75bfa567d703"></scr' + 'ipt><scr' + 'ipt src="https://www.freevisitorcounters.com/en/home/counter/1627848/t/0"></scr' + 'ipt></body></html>';
                 target.replaceChildren(frame);
             };
             if(cookieBanner && !localStorage.getItem('cookie_consent_accepted')) cookieBanner.classList.remove('hidden');

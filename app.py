@@ -191,7 +191,7 @@ except ZoneInfoNotFoundError:
     MEETING_TIMEZONE = timezone.utc
     logging.getLogger(__name__).warning("Unknown MEETING_TIMEZONE %s; using UTC.", MEETING_TIMEZONE_NAME)
 SITE_MEDIA_BUCKET = os.getenv("SITE_MEDIA_BUCKET", "site-media")
-APP_RELEASE_VERSION = os.getenv("APP_RELEASE_VERSION", "2.4.0").strip() or "2.4.0"
+APP_RELEASE_VERSION = os.getenv("APP_RELEASE_VERSION", "2.5.0").strip() or "2.5.0"
 # Vercel exposes this on Git-connected deployments. GitHub Actions/other hosts
 # can supply GITHUB_SHA or APP_BUILD_SHA. The short revision makes every push
 # visible without hand-editing a version string.
@@ -201,7 +201,8 @@ APP_BUILD_SHA = (
     or os.getenv("APP_BUILD_SHA")
     or "local"
 ).strip()
-APP_VERSION = f"{APP_RELEASE_VERSION}+{APP_BUILD_SHA[:7]}"
+APP_BUILD_ID = APP_BUILD_SHA[:7]
+APP_VERSION = f"{APP_RELEASE_VERSION}+{APP_BUILD_ID}"
 
 # Cloudflare Turnstile Configuration
 TURNSTILE_SITE_KEY = (os.getenv("TURNSTILE_SITE_KEY") or "").strip() or None
@@ -1870,8 +1871,8 @@ def set_security_headers(response):
         "frame-ancestors 'none'; "
         "img-src 'self' data: https:; "
         "media-src 'self' blob: data:; "
-        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
+        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com https://www.freevisitorcounters.com {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com https://www.freevisitorcounters.com {jitsi_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
@@ -7993,6 +7994,8 @@ def inject_cms():
         current_year=datetime.now(timezone.utc).year,
         inactivity_timeout_minutes=max(1, INACTIVITY_TIMEOUT_SECONDS // 60),
         app_version=APP_VERSION,
+        app_release_version=APP_RELEASE_VERSION,
+        app_build_id=APP_BUILD_ID,
     )
 
 

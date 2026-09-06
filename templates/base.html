@@ -17,6 +17,11 @@
     {% if turnstile_site_key %}
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
     {% endif %}
+    <!-- Vercel Speed Insights -->
+    <script>
+        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
     <style>
         :root {
             --charity-dark: #062f3b;

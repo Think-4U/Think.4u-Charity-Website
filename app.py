@@ -242,6 +242,7 @@ def verify_turnstile(token, ip=None):
         response = requests.post(
             "https://challenges.cloudflare.com/turnstile/v0/siteverify",
             data=data,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
             timeout=10.0,
         )
         if response.status_code != 200:
@@ -1857,26 +1858,34 @@ def set_security_headers(response):
         "geolocation=(), "
         "accelerometer=*, "
         "gyroscope=*, "
-        "magnetometer=*"
+        "magnetometer=*, "
+        'private-state-token-redemption=(self "https://challenges.cloudflare.com"), '
+        'private-state-token-issuance=(self "https://challenges.cloudflare.com")'
     )
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    # same-origin CORP blocks Turnstile/Vercel challenge workers from reading
+    # first-party assets during bot verification and surfaces Cloudflare's
+    # "%{placeholder.com}" interstitial with Ray ID undefined.
+    response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["Origin-Agent-Cluster"] = "?1"
     if ENFORCE_HTTPS:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    challenge_src = "https://challenges.cloudflare.com https://*.cloudflare.com https://vercel.live https://va.vercel-scripts.com"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "frame-ancestors 'none'; "
-        "img-src 'self' data: https:; "
+        "img-src 'self' data: blob: https:; "
         "media-src 'self' blob: data:; "
-        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
+        "worker-src 'self' blob: https://challenges.cloudflare.com; "
+        "child-src 'self' blob: https://challenges.cloudflare.com; "
+        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {challenge_src} {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {challenge_src} {jitsi_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com https://challenges.cloudflare.com {jitsi_src}; "
-        f"frame-src https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com https://challenges.cloudflare.com {jitsi_src}; "
+        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
+        f"frame-src 'self' https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
         "base-uri 'self'; "
         "form-action 'self'; "
         "object-src 'none'"

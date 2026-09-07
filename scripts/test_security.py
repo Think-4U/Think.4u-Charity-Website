@@ -83,5 +83,14 @@ class TestSecurityFeatures(unittest.TestCase):
         app.current_user = original_current_user
         app.current_db_user_id = original_db_user_id
 
+    def test_csp_allows_turnstile_workers(self):
+        response = self.client.get("/healthz")
+        csp = response.headers.get("Content-Security-Policy", "")
+        self.assertIn("https://challenges.cloudflare.com", csp)
+        self.assertIn("worker-src 'self' blob:", csp)
+        self.assertIn("'wasm-unsafe-eval'", csp)
+        self.assertEqual(response.headers.get("Cross-Origin-Resource-Policy"), "cross-origin")
+
+
 if __name__ == "__main__":
     unittest.main()

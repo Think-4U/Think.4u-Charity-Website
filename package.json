@@ -4,6 +4,7 @@
     "watch:css": "tailwindcss -i ./assets/tailwind.input.css -o ./static/css/tailwind.css --watch"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "bcrypt": "^6.0.0"
   },
   "devDependencies": {

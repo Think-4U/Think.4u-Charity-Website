@@ -903,17 +903,18 @@ CMS_DEFAULTS = {
     "reg_number": "",
     "tax_id": "",
     "cert_80g": "",
-    "contact_email": "hello@think4u.org",
-    "contact_phone": "+91 9876543210",
-    "contact_whatsapp": "+91 9876543210",
-    "contact_address": "Hyderabad, Telangana, India",
-    "geo_latitude": "17.3850",
-    "geo_longitude": "78.4867",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Hyderabad%2C%20Telangana%2C%20India",
-    "google_maps_embed_url": "https://www.google.com/maps?q=Hyderabad%2C%20Telangana%2C%20India&output=embed",
+    "contact_email": "info@think4u.org",
+    "contact_phone": "+91 99591 28946",
+    "contact_whatsapp": "+91 99591 28946",
+    "contact_address": "Flat no: 203, Surabhi residency gangastan dullapally hyderabad Telangana pin 500014",
+    "geo_latitude": "17.5485038",
+    "geo_longitude": "78.4631349",
+    "google_maps_url": "https://www.google.com/maps/place/17%C2%B032'54.6%22N+78%C2%B027'47.3%22E/@17.5485038,78.46056,17z/data=!3m1!4b1!4m4!3m3!8m2!3d17.5485038!4d78.4631349?hl=en&entry=ttu&g_ep=EgoyMDI2MDkxMy4wIKXMDSoASAFQAw%3D%3D",
+    "google_maps_embed_url": "https://www.google.com/maps?q=17.5485038,78.4631349&output=embed",
     "social_facebook": "",
     "social_twitter": "",
-    "social_instagram": "",
+    "social_instagram": "https://www.instagram.com/think.4u",
+    "social_youtube": "https://www.youtube.com/@Think.4U-h9g",
     "social_linkedin": "",
     "maintenance_enabled": "false",
     "maintenance_start": "",
@@ -1384,7 +1385,7 @@ def generate_csrf_token():
 def verify_csrf_token():
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return True
-    if request.endpoint in {"razorpay_webhook", "payment_success_redirect"}:
+    if request.endpoint == "payment_success_redirect":
         return True
     # Accept the standard header and the legacy spelling used by older cached
     # meeting pages. Both values are verified against the per-session token.
@@ -2036,7 +2037,6 @@ def index():
                           hero_media=hero_media,
                           gallery_photos=gallery_photos,
                           gallery_videos=gallery_videos,
-                          razor_key=RAZOR_KEY,
                           stats=stats)
 
 
@@ -2495,62 +2495,7 @@ def payment_success_redirect():
     return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
 
-@app.route("/razorpay-webhook", methods=["POST"])
-def razorpay_webhook():
-    """Handle Razorpay webhook events"""
-    if not RAZORPAY_ENABLED:
-        return jsonify({"error": "Razorpay not configured"}), 503
 
-    webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
-    webhook_signature = request.headers.get('X-Razorpay-Signature')
-    webhook_body = request.get_data()
-
-    try:
-        if not verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
-            return jsonify({"error": "Invalid webhook signature"}), 400
-
-        event = request.json or {}
-        event_type = event.get('event')
-
-        if event_type == 'payment.captured':
-            payment = event.get('payload', {}).get('payment', {}).get('entity', {})
-            order_id = payment.get('order_id')
-            payment_id = payment.get('id')
-            if order_id and payment_id:
-                existing_response = supabase.table('donations').select("*").eq('razorpay_order_id', order_id).limit(1).execute()
-                existing_donation = (existing_response.data or [None])[0]
-                was_already_paid = bool(existing_donation and existing_donation.get("status") == "paid")
-                update_response = supabase.table('donations') \
-                    .update({
-                        "razorpay_payment_id": payment_id,
-                        "status": "paid",
-                        "payment_method": "Razorpay"
-                    }) \
-                    .eq('razorpay_order_id', order_id) \
-                    .execute()
-                if update_response.data and not was_already_paid:
-                    donation = update_response.data[0]
-                    apply_paid_donation_effects(donation)
-                    send_donation_receipt_email_if_needed(donation)
-        elif event_type == 'payment.failed':
-            payment = event.get('payload', {}).get('payment', {}).get('entity', {})
-            order_id = payment.get('order_id')
-            payment_id = payment.get('id')
-            if order_id:
-                update_payload = {"status": "failed"}
-                if payment_id:
-                    update_payload["razorpay_payment_id"] = payment_id
-                supabase.table('donations') \
-                    .update(update_payload) \
-                    .eq('razorpay_order_id', order_id) \
-                    .eq('status', 'pending') \
-                    .execute()
-
-        return jsonify({"status": "ok"}), 200
-
-    except Exception as e:
-        app.logger.error(f"Webhook error: {e}")
-        return jsonify({"error": "Webhook validation failed"}), 400
 
 
 @app.route("/upi-qr")

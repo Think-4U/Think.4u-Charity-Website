@@ -1,36 +1,95 @@
 {% extends "base.html" %}
-{% block title %}Policy & Terms - Think.4U{% endblock %}
+{% block title %}Privacy Policy & Terms - Think.4U{% endblock %}
 
 {% block content %}
-<section class="px-4 py-10">
-    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow border p-8">
-        <h1 class="text-4xl font-black text-slate-900 mb-4">Policy & Terms</h1>
-        <p class="text-slate-600 mb-8">Please read our privacy, cookies, and terms information.</p>
+<section class="px-4 py-16 bg-[#fcf8f3] min-h-screen text-[#24120b]">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-10 text-center">
+            <span class="inline-block px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold uppercase tracking-wider mb-3">
+                Legal & Transparency
+            </span>
+            <h1 class="text-4xl sm:text-5xl font-black text-slate-900 mb-3">Privacy Policy & Terms</h1>
+            <p class="text-slate-600 max-w-2xl mx-auto">Please read our privacy, cookies, and terms of service information carefully before using the Think.4U platform.</p>
+        </div>
 
-        <div class="space-y-8 text-slate-700 leading-relaxed">
-            <div>
-                <h2 class="text-2xl font-bold text-slate-900 mb-2">1. Cookies Policy</h2>
-                <p>We use essential cookies to keep sessions secure, remember consent, and improve navigation performance.</p>
+        <div class="bg-white rounded-3xl shadow-xl border border-amber-900/10 p-8 sm:p-12">
+            <div class="space-y-10 text-slate-700 leading-relaxed">
+
+                <div class="border-b border-amber-900/10 pb-8">
+                    <div class="flex items-start gap-4 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-300">
+                            <i data-lucide="cookie" class="w-5 h-5 text-amber-700"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 pt-1">1. Cookies Policy</h2>
+                    </div>
+                    <p class="text-slate-700 ml-14">We use essential cookies to keep sessions secure, remember consent, and improve navigation performance. No advertising cookies are used. You may dismiss our cookie banner to accept essential cookies only.</p>
+                </div>
+
+                <div class="border-b border-amber-900/10 pb-8">
+                    <div class="flex items-start gap-4 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-300">
+                            <i data-lucide="file-text" class="w-5 h-5 text-amber-700"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 pt-1">2. Terms & Conditions</h2>
+                    </div>
+                    <p class="text-slate-700 ml-14">By using Think.4U, you agree to use the platform responsibly and not misuse donation, volunteer, or grievance workflows. All content, images, and data belong to Think.4U Charitable Trust. Unauthorized reproduction is prohibited.</p>
+                </div>
+
+                <div class="border-b border-amber-900/10 pb-8">
+                    <div class="flex items-start gap-4 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-300">
+                            <i data-lucide="shield" class="w-5 h-5 text-amber-700"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 pt-1">3. Privacy Notice</h2>
+                    </div>
+                    <p class="text-slate-700 ml-14">We collect only information required to provide services such as donations, receipts, volunteer management, and communication. Personal data such as name, email, and phone are stored securely and never sold or shared with third parties without consent.</p>
+                </div>
+
+                <div class="border-b border-amber-900/10 pb-8">
+                    <div class="flex items-start gap-4 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-300">
+                            <i data-lucide="lock" class="w-5 h-5 text-amber-700"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 pt-1">4. Payment Security</h2>
+                    </div>
+                    <p class="text-slate-700 ml-14">Payments are processed through Razorpay, a PCI-DSS compliant payment processor. We do not store card numbers, CVVs, or any sensitive payment credentials on our servers. All transactions are encrypted via SSL/TLS.</p>
+                </div>
+
+                <div class="border-b border-amber-900/10 pb-8">
+                    <div class="flex items-start gap-4 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-300">
+                            <i data-lucide="receipt" class="w-5 h-5 text-amber-700"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 pt-1">5. Tax Exemption & Receipts</h2>
+                    </div>
+                    <p class="text-slate-700 ml-14">Think.4U is a registered charitable trust. Donations may be eligible for tax deductions under applicable Indian income tax laws. Official donation receipts are provided after successful payment and verification. Consult your tax advisor for eligibility.</p>
+                </div>
+
+                <div>
+                    <div class="flex items-start gap-4 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-300">
+                            <i data-lucide="mail" class="w-5 h-5 text-amber-700"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 pt-1">6. Contact</h2>
+                    </div>
+                    <p class="text-slate-700 ml-14">
+                        For policy questions or data requests, please contact us at
+                        <a href="mailto:{{ get_cms('contact_email', 'info@think4u.org') }}" class="font-bold text-amber-800 hover:text-amber-600 underline">
+                            {{ get_cms('contact_email', 'info@think4u.org') }}
+                        </a>
+                        or call <a href="tel:+919959128946" class="font-bold text-amber-800 hover:text-amber-600">+91 99591 28946</a>.
+                    </p>
+                </div>
+
             </div>
 
-            <div>
-                <h2 class="text-2xl font-bold text-slate-900 mb-2">2. Terms & Conditions</h2>
-                <p>By using Think.4U, you agree to use the platform responsibly and not misuse donation, volunteer, or grievance workflows.</p>
-            </div>
-
-            <div>
-                <h2 class="text-2xl font-bold text-slate-900 mb-2">3. Privacy Notice</h2>
-                <p>We collect only information required to provide services such as donations, receipts, volunteer management, and communication.</p>
-            </div>
-
-            <div>
-                <h2 class="text-2xl font-bold text-slate-900 mb-2">4. Payment Security</h2>
-                <p>Payments are processed through a secure payment processor. We do not store card numbers or sensitive payment credentials.</p>
-            </div>
-
-            <div>
-                <h2 class="text-2xl font-bold text-slate-900 mb-2">5. Contact</h2>
-                <p>For policy questions, please contact {{ get_cms('contact_email', 'hello@think4u.org') }}.</p>
+            <div class="mt-10 pt-8 border-t border-amber-900/10 flex flex-wrap gap-4 items-center justify-between">
+                <p class="text-xs text-slate-500">Last updated: September 2026 &bull; Think.4U Charitable Trust</p>
+                <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#24120b] hover:bg-[#38180e] text-white font-bold text-sm transition border border-amber-500/30">
+                    <i data-lucide="send" class="w-4 h-4 text-amber-400"></i>
+                    <span>Contact Us</span>
+                </a>
             </div>
         </div>
     </div>

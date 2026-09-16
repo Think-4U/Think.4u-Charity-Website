@@ -8,6 +8,22 @@
     <div class="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-green-50"></div>
     
     <div class="relative z-10 max-w-xl mx-auto px-4">
+        <!-- INTERNATIONAL ACCESS NOTICE (NON-INDIA DONORS) -->
+        <div id="intl-donation-notice" class="hidden mb-6 rounded-2xl bg-gradient-to-r from-[#24120b] via-[#4a2012] to-[#24120b] p-5 text-white border-2 border-[#d58d4b] shadow-xl text-left">
+          <div class="flex items-start gap-3">
+            <span class="text-2xl flex-shrink-0 select-none">🌍</span>
+            <div class="space-y-1 text-sm">
+              <h3 class="font-bold text-[#d58d4b] tracking-wide">International Access Notice</h3>
+              <p class="text-white/95 text-xs leading-relaxed">
+                You are accessing <strong>Think.4U</strong> from outside India. UPI payment may be limited to Indian bank accounts and apps.
+              </p>
+              <p class="text-amber-200 text-xs">
+                For assistance, please <a href="{{ url_for('contact') }}" class="underline font-bold text-amber-300 hover:text-white">contact us</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div class="relative group">
             <!-- Glow effect -->
             <div class="absolute -inset-2 bg-gradient-to-r from-cyan-500 to-green-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>

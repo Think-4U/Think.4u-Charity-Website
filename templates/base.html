@@ -25,11 +25,12 @@
             --charity-gold-hover: #c97835;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body {
+        html, body {
             font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;
             line-height:1.6;
             color:#0f172a;
             overflow-x:hidden;
+            max-width:100vw;
             background:#f8fafc;
         }
         /* HEADER */
@@ -58,6 +59,11 @@
             transition:transform 0.3s ease;
         }
         .logo img:hover { transform:scale(1.05); }
+        @media(max-width:768px){
+            .logo img { height:48px; }
+            header { padding:0.4rem 1rem; }
+            .header-container { gap:0.5rem; }
+        }
         .nav-menu {
             display:flex;
             gap:2rem;
@@ -178,6 +184,10 @@
             box-shadow: 0 14px 28px rgba(213, 141, 75, 0.45);
             background: linear-gradient(135deg, #e39d5b, #b86725);
         }
+        /* On mobile, raise above the bottom social dock */
+        @media (max-width: 640px) {
+            #scroll-to-top { bottom: 5rem; right: 1rem; width: 40px; height: 40px; }
+        }
         .btn-header {
             background:var(--charity-gold);
             color:white;
@@ -210,10 +220,16 @@
         }
         .footer-content {
             display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-            gap:2rem;
+            grid-template-columns:1.6fr 1.2fr 1.6fr 1fr;
+            gap:2.5rem;
             max-width:1200px;
             margin:0 auto 2rem;
+        }
+        @media(max-width:900px){
+            .footer-content{grid-template-columns:1fr 1fr;}
+        }
+        @media(max-width:560px){
+            .footer-content{grid-template-columns:1fr;}
         }
         .footer-section h3 {
             color:var(--charity-gold);
@@ -257,6 +273,11 @@
             to{opacity:1;transform:translateY(0);}
         }
         .animate-fadeIn { animation:fadeIn 0.6s ease-out forwards; }
+        @keyframes fadeScale {
+            from{opacity:0;transform:scale(0.88);}
+            to{opacity:1;transform:scale(1);}
+        }
+        .animate-fadeScale { animation:fadeScale 0.55s cubic-bezier(0.16,1,0.3,1) forwards; }
         ::-webkit-scrollbar { width:10px; }
         ::-webkit-scrollbar-track { background:#f1f5f9; }
         ::-webkit-scrollbar-thumb { background:var(--charity-dark); border-radius:10px; }
@@ -327,40 +348,72 @@
                 {% endif %}
                 <li><a href="{{ url_for('donate') }}"><button class="btn-header">Donate</button></a></li>
             </ul>
-            <button id="mobile-menu-btn" class="md:hidden text-white hover:text-charity-gold transition"><i data-lucide="menu" class="w-8 h-8"></i></button>
-        </div>
-        <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 space-y-3 text-center border-t border-white/10 pt-4">
-            <div class="space-y-1 bg-white/5 rounded-xl p-3 border border-white/10 text-left">
-                <span class="text-xs font-bold uppercase tracking-wider text-amber-400 block pb-1 px-2">About Organization</span>
-                <a href="{{ url_for('about') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="info" class="w-4 h-4 text-amber-400"></i>About Think.4U</a>
-                <a href="{{ url_for('governingbody') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="shield" class="w-4 h-4 text-amber-400"></i>Governing Body</a>
-                <a href="{{ url_for('managingteam') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="briefcase" class="w-4 h-4 text-amber-400"></i>Managing Team</a>
-                <a href="{{ url_for('coreteam') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="users" class="w-4 h-4 text-amber-400"></i>Core Team</a>
+            <div class="flex items-center gap-2 md:hidden">
+                <a href="{{ url_for('donate') }}" class="px-3 py-1.5 rounded-lg bg-[#d58d4b] text-white text-xs font-bold">Donate</a>
+                <button id="mobile-menu-btn" class="text-white hover:text-[#d58d4b] transition p-1" aria-label="Toggle menu">
+                    <svg id="hamburger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:26px;height:26px">
+                        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
             </div>
-            <a href="{{ url_for('index') }}#programs" class="block text-white hover:text-charity-gold py-2">Programs</a>
-            <a href="{{ url_for('events_page') }}" class="block text-white hover:text-charity-gold py-2">Events</a>
-            <a href="{{ url_for('fundraising') }}" class="block text-white hover:text-charity-gold py-2">Fundraising</a>
-            <a href="{{ url_for('index') }}#impact" class="block text-white hover:text-charity-gold py-2">Impact</a>
-            <a href="{{ url_for('contact') }}" class="block text-white hover:text-charity-gold py-2">Contact</a>
-            {% if current_user.is_authenticated %}
-            {% if not current_user.is_admin %}<a href="{{ url_for('profile') }}" class="block text-white hover:text-charity-gold py-2">Profile</a>{% endif %}
-            <a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}" class="block text-white hover:text-charity-gold py-2">Dashboard</a>
-            <a href="{{ url_for('logout') }}" class="block text-white hover:text-charity-gold py-2">Logout</a>
-            {% else %}
-            <a href="{{ url_for('login') }}" class="block text-white hover:text-charity-gold py-2">Login</a>
-            <a href="{{ url_for('signup') }}" class="block"><button class="btn-header w-full">Sign Up</button></a>
-            {% endif %}
-            <a href="{{ url_for('donate') }}" class="block"><button class="btn-header w-full">Donate</button></a>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden border-t border-white/10" style="background:rgba(20,5,5,0.98);">
+            <div class="px-4 py-2 border-b border-white/10">
+                <p class="text-xs font-bold uppercase tracking-widest text-amber-400 py-1">About</p>
+                <a href="{{ url_for('about') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm border-b border-white/5"><i data-lucide="info" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>About Think.4U</a>
+                <a href="{{ url_for('governingbody') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm border-b border-white/5"><i data-lucide="shield" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Governing Body</a>
+                <a href="{{ url_for('managingteam') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm border-b border-white/5"><i data-lucide="briefcase" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Managing Team</a>
+                <a href="{{ url_for('coreteam') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm"><i data-lucide="users" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Core Team</a>
+            </div>
+            <div class="px-4 py-2">
+                <a href="{{ url_for('index') }}#programs" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Programs</a>
+                <a href="{{ url_for('events_page') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Events</a>
+                <a href="{{ url_for('fundraising') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Fundraising</a>
+                <a href="{{ url_for('index') }}#impact" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Impact</a>
+                <a href="{{ url_for('contact') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Contact</a>
+                {% if current_user.is_authenticated %}
+                {% if not current_user.is_admin %}<a href="{{ url_for('profile') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Profile</a>{% endif %}
+                <a href="{{ url_for('dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Logout</a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Login</a>
+                <a href="{{ url_for('signup') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Sign Up</a>
+                {% endif %}
+            </div>
+            <div class="px-4 py-3 border-t border-white/10">
+                <a href="{{ url_for('donate') }}" style="display:block;text-align:center;padding:0.75rem;background:var(--charity-gold);color:white;border-radius:8px;font-weight:700;font-size:0.95rem;">❤️ Donate Now</a>
+            </div>
         </div>
     </header>
 
-    <div class="bg-gradient-to-r from-blue-50 via-sky-50 to-emerald-50 py-4 border-b border-blue-100">
+    <!-- INTERNATIONAL ACCESS NOTICE BANNER (NON-INDIA VISITORS) -->
+    <div id="international-access-banner" class="hidden bg-gradient-to-r from-[#24120b] via-[#4a2012] to-[#24120b] text-white border-b-2 border-[#d58d4b] py-3.5 px-4 shadow-2xl relative z-[1001]">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
+            <div class="flex items-start gap-3">
+                <span class="text-2xl flex-shrink-0 select-none">🌍</span>
+                <div class="space-y-1">
+                    <strong class="text-[#d58d4b] font-bold block text-sm tracking-wide">International Access Notice</strong>
+                    <p class="text-white/95 leading-relaxed">
+                        You are accessing <strong>Think.4U</strong> from outside India. Some services, features, payment options, or content on our website may currently be limited to users in India. We are working to expand our services internationally.
+                    </p>
+                    <p class="text-amber-200/90 text-xs">
+                        For assistance or inquiries, please <a href="{{ url_for('contact') }}" class="underline font-bold text-amber-300 hover:text-white">contact us</a> through our support channels. Thank you for visiting <strong>Think.4U</strong> and supporting our mission. ❤️
+                    </p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('international-access-banner').remove(); sessionStorage.setItem('intl_notice_dismissed','true');" class="self-end sm:self-center px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex-shrink-0 border border-white/25 transition">
+                Dismiss
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-gradient-to-r from-blue-50 via-sky-50 to-emerald-50 py-3 border-b border-blue-100" style="overflow:hidden;">
         <div class="container mx-auto px-4">
-            <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
-                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i><span class="font-semibold">100% Secure</span></div>
-                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="award" class="w-5 h-5 text-blue-600"></i><span class="font-semibold">Tax Deductible</span></div>
-                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="users" class="w-5 h-5 text-amber-600"></i><span class="font-semibold">10,000+ Supporters</span></div>
-                <div class="flex items-center gap-2 text-slate-700"><i data-lucide="heart" class="w-5 h-5 text-rose-500"></i><span class="font-semibold">Transparent Impact</span></div>
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-3 sm:gap-6 text-sm">
+                <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="shield-check" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">100% Secure</span></div>
+                <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="award" class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">Tax Deductible</span></div>
+                <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="users" class="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">10,000+ Supporters</span></div>
+                <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="heart" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-500 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">Transparent Impact</span></div>
             </div>
         </div>
     </div>
@@ -371,12 +424,175 @@
 
     <main class="relative z-10">{% block content %}{% endblock %}</main>
 
+    <!-- FIXED (CLOUD) SOCIAL FLOATING DOCK -->
+    <style>
+        /* Desktop: vertical column on left | Mobile: horizontal bar at bottom center */
+        #cloud-social-dock {
+            position: fixed;
+            left: 1rem;
+            bottom: 5rem;
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            background: rgba(31,6,6,0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(213,141,75,0.35);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+        }
+        @media (max-width: 640px) {
+            #cloud-social-dock {
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 0.75rem;
+                flex-direction: row;
+                border-radius: 2rem;
+                padding: 0.5rem 1rem;
+            }
+            #cloud-social-dock .dock-tooltip { display: none; }
+        }
+        .dock-btn {
+            position: relative;
+            padding: 0.6rem;
+            border-radius: 0.65rem;
+            transition: all 0.25s ease;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dock-btn:hover { transform: scale(1.15); }
+        .dock-btn svg { width: 20px; height: 20px; display: block; flex-shrink: 0; }
+        .dock-tooltip {
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 0.25rem 0.65rem;
+            border-radius: 0.5rem;
+            background: #0f172a;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .dock-btn:hover .dock-tooltip { opacity: 1; }
+    </style>
+    <div id="cloud-social-dock" role="complementary" aria-label="Social Links">
+        <!-- Instagram -->
+        <a href="https://www.instagram.com/think.4u_" target="_blank" rel="noopener noreferrer"
+           class="dock-btn" style="background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);"
+           aria-label="Instagram" data-no-loader>
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <circle cx="12" cy="12" r="4"/>
+                <circle cx="17.5" cy="6.5" r="1" fill="white" stroke="none"/>
+            </svg>
+            <span class="dock-tooltip">Instagram</span>
+        </a>
+        <!-- YouTube -->
+        <a href="https://www.youtube.com/@Think.4U-h9g" target="_blank" rel="noopener noreferrer"
+           class="dock-btn" style="background:#ff0000;"
+           aria-label="YouTube" data-no-loader>
+            <svg viewBox="0 0 24 24" fill="white">
+                <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+                <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#ff0000"/>
+            </svg>
+            <span class="dock-tooltip">YouTube</span>
+        </a>
+        <!-- Email -->
+        <a href="mailto:info@think4u.org"
+           class="dock-btn" style="background:#d58d4b;"
+           aria-label="Email" data-no-loader>
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <polyline points="2,4 12,13 22,4"/>
+            </svg>
+            <span class="dock-tooltip">info@think4u.org</span>
+        </a>
+        <!-- Phone -->
+        <a href="tel:+919959128946"
+           class="dock-btn" style="background:#16a34a;"
+           aria-label="Call Us" data-no-loader>
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17.5v-.58z"/>
+            </svg>
+            <span class="dock-tooltip">+91 99591 28946</span>
+        </a>
+        <!-- WhatsApp Channel -->
+        <a href="https://whatsapp.com/channel/0029VbCljLS9WtC3bCGFuO0j" target="_blank" rel="noopener noreferrer"
+           class="dock-btn" style="background:#25d366;"
+           aria-label="WhatsApp Channel" data-no-loader>
+            <svg viewBox="0 0 24 24" fill="white">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+            </svg>
+            <span class="dock-tooltip">WhatsApp Channel</span>
+        </a>
+    </div>
+
     <footer id="contact">
         <div class="footer-content">
-            <div class="footer-section"><h3>Think.4U</h3><p>{{ get_cms('mission_text', 'Making a positive impact through education, empowerment, and community development.') }}</p></div>
+            <div class="footer-section">
+                <a href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U" style="height:56px;width:auto;object-fit:contain;margin-bottom:1rem;border-radius:8px;">
+                </a>
+                <h3 style="margin-top:0;">Think.4U</h3>
+                <p>{{ get_cms('mission_text', 'Making a positive impact through education, empowerment, and community development.') }}</p>
+                <div style="margin-top:1.25rem;">
+                    <a href="{{ url_for('donate') }}" style="display:inline-block;padding:0.55rem 1.25rem;background:var(--charity-gold);color:white;border-radius:6px;font-weight:700;font-size:0.85rem;text-decoration:none;">Donate ❤️</a>
+                    <a href="{{ url_for('volunteer') }}" style="display:inline-block;margin-left:0.5rem;padding:0.55rem 1.25rem;border:1px solid rgba(213,141,75,0.5);color:rgba(255,255,255,0.8);border-radius:6px;font-weight:600;font-size:0.85rem;text-decoration:none;">Volunteer</a>
+                </div>
+            </div>
             <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('about') }}">About Us</a></li><li><a href="{{ url_for('governingbody') }}">Governing Body</a></li><li><a href="{{ url_for('managingteam') }}">Managing Team</a></li><li><a href="{{ url_for('coreteam') }}">Core Team</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('events_page') }}">Events</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
-            <div class="footer-section"><h3>Contact</h3><ul><li>Email: {{ get_cms('contact_email', 'hello@think4u.org') }}</li><li>Phone: {{ get_cms('contact_phone', '+91 9876543210') }}</li><li>Address: {{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</li><li><a href="{{ url_for('contact') }}">Contact Form</a></li></ul></div>
-            <div class="footer-section"><h3>Follow Us</h3><ul><li><a href="{{ get_cms('social_facebook', '#') }}">Facebook</a></li><li><a href="{{ get_cms('social_instagram', '#') }}">Instagram</a></li><li><a href="{{ get_cms('social_twitter', '#') }}">Twitter</a></li><li><a href="{{ get_cms('social_linkedin', '#') }}">LinkedIn</a></li></ul></div>
+            <div class="footer-section">
+                <h3>Contact</h3>
+                <ul>
+                    <li><a href="mailto:info@think4u.org" class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4 text-amber-400"></i> info@think4u.org</a></li>
+                    <li><a href="tel:+919959128946" class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4 text-amber-400"></i> +91 99591 28946</a></li>
+                    <li><a href="https://www.google.com/maps/place/17%C2%B032'54.6%22N+78%C2%B027'47.3%22E/@17.5485038,78.46056,17z/data=!3m1!4b1!4m4!3m3!8m2!3d17.5485038!4d78.4631349?hl=en&entry=ttu&g_ep=EgoyMDI2MDkxMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="flex items-start gap-2"><i data-lucide="map-pin" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i> <span>Flat no: 203, Surabhi residency gangastan dullapally hyderabad Telangana pin 500014</span></a></li>
+                    <li><a href="{{ url_for('contact') }}" class="flex items-center gap-2 text-amber-400 font-semibold"><i data-lucide="send" class="w-4 h-4"></i> Contact Form</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Follow Us</h3>
+                <ul>
+                    <li><a href="https://www.instagram.com/think.4u_" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(213,141,75,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="rgba(213,141,75,1)" stroke="none"/>
+                        </svg> @think.4u_</a></li>
+                    <li><a href="https://www.youtube.com/@Think.4U-h9g" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;fill:rgba(213,141,75,1)">
+                            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+                            <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#1f0606"/>
+                        </svg> Think.4U YouTube</a></li>
+                    <li style="margin-top:1.2rem;"><a href="tel:+919959128946" class="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(213,141,75,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17.5v-.58z"/>
+                        </svg> +91 99591 28946</a></li>
+                    <li><a href="mailto:info@think4u.org" class="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(213,141,75,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0">
+                            <rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/>
+                        </svg> info@think4u.org</a></li>
+                    <li><a href="https://whatsapp.com/channel/0029VbCljLS9WtC3bCGFuO0j" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;fill:rgba(213,141,75,1)">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                        </svg> WhatsApp Channel</a></li>
+                    <li><a href="https://chat.whatsapp.com/CKz0GkrOvj38l7eo15p8Xv?s=cl&p=a&mlu=0&ilr=4" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;fill:rgba(213,141,75,1)">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                        </svg> Volunteer WhatsApp Group</a></li>
+                    <li style="margin-top:1rem;">
+                        <a href="{{ url_for('donate') }}" style="display:inline-block;padding:0.5rem 1.2rem;background:var(--charity-gold);color:white;border-radius:6px;font-weight:700;font-size:0.85rem;text-decoration:none;">Donate Now ❤️</a>
+                    </li>
+                </ul>
+            </div>
         </div>
         <div class="footer-bottom"><p>&copy; {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Version {{ app_version }}</p></div>
     </footer>
@@ -384,7 +600,24 @@
     <div id="cookie-banner" class="hidden fixed bottom-4 left-4 right-4 z-[9999] max-w-3xl mx-auto bg-slate-900 text-white rounded-2xl p-4 shadow-2xl">
         <div class="flex flex-col md:flex-row md:items-center gap-4"><p class="text-sm text-white/90">We use cookies to keep your session secure and improve your experience. By continuing, you agree to our <a href="{{ url_for('policy_terms') }}" class="underline font-semibold">Policy & Terms</a>.</p><button id="cookie-accept-btn" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-semibold text-sm">Accept Cookies</button></div>
     </div>
-    <div id="global-loader" class="hidden fixed inset-0 z-[10000] bg-slate-950/60 backdrop-blur-sm"><div class="h-full w-full flex items-center justify-center px-4"><div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200 text-center min-w-[260px]"><img src="{{ url_for('static', filename='images/favicon.png') }}" alt="Think.4U" class="w-16 h-16 mx-auto mb-4"><div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-cyan-200 border-t-cyan-600 animate-spin"></div><p id="global-loader-message" class="text-sm font-semibold text-slate-700">Loading, please wait...</p></div></div></div>
+
+    <!-- GLOBAL LUXURY DARK & GOLD LOADER -->
+    <div id="global-loader" class="hidden fixed inset-0 z-[10000] bg-[#150a06]/85 backdrop-blur-md transition-opacity duration-300">
+        <div class="h-full w-full flex items-center justify-center px-4">
+            <div class="relative bg-[#24120b] rounded-3xl shadow-2xl p-8 border border-amber-500/30 text-center min-w-[280px] max-w-sm">
+                <!-- Glowing ambient aura -->
+                <div class="absolute inset-0 rounded-3xl bg-amber-500/5 blur-xl pointer-events-none"></div>
+                <!-- Dual-ring spinner around logo -->
+                <div class="relative w-20 h-20 mx-auto mb-5 flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-4 border-amber-500/20 border-t-[#d58d4b] animate-spin"></div>
+                    <div class="absolute inset-2 rounded-full border-2 border-amber-400/20 border-b-amber-300 animate-spin" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
+                    <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U" class="w-11 h-11 object-contain rounded-xl">
+                </div>
+                <h4 class="text-white font-black text-lg tracking-wide mb-1">Think<span class="text-[#d58d4b]">.4U</span></h4>
+                <p id="global-loader-message" class="text-xs font-semibold text-amber-200/90 tracking-wider uppercase">Loading, please wait...</p>
+            </div>
+        </div>
+    </div>
 
     <script>
         /* eslint-disable */
@@ -490,6 +723,60 @@
                     }
                 });
             }
+
+            // International Geolocation Detection
+            (async function checkUserGeoLocation() {
+                try {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const forceIntl = urlParams.get('intl') === '1' || window.FORCE_INTL_NOTICE === true;
+                    let isOutsideIndia = false;
+                    
+                    if (forceIntl) {
+                        isOutsideIndia = true;
+                    } else {
+                        let cachedCountry = sessionStorage.getItem('user_country_code');
+                        if (!cachedCountry) {
+                            try {
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                                const res = await origFetch('https://ipapi.co/json/', { signal: controller.signal });
+                                clearTimeout(timeoutId);
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    if (data && data.country_code) {
+                                        cachedCountry = data.country_code.toUpperCase();
+                                        sessionStorage.setItem('user_country_code', cachedCountry);
+                                    }
+                                }
+                            } catch (_) {}
+                        }
+                        
+                        if (cachedCountry) {
+                            isOutsideIndia = (cachedCountry !== 'IN');
+                        } else {
+                            // Fallback using browser timezone
+                            const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
+                            if (tz && !tz.includes('kolkata') && !tz.includes('calcutta')) {
+                                isOutsideIndia = true;
+                            }
+                        }
+                    }
+
+                    if (isOutsideIndia) {
+                        const banner = document.getElementById('international-access-banner');
+                        const isDismissed = sessionStorage.getItem('intl_notice_dismissed') === 'true';
+                        if (banner && !isDismissed) {
+                            banner.classList.remove('hidden');
+                        }
+                        const donationNotice = document.getElementById('intl-donation-notice');
+                        if (donationNotice) {
+                            donationNotice.classList.remove('hidden');
+                        }
+                    }
+                } catch (e) {
+                    console.debug('Geo-detection skipped:', e);
+                }
+            })();
         });
         window.addEventListener('pageshow',()=>window.hideGlobalLoader());
     </script>

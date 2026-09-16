@@ -938,7 +938,7 @@ values
     ('impact_people', '10K+'),
     ('impact_education', '2K+'),
     ('impact_families', '5K+'),
-    ('contact_email', 'hello@think4u.org'),
+    ('contact_email', 'info@think4u.org'),
     ('contact_phone', '+91 9876543210'),
     ('contact_address', 'Hyderabad, Telangana, India'),
     ('google_maps_url', 'https://www.google.com/maps/search/?api=1&query=Hyderabad%2C%20Telangana%2C%20India'),

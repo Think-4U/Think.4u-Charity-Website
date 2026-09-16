@@ -1,22 +1,318 @@
 {% extends "base.html" %}
-{% block title %}Donation Receipt - Think.4U{% endblock %}
+{% block title %}Donation Receipt - Think.4U Charitable Trust{% endblock %}
+
 {% block content %}
-<main class="t4u-receipt-page">
-  <article class="t4u-receipt" aria-labelledby="receipt-title">
-    <div class="t4u-colour-strip" aria-hidden="true"></div><div class="t4u-watermark" aria-hidden="true">THINK.4U</div>
-    <div class="t4u-receipt-content">
-      <section class="t4u-brand-row"><div class="t4u-brand"><img src="{{ url_for('static', filename='images/think4u-main-logo.jpeg') }}" alt="{{ get_cms('org_name', 'Think.4U Charitable Trust') }} logo"><div><h2>{{ get_cms('org_name', 'Think.4U Charitable Trust') }}</h2><p>Love in action, care with compassion</p><small>Registered charitable organisation</small></div></div><address>{{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}<br>{{ get_cms('contact_email', 'info@think4u.org') }}<br>{{ get_cms('contact_phone', '') }}</address></section>
-      <section class="t4u-receipt-title"><h1 id="receipt-title">Official Charity Donation Receipt</h1><p>Thank you for your generous contribution towards a better tomorrow.</p></section>
-      <section class="t4u-identity-row"><div class="t4u-reference-card"><div><span>Receipt no.</span><strong>{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</strong></div><div><span>Payment reference ID</span><strong>{{ donation.razorpay_payment_id or donation.payment_id or 'Payment verified' }}</strong></div></div><div class="t4u-date-card"><span>Receipt date</span><strong>{{ donation.created_at.strftime('%d %b %Y') if donation.created_at else '' }}</strong></div><div class="t4u-verified"><b>✓ Verified</b><small>Transaction verified</small></div></section>
-      <section class="t4u-data-grid"><div class="t4u-panel"><h3>Donor details</h3><dl><dt>Donor name</dt><dd>{{ donation.name or 'Anonymous Donor' }}</dd><dt>Email</dt><dd>{{ donation.email or '—' }}</dd><dt>Phone</dt><dd>{{ donation.phone or '—' }}</dd><dt>Address</dt><dd>{{ donation.address or 'Address not provided' }}</dd></dl></div><div class="t4u-panel"><h3>Donation details</h3><dl><dt>Amount received</dt><dd class="t4u-amount">Rs {{ "%.2f"|format(amount/100) }}</dd><dt>Purpose / For</dt><dd>{{ donation.purpose_label or 'General charitable donation' }}</dd><dt>Payment method</dt><dd>{{ payment_method or 'Online payment' }}</dd><dt>Transaction status</dt><dd class="t4u-success">Payment verified</dd></dl></div></section>
-      <section class="t4u-verification-panel">{% if qr_code %}<img src="data:image/png;base64,{{ qr_code }}" alt="QR code to verify this receipt">{% endif %}<div><h3>Verify this receipt</h3><p>Scan the QR code to verify this digitally recorded donation receipt online.</p><a href="{{ receipt_url }}">Open verification page</a></div><div class="t4u-signatory"><div></div><strong>Authorised Signatory</strong><small>System generated</small></div></section>
-      <section class="t4u-statutory"><h3>Our statutory details</h3><div><p><span>PAN</span>{{ get_cms('tax_id', 'Available on request') }}</p><p><span>80G certificate</span>{{ get_cms('cert_80g', 'Available on request') }}</p><p><span>Registration no.</span>{{ get_cms('registration_number', 'Available on request') }}</p><p><span>FCRA registration</span>{{ get_cms('fcra_registration', 'Not applicable') }}</p></div></section>
-      <section class="t4u-auto-note"><strong>✓ This is an auto-generated receipt and does not require a signature.</strong><span>It is computer generated and digitally verified.</span></section><p class="t4u-thanks">Thank you for being the reason of change.</p>
+<div class="receipt-page-wrapper min-h-screen pt-28 pb-16 bg-gradient-to-br from-slate-100 via-cyan-50/30 to-emerald-50/30 print:bg-white print:p-0 print:pt-0 print:m-0">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 print:p-0 print:max-w-full">
+
+    <!-- Action Toolbar (Hidden in Print) -->
+    <div class="print:hidden mb-5 flex flex-wrap items-center justify-between gap-3 bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Official Donation Receipt</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-700 hover:to-emerald-700 text-white font-bold text-xs shadow-md transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+          </svg>
+          Print / Save as PDF
+        </button>
+        <a href="{{ url_for('download_donation_receipt_pdf', donation_id=donation.id) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          Direct PDF
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition">
+          ← Dashboard
+        </a>
+      </div>
     </div>
-  </article>
-  <div class="t4u-receipt-actions print-hidden"><a href="{{ url_for('download_donation_receipt_pdf', donation_id=donation.id) }}">Download official PDF</a><button type="button" onclick="window.print()">Print receipt</button><a class="secondary" href="{{ url_for('user_donations') }}">Back to donations</a></div>
-</main>
+
+    <!-- Official Receipt Container (Calibrated for a Single-Page Print) -->
+    <article id="official-receipt" class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative print:shadow-none print:border print:rounded-xl print:m-0 print:p-0">
+      
+      <!-- Top Decorative Accent Ribbon -->
+      <div class="h-2.5 bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 print:h-2"></div>
+
+      <div class="p-6 sm:p-10 print:p-5 space-y-4 sm:space-y-5 print:space-y-3.5">
+
+        <!-- Header: Clean White Background with Charity Identity -->
+        <div class="receipt-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+          <div class="flex items-center gap-3.5">
+            <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" 
+                 alt="{{ get_cms('org_name', 'Think.4U') }}" 
+                 class="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border border-slate-200 bg-white p-0.5 shadow-sm print:w-14 print:h-14">
+            <div>
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 mb-0.5">
+                ✓ Registered Charity Trust
+              </span>
+              <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                {{ get_cms('org_name', 'Think.4U Charitable Trust') }}
+              </h1>
+              <p class="text-xs font-semibold text-cyan-800">
+                Love in action, care with compassion
+              </p>
+            </div>
+          </div>
+          <div class="text-left sm:text-right text-xs text-slate-600 space-y-0.5 sm:max-w-xs">
+            <p class="font-bold text-slate-800">{{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</p>
+            <p>Email: <a href="mailto:{{ get_cms('contact_email', 'info@think4u.org') }}" class="font-semibold text-cyan-700 hover:text-cyan-800 hover:underline transition-colors">{{ get_cms('contact_email', 'info@think4u.org') }}</a></p>
+            {% set phone = get_cms('contact_phone', '') %}
+            {% if phone %}
+            <p>Phone: <a href="tel:{{ phone | replace(' ', '') | replace('-', '') }}" class="font-mono text-slate-800 hover:text-cyan-700 hover:underline transition-colors">{{ phone }}</a></p>
+            {% endif %}
+            <p class="text-slate-500 pt-0.5">CIN / Reg: <span class="font-mono font-bold text-slate-700">{{ get_cms('registration_number', 'T4U-CHARITY-REG') }}</span></p>
+          </div>
+        </div>
+
+        <!-- Document Subheader & Verified Stamp -->
+        <div class="flex flex-row items-center justify-between gap-3 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200/90 print:bg-slate-50/50 print:p-2.5">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Official Donation Receipt</span>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">Donation Acknowledgment</h2>
+            <p class="text-[11px] text-slate-500">Issued for statutory income tax exemption and official charity audit records.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
+              <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+              Verified Payment
+            </span>
+          </div>
+        </div>
+
+        <!-- Meta 4-Item Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-left">
+          <div class="p-2.5 sm:p-3 rounded-xl bg-white border border-slate-200 shadow-sm print:shadow-none">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Receipt No.</span>
+            <span class="block text-xs sm:text-sm font-mono font-extrabold text-cyan-900 mt-0.5 break-all">
+              {{ donation.donation_ref or ('T4U-' ~ donation.id) }}
+            </span>
+          </div>
+          <div class="p-2.5 sm:p-3 rounded-xl bg-white border border-slate-200 shadow-sm print:shadow-none">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Receipt Date</span>
+            <span class="block text-xs sm:text-sm font-semibold text-slate-800 mt-0.5">
+              {{ donation.created_at.strftime('%d %B %Y') if donation.created_at else 'Verified' }}
+            </span>
+          </div>
+          <div class="p-2.5 sm:p-3 rounded-xl bg-white border border-slate-200 shadow-sm print:shadow-none">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payment ID</span>
+            <span class="block text-xs sm:text-sm font-mono font-semibold text-slate-700 mt-0.5 truncate" title="{{ donation.razorpay_payment_id or donation.payment_id or 'Online / UPI' }}">
+              {{ donation.razorpay_payment_id or donation.payment_id or 'Online / UPI' }}
+            </span>
+          </div>
+          <div class="p-2.5 sm:p-3 rounded-xl bg-white border border-slate-200 shadow-sm print:shadow-none">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payment Method</span>
+            <span class="block text-xs sm:text-sm font-semibold text-slate-800 mt-0.5">
+              {{ payment_method or 'Razorpay' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Highlight Contribution Card -->
+        <div class="rounded-xl p-3.5 sm:p-4 bg-gradient-to-r from-emerald-50/90 via-teal-50/80 to-cyan-50/90 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:border print:border-emerald-500">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-emerald-800">Total Contribution Received</span>
+            <div class="text-2xl sm:text-3xl font-black text-slate-900 mt-0.5">
+              ₹ {{ "%.2f"|format(amount/100) if amount >= 1000 else "%.2f"|format(amount) }}
+            </div>
+            <p class="text-[11px] font-medium text-emerald-700 mt-0.5">
+              Indian Rupees (INR) • Received with sincere gratitude
+            </p>
+          </div>
+          <div class="sm:text-right">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Contribution Allocated To</span>
+            <div class="text-sm sm:text-base font-bold text-slate-900 mt-0.5">
+              {{ donation.purpose_label or 'General Charity Welfare' }}
+            </div>
+            <span class="inline-block mt-0.5 text-[10px] text-slate-600 bg-white/90 px-2 py-0.5 rounded border border-slate-200">
+              Community Outreach & Impact
+            </span>
+          </div>
+        </div>
+
+        <!-- 2-Column Details: Donor Info & Statutory Information -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-left">
+          
+          <!-- Donor Information Card -->
+          <div class="p-3.5 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm print:shadow-none">
+            <div class="flex items-center gap-1.5 pb-2 mb-2.5 border-b border-slate-100">
+              <svg class="w-4 h-4 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+              <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Donor Information</h3>
+            </div>
+            <dl class="space-y-1.5 text-xs">
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">Donor Name</dt>
+                <dd class="font-bold text-slate-900 text-right">{{ donation.name or 'Valued Benefactor' }}</dd>
+              </div>
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">Email</dt>
+                <dd class="font-medium text-slate-800 text-right break-all">{{ donation.email or '—' }}</dd>
+              </div>
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">Phone</dt>
+                <dd class="font-mono text-slate-800 text-right">{{ donation.phone or '—' }}</dd>
+              </div>
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">Address</dt>
+                <dd class="text-slate-700 text-right max-w-[240px] truncate" title="{{ donation.address or 'Provided on file' }}">
+                  {{ donation.address or 'Provided on file' }}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Statutory & Tax Exemption Card -->
+          <div class="p-3.5 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm print:shadow-none">
+            <div class="flex items-center gap-1.5 pb-2 mb-2.5 border-b border-slate-100">
+              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+              </svg>
+              <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Statutory & Tax Details</h3>
+            </div>
+            <dl class="space-y-1.5 text-xs">
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">PAN (Trust)</dt>
+                <dd class="font-mono font-bold text-slate-800 text-right">{{ get_cms('tax_id', 'Available on request') }}</dd>
+              </div>
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">80G Certificate</dt>
+                <dd class="font-mono text-emerald-700 font-semibold text-right">{{ get_cms('cert_80g', 'Valid under Sec 80G') }}</dd>
+              </div>
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">Trust Reg. No.</dt>
+                <dd class="font-mono text-slate-800 text-right">{{ get_cms('registration_number', 'T4U-CHARITY-REG') }}</dd>
+              </div>
+              <div class="flex justify-between items-start gap-2">
+                <dt class="text-slate-500">FCRA Status</dt>
+                <dd class="text-slate-700 text-right">{{ get_cms('fcra_registration', 'Domestic contributions only') }}</dd>
+              </div>
+            </dl>
+          </div>
+
+        </div>
+
+        <!-- Verification & Authenticity Section -->
+        <div class="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 print:bg-white print:border">
+          <div class="flex items-center gap-3.5">
+            {% if qr_code %}
+            <div class="bg-white p-1 rounded-lg border border-slate-200 shadow-sm flex-shrink-0">
+              <img src="data:image/png;base64,{{ qr_code }}" alt="Verification QR Code" class="w-18 h-18 sm:w-20 sm:h-20 object-contain">
+            </div>
+            {% endif %}
+            <div class="text-left">
+              <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                <span>Digital Verification</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-600"></span>
+                <span class="text-cyan-700 font-semibold">Live Audit Record</span>
+              </div>
+              <p class="text-[10px] text-slate-600 mt-0.5 max-w-xs leading-relaxed">
+                Scan this QR code with any camera or scanner to verify this digitally recorded donation receipt online on Think.4U's secure portal.
+              </p>
+              <a href="{{ receipt_url }}" class="inline-block mt-1 text-[10px] font-bold text-cyan-700 hover:text-cyan-800 hover:underline break-all">
+                {{ receipt_url }}
+              </a>
+            </div>
+          </div>
+
+          <!-- Digital Seal & Signatory -->
+          <div class="text-center sm:text-right flex-shrink-0 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2.5 sm:pt-0 sm:pl-4">
+            <div class="w-16 h-7 mx-auto sm:ml-auto border-b border-slate-400 border-dashed mb-1 flex items-center justify-center">
+              <span class="text-[9px] text-slate-400 font-mono italic">Digitally Signed</span>
+            </div>
+            <p class="text-[11px] font-bold text-slate-800">Authorized Signatory</p>
+            <p class="text-[9px] text-slate-500">Think.4U Charitable Trust</p>
+            <span class="inline-block mt-0.5 text-[9px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+              System Generated • No Physical Signature Required
+            </span>
+          </div>
+        </div>
+
+        <!-- Footer Notice Banner -->
+        <div class="text-center pt-2.5 border-t border-slate-200">
+          <p class="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+            Thank you for making an enduring difference in our community.
+          </p>
+          <p class="text-[9px] text-slate-400 mt-0.5">
+            Think.4U Charitable Trust • All donations are eligible for tax exemption under section 80G of the Income Tax Act.
+          </p>
+        </div>
+
+      </div>
+    </article>
+
+  </div>
+</div>
+
 <style>
-.t4u-receipt-page{min-height:100vh;padding:118px 16px 46px;background:#e9eef2}.t4u-receipt{box-sizing:border-box;position:relative;width:min(210mm,100%);min-height:297mm;margin:auto;overflow:hidden;background:#fff;color:#17252b;box-shadow:0 16px 42px rgba(15,35,50,.18);font-family:Arial,Helvetica,sans-serif}.t4u-colour-strip{height:8px;background:linear-gradient(90deg,#18bfd0 0%,#7ddfca 49%,#ffad45 100%)}.t4u-receipt-content{position:relative;z-index:1;padding:13mm 13mm 10mm}.t4u-watermark{position:absolute;z-index:0;left:50%;top:53%;transform:translate(-50%,-50%) rotate(-28deg);color:rgba(26,111,116,.055);font:900 53px Arial,sans-serif;letter-spacing:7px;white-space:nowrap;pointer-events:none}.t4u-brand-row{display:grid;grid-template-columns:1fr 44mm;gap:8mm;align-items:center;padding-bottom:5mm;border-bottom:1px solid #d7dddd}.t4u-brand{display:flex;align-items:center;gap:4mm}.t4u-brand img{width:34mm;height:34mm;object-fit:contain}.t4u-brand h2{margin:0;color:#173c59;font:900 18px Arial,sans-serif}.t4u-brand p{margin:2px 0;color:#173c59;font:700 13px Georgia,serif}.t4u-brand small,.t4u-brand-row address{color:#697476;font-size:8px;line-height:1.6;font-style:normal}.t4u-receipt-title{margin:6mm 0 5mm;text-align:center}.t4u-receipt-title h1{margin:0;color:#132f45;font:700 20px Georgia,serif;text-transform:uppercase}.t4u-receipt-title p{margin:2mm 0 0;color:#208291;font:italic 10px Georgia,serif}.t4u-identity-row{display:grid;grid-template-columns:1.65fr .76fr .74fr;gap:4mm;align-items:stretch}.t4u-reference-card{display:grid;grid-template-columns:1fr 1.3fr;background:#12344d;color:#fff;border-radius:3mm;overflow:hidden}.t4u-reference-card>div{padding:3.5mm;border-right:1px dotted rgba(255,255,255,.6)}.t4u-reference-card>div:last-child{border:0}.t4u-identity-row span,.t4u-panel dt,.t4u-statutory span{display:block;color:#6c7779;font-size:6.7px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}.t4u-reference-card span{color:#dbeaf1}.t4u-identity-row strong{display:block;margin-top:1mm;font-size:9px;overflow-wrap:anywhere}.t4u-date-card{padding:3.5mm;border-radius:3mm;background:#eff4fb}.t4u-date-card strong{color:#132f45}.t4u-verified{display:flex;flex-direction:column;justify-content:center;align-items:center;border:1px solid #219653;border-radius:3mm;background:#f0faf3;color:#18763e;text-align:center}.t4u-verified b{text-transform:uppercase;font-size:9px;letter-spacing:.6px}.t4u-verified small{margin-top:1mm;color:#4b745b;font-size:6.5px}.t4u-data-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:5mm}.t4u-panel{overflow:hidden;border:1px solid #d7dddd;border-radius:3mm;background:rgba(255,255,255,.97)}.t4u-panel h3,.t4u-statutory h3{margin:0;padding:3mm 3.5mm;border-bottom:1px solid #dfe5e5;background:#f4f7f7;color:#17384e;font-size:8px;letter-spacing:1.1px;text-transform:uppercase}.t4u-panel dl{margin:0;padding:2.5mm 3.5mm}.t4u-panel dt{margin-top:2.5mm}.t4u-panel dt:first-child{margin-top:0}.t4u-panel dd{margin:1mm 0 0;color:#202b2f;font-size:9px;line-height:1.4;overflow-wrap:anywhere}.t4u-panel dd.t4u-amount{font-size:16px;font-weight:900;color:#132f45}.t4u-panel dd.t4u-success{color:#18763e;font-weight:700}.t4u-verification-panel{display:grid;grid-template-columns:31mm 1fr 41mm;gap:4mm;align-items:center;margin-top:5mm;padding:3.5mm;border:1px solid #d7dddd;border-radius:3mm;background:rgba(255,255,255,.97)}.t4u-verification-panel>img{width:27mm;height:27mm;object-fit:contain}.t4u-verification-panel h3{margin:0;color:#17384e;font-size:10px;text-transform:uppercase}.t4u-verification-panel p{margin:1.5mm 0;color:#606d70;font-size:7.5px;line-height:1.5}.t4u-verification-panel a{display:inline-block;color:#087b91;font-size:7.5px;font-weight:800;text-decoration:none}.t4u-signatory{text-align:center;font-size:7px;color:#697476}.t4u-signatory>div{height:17mm;border-bottom:1px solid #596365}.t4u-signatory strong,.t4u-signatory small{display:block;margin-top:2mm}.t4u-statutory{margin-top:5mm;text-align:center}.t4u-statutory h3{background:none;border:0;font:700 11px Georgia,serif}.t4u-statutory>div{display:grid;grid-template-columns:repeat(4,1fr);margin-top:2mm}.t4u-statutory p{margin:0;padding:2mm;border-right:1px solid #d7dddd;color:#202b2f;font-size:7px;overflow-wrap:anywhere}.t4u-statutory p:last-child{border:0}.t4u-auto-note{margin-top:6mm;padding:3mm;border:1px solid #219653;border-radius:3mm;background:#effaf2;text-align:center;color:#176f3a}.t4u-auto-note strong{display:block;font-size:8.5px;letter-spacing:.25px;text-transform:uppercase}.t4u-auto-note span{display:block;margin-top:1mm;font-size:7px}.t4u-thanks{margin:5mm 0 0;text-align:center;color:#173c59;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.6px}.t4u-receipt-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:min(210mm,100%);margin:16px auto}.t4u-receipt-actions a,.t4u-receipt-actions button{border:0;border-radius:8px;padding:11px 15px;background:#087b91;color:#fff;text-decoration:none;font:700 13px Arial,sans-serif;cursor:pointer}.t4u-receipt-actions button{background:#12344d}.t4u-receipt-actions .secondary{background:#64748b}@media(max-width:720px){.t4u-receipt-page{padding-top:94px}.t4u-receipt-content{padding:24px}.t4u-brand-row,.t4u-data-grid{grid-template-columns:1fr}.t4u-identity-row{grid-template-columns:1fr}.t4u-verification-panel{grid-template-columns:1fr;text-align:center}.t4u-verification-panel>img{margin:auto}.t4u-signatory{display:none}.t4u-statutory>div{grid-template-columns:1fr 1fr}.t4u-statutory p:nth-child(2){border-right:0}.t4u-watermark{font-size:30px}}@media print{nav,footer,.print-hidden,#cookie-banner{display:none!important}body,.t4u-receipt-page{background:#fff!important;padding:0!important}.t4u-receipt{width:210mm;min-height:297mm;box-shadow:none}@page{size:A4;margin:0}}
+/* Strict print styles to isolate ONLY the receipt on exactly ONE A4 page */
+@media print {
+  /* Hide all base template layout components */
+  header,
+  footer,
+  nav,
+  aside,
+  #cloud-social-dock,
+  #scroll-to-top,
+  #international-access-banner,
+  #cookie-banner,
+  #global-loader,
+  .print-hidden,
+  div[class*="from-blue-50"],
+  [class*="fixed"],
+  div[style*="position: fixed"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    position: static !important;
+    z-index: auto !important;
+  }
+
+  .receipt-page-wrapper {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+  }
+
+  #official-receipt {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+}
 </style>
 {% endblock %}

@@ -169,58 +169,60 @@
                     <tr>
                         <td class="header">
                             <a href="{{ url_for('index', _external=True) }}" style="text-decoration:none;">
-                                <img class="brand-logo" src="{{ url_for('static', filename='images/think4u-main-logo.jpeg', _external=True) }}" alt="Think.4U Charitable Trust">
+                                <img class="brand-logo" src="{{ url_for('static', filename='images/updated_main_logo.jpeg', _external=True) }}" alt="Think.4U Charitable Trust" style="border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                             </a>
                             <h1>Think.4U</h1>
-                            <p>Donation Receipt · Official PDF attached</p>
+                            <p>Donation Receipt · Official PDF Attached</p>
                         </td>
                     </tr>
                     <tr>
                         <td class="content">
-                            <p style="margin:0 0 8px 0; font-size:14px;">Hello {{ donation.name or 'Supporter' }},</p>
-                            <p style="margin:0 0 16px 0; font-size:14px; color:#334155;">
-                                Thank you for your generous contribution. Your donation has been received successfully.
-                                The official PDF receipt is attached to this email for your records.
+                            <p style="margin:0 0 8px 0; font-size:14px; font-weight:600;">Dear {{ donation.name or 'Supporter' }},</p>
+                            <p style="margin:0 0 16px 0; font-size:14px; color:#334155; line-height:1.6;">
+                                Thank you for your heartfelt contribution to Think.4U Charitable Trust. Your generosity empowers our mission to make a tangible difference in the community.
                             </p>
 
                             <div class="amount-pill">
                                 <p class="label">Donation Amount</p>
-                                <p class="value">Rs {{ "%.2f"|format(amount/100) }}</p>
+                                <p class="value">₹ {{ "%.2f"|format(amount/100) }}</p>
                             </div>
 
                             <table role="presentation" class="details" width="100%">
                                 <tr>
                                     <td class="label">Receipt Number</td>
-                                    <td class="value">{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</td>
+                                    <td class="value"><strong>{{ donation.donation_ref or ('T4U-' ~ donation.id) }}</strong></td>
                                 </tr>
                                 <tr>
-                                    <td class="label">Purpose</td>
-                                    <td class="value">{{ donation.purpose_label or 'Self donation' }}</td>
+                                    <td class="label">Cause / Purpose</td>
+                                    <td class="value">{{ donation.purpose_label or 'Charitable Donation' }}</td>
                                 </tr>
                                 <tr>
-                                    <td class="label">Payment Type</td>
-                                    <td class="value">Online donation</td>
+                                    <td class="label">Payment Method</td>
+                                    <td class="value">{{ donation.payment_method or 'Online' }}</td>
                                 </tr>
                                 <tr>
-                                    <td class="label">Date</td>
+                                    <td class="label">Date & Time</td>
                                     <td class="value">{{ donation.created_at.strftime('%d %b %Y, %I:%M %p') if donation.created_at else '' }}</td>
                                 </tr>
                             </table>
 
                             <div class="note">
-                                This donation is eligible for tax exemption under Section 80G, subject to applicable terms and document requirements.
+                                <strong>Tax Exemption Notice:</strong> This donation qualifies for tax deduction under Section 80G of the Income Tax Act. Your complete official receipt is attached to this email as a PDF.
                             </div>
 
                             {% if receipt_url %}
                             <div class="cta-wrap">
-                                <a href="{{ receipt_url }}" class="cta">Open Receipt</a>
+                                <a href="{{ receipt_url }}" class="cta">View Receipt Online</a>
                             </div>
                             {% endif %}
                         </td>
                     </tr>
                     <tr>
                         <td class="footer">
-                            Version {{ app_version }} | Think.4U
+                            <p style="margin:0 0 6px 0; font-size:12px; color:#64748b;">Think.4U Charitable Trust &bull; Hyderabad, Telangana, India</p>
+                            <p style="margin:0; font-size:12px; color:#64748b;">
+                                Need assistance? Reach us at <a href="mailto:info@think4u.org" style="color:#0d9488; text-decoration:none; font-weight:600;">info@think4u.org</a>
+                            </p>
                         </td>
                     </tr>
                 </table>

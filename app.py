@@ -619,6 +619,15 @@ def normalize_url(value, max_length=800):
     return url
 
 
+def is_safe_redirect_url(target):
+    """Ensure redirect destination is a relative local path, preventing open redirects."""
+    if not target or not isinstance(target, str):
+        return False
+    parsed = urlparse(target)
+    return parsed.scheme == "" and parsed.netloc == "" and target.startswith("/") and not target.startswith("//")
+
+
+
 def normalize_meeting_time(value):
     """Return a validated 24-hour HH:MM time, or an empty string."""
     raw_value = clean_text(value, 20)
@@ -1135,6 +1144,10 @@ def apply_paid_donation_effects(donation):
             f"Your donation of Rs {donation.get('amount', 0)/100:.2f} for {donation.get('purpose_label') or 'Think.4U'} was received successfully."
         )
     update_fundraiser_raised(donation)
+    try:
+        send_donation_receipt_email_if_needed(donation)
+    except Exception as e:
+        app.logger.warning(f"Auto-receipt email dispatch failed: {e}")
 
 
 def jitsi_domain():
@@ -1493,7 +1506,7 @@ def send_otp_email(email, otp_code, flow_label):
         otp=otp_code,
         expires_minutes=max(1, OTP_EXPIRY_SECONDS // 60),
         flow_label=flow_label,
-        logo_url=f"{site_url}/static/images/logo-white.png",
+        logo_url=f"{site_url}/static/images/updated_main_logo.jpeg",
         website_url=site_url,
     )
     ok, _err = send_email_sync(subject=subject, recipients=[email], html=html_content)
@@ -1902,7 +1915,7 @@ def set_security_headers(response):
 def build_branded_email(title, body_html, preheader=""):
     """Render the reusable branded transactional-email layout."""
     site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
-    logo_url = f"{site_url}/static/images/logo-white.png"
+    logo_url = f"{site_url}/static/images/updated_main_logo.jpeg"
     return render_template(
         "emails/base_email.html",
         email_title=title,
@@ -2751,7 +2764,11 @@ def generate_receipt_pdf(context):
     pdf.setFont("Helvetica-Bold", 7)
     pdf.drawString(left + 304, y - 16, "RECEIPT DATE")
     pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(left + 304, y - 31, created_at.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y"))
+    try:
+        _ist = ZoneInfo("Asia/Kolkata")
+    except Exception:
+        _ist = timezone(timedelta(hours=5, minutes=30))
+    pdf.drawString(left + 304, y - 31, created_at.astimezone(_ist).strftime("%d %b %Y"))
     pdf.setStrokeColor(green)
     pdf.setFillColor(colors.HexColor("#F0FAF3"))
     pdf.roundRect(right - 119, y - 44, 119, 44, 6, stroke=1, fill=1)
@@ -3282,7 +3299,7 @@ def verify_login():
 
         flash("Logged in successfully.", "success")
         next_page = payload.get("next_page")
-        if next_page:
+        if next_page and is_safe_redirect_url(next_page):
             return redirect(next_page)
         if user.role == "coordinator":
             return redirect(url_for("coordinator_portal"))

@@ -91,6 +91,16 @@ class TestSecurityFeatures(unittest.TestCase):
         self.assertIn("'wasm-unsafe-eval'", csp)
         self.assertEqual(response.headers.get("Cross-Origin-Resource-Policy"), "cross-origin")
 
+    def test_is_safe_redirect_url(self):
+        self.assertTrue(app.is_safe_redirect_url("/dashboard"))
+        self.assertTrue(app.is_safe_redirect_url("/user-donations"))
+        self.assertTrue(app.is_safe_redirect_url("/donation-receipt/123"))
+        self.assertFalse(app.is_safe_redirect_url("https://evil.com"))
+        self.assertFalse(app.is_safe_redirect_url("//evil.com"))
+        self.assertFalse(app.is_safe_redirect_url("javascript:alert(1)"))
+        self.assertFalse(app.is_safe_redirect_url(""))
+        self.assertFalse(app.is_safe_redirect_url(None))
+
 
 if __name__ == "__main__":
     unittest.main()

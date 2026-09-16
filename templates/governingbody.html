@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}Governing Body / Board of Trustees - Think.4U{% endblock %}
+
+{% block extra_css %}
+<style>
+    .team-hero {
+        background: linear-gradient(135deg, #24120b 0%, #3e1e12 60%, #582b1a 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .team-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.2), transparent 50%);
+        pointer-events: none;
+    }
+    .member-card {
+        background: #fffaf4;
+        border: 1px solid rgba(75, 38, 24, 0.12);
+        box-shadow: 0 10px 25px rgba(53, 28, 18, 0.06);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .member-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 18px 36px rgba(53, 28, 18, 0.12);
+    }
+    .badge-gold {
+        background: rgba(213, 141, 75, 0.15);
+        color: #92400e;
+        border: 1px solid rgba(213, 141, 75, 0.35);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b]">
+
+    <!-- HERO HEADER -->
+    <section class="team-hero py-16 sm:py-20 px-4 text-center">
+        <div class="max-w-5xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="shield" class="w-4 h-4"></i> Trust Governance & Stewardship
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4">
+                Board of <span class="text-[#d58d4b]">Trustees</span>
+            </h1>
+            <p class="max-w-3xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed">
+                The governing body steering Think.4U Charitable Trust consists of accomplished academicians, educationists, social entrepreneurs, and community leaders dedicated to integrity, strategic growth, and inclusive societal welfare.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-bold shadow-lg transition">
+                    <i data-lucide="mail" class="w-5 h-5"></i> Connect With Trustees
+                </a>
+                <a href="{{ url_for('about') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="info" class="w-5 h-5"></i> About Think.4U
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB NAVIGATION PILL BAR -->
+    <section class="sticky top-[78px] z-40 bg-[#f4eadf]/95 backdrop-blur-md border-y border-[#e2cdb9] shadow-sm py-3 px-4">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+            <a href="{{ url_for('about') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="info" class="w-4 h-4 text-amber-700"></i> About Trust
+            </a>
+            <a href="{{ url_for('governingbody') }}" class="px-4 py-2 rounded-xl bg-[#d58d4b] text-white shadow-sm flex items-center gap-1.5 font-bold">
+                <i data-lucide="shield" class="w-4 h-4"></i> Governing Body (Trustees)
+            </a>
+            <a href="{{ url_for('managingteam') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="briefcase" class="w-4 h-4 text-amber-700"></i> Managing Team
+            </a>
+            <a href="{{ url_for('coreteam') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="users" class="w-4 h-4 text-amber-700"></i> Core Team
+            </a>
+        </div>
+    </section>
+
+    <!-- TRUSTEES LIST -->
+    <div class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-12">
+
+        <!-- 1. Ms. Madurakola Malavika - Founder & Chairperson -->
+        <article class="member-card rounded-3xl p-6 sm:p-10 border border-amber-900/15 bg-white">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div class="lg:col-span-4 flex flex-col items-center text-center">
+                    <div class="w-48 sm:w-56 h-64 sm:h-72 rounded-2xl overflow-hidden shadow-xl border-4 border-amber-100 bg-stone-100 relative mb-4">
+                        <img src="{{ url_for('static', filename='images/team/malavika.jpg') }}" alt="Ms. Madurakola Malavika" class="w-full h-full object-cover object-top">
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900">Ms. Madurakola Malavika</h2>
+                    <span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-amber-100 text-amber-900 border border-amber-300">
+                        Founder & Chairperson
+                    </span>
+                    <div class="mt-4 flex flex-wrap justify-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Head Innovations @ Vignan</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">WEP NITI Aayog Mentor</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">TiE Hyderabad</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8 space-y-4 text-slate-700 leading-relaxed text-sm sm:text-base">
+                    <p>
+                        <strong>Ms. Madurakola Malavika</strong> is an accomplished academician, startup mentor, researcher, innovation strategist, and social entrepreneur, currently serving as <strong>Head Innovations & Entrepreneurship at Vignan Group, Hyderabad</strong>. She is dedicated to nurturing innovation, entrepreneurship, research, and industry–academia collaboration.
+                    </p>
+                    <p>
+                        She is the <strong>Founder & Chairman of Think.4U Charitable Trust</strong> and Founder of <strong>Think.4U Technologies</strong>, working tirelessly towards empowering youth, women innovators, students, and aspiring entrepreneurs across the nation.
+                    </p>
+                    <p>
+                        As a startup mentor, she has mentored <strong>80+ startups</strong>, supported entrepreneurs through guidance and investment, and has <strong>159+ mentees actively working on startups</strong> at the national level, with an extensive professional network of <strong>1,500+ founders</strong>.
+                    </p>
+                    <p>
+                        She is an active Mentor on the <strong>Women Entrepreneurship Platform (WEP)</strong>, a flagship initiative by <strong>NITI Aayog</strong>, and a mentor at <strong>SAYUJ – The Startup Community Network</strong>. She is also closely associated with <strong>TiE Hyderabad</strong> and various national and international academic and research organizations.
+                    </p>
+                    <p>
+                        A prolific researcher, she has contributed to <strong>20+ Scopus-indexed journals</strong> and international peer-reviewed publications, along with books, book chapters, and editorial reviews. She has served as an Advisory Board Member for international journals and has contributed to innovation through patents in AI-enabled work culture and employee performance measurement.
+                    </p>
+
+                    <div class="pt-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-800 mb-1">Awards & Recognitions</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                🏆 Best Women Faculty Excellence Award
+                            </span>
+                            <span class="px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                🎖️ Best Young Researcher Award
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-[#fffaf4] border-l-4 border-amber-600 mt-3">
+                        <span class="text-xs font-bold text-amber-900 uppercase block mb-0.5">Founding Vision</span>
+                        <p class="text-slate-800 italic text-sm font-medium">
+                            “Her vision is to build sustainable innovation ecosystems that transform education, research, and ideas into impactful entrepreneurial ventures for nation-building.”
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 2. Sri B. Karthik Reddy - Trustee & Treasurer -->
+        <article class="member-card rounded-3xl p-6 sm:p-10 border border-amber-900/15 bg-white">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div class="lg:col-span-4 flex flex-col items-center text-center">
+                    <div class="w-48 sm:w-56 h-64 sm:h-72 rounded-2xl overflow-hidden shadow-xl border-4 border-amber-100 bg-stone-100 relative mb-4">
+                        <img src="{{ url_for('static', filename='images/team/karthik_reddy.jpg') }}" alt="Sri B. Karthik Reddy" class="w-full h-full object-cover object-top">
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900">Mr. B Karthik Reddy</h2>
+                    <span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-blue-100 text-blue-900 border border-blue-300">
+                        Trustee & Treasurer
+                    </span>
+                    <div class="mt-4 flex flex-wrap justify-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">MBA Graduate</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Secretary, Teja Vidyalayam</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Community Leader</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8 space-y-4 text-slate-700 leading-relaxed text-sm sm:text-base">
+                    <p>
+                        <strong>Sri B. Karthik Reddy</strong> is an accomplished educationist, social activist, and community leader who holds a <strong>Master’s degree in Business Administration (MBA)</strong>.
+                    </p>
+                    <p>
+                        He serves as the <strong>Correspondent and Secretary of Teja Vidyalayam</strong>, where he is passionately committed to strengthening quality education and creating opportunities for students to develop their academic, professional, and personal potential.
+                    </p>
+                    <p>
+                        With a strong passion for education, social service, and community development, he actively works towards empowering students and supporting grassroots initiatives that contribute to the betterment of society.
+                    </p>
+                    <p>
+                        His leadership reflects a steadfast commitment to promoting accessible education, youth development, and social responsibility. As <strong>Treasurer of Think.4U Charitable Trust</strong>, he oversees fiduciary integrity, financial planning, and responsible resource deployment.
+                    </p>
+                    <div class="p-4 rounded-2xl bg-blue-50/70 border-l-4 border-blue-600 mt-2">
+                        <p class="text-blue-950 font-medium italic text-sm">
+                            “Through his work in the education sector and social initiatives, Sri B. Karthik Reddy continues to contribute meaningfully to the development of young minds and the community.”
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 3. Mr. K Vijay Krishna - Trustee – Community Development -->
+        <article class="member-card rounded-3xl p-6 sm:p-10 border border-amber-900/15 bg-white">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div class="lg:col-span-4 flex flex-col items-center text-center">
+                    <div class="w-48 sm:w-56 h-64 sm:h-72 rounded-2xl overflow-hidden shadow-xl border-4 border-amber-100 bg-stone-100 relative mb-4">
+                        <img src="{{ url_for('static', filename='images/team/vijay_krishna.jpg') }}" alt="Mr. K Vijay Krishna" class="w-full h-full object-cover object-top">
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900">Mr. K Vijay Krishna</h2>
+                    <span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        Trustee – Community Development
+                    </span>
+                    <div class="mt-4 flex flex-wrap justify-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Management in Finance</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Social Service Enthusiast</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Inclusive Development</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8 space-y-4 text-slate-700 leading-relaxed text-sm sm:text-base">
+                    <p>
+                        <strong>Mr. K Vijay Krishna</strong> is a dedicated professional and social-service enthusiast committed to creating a positive impact in society. He believes firmly in the values of compassion, integrity, responsibility, and inclusive development.
+                    </p>
+                    <p>
+                        As a <strong>management professional with a specialization in Finance</strong>, he brings a structured, analytical, and responsible approach to charitable and social initiatives. He is actively associated with community-oriented programs aimed at supporting marginalized groups and advancing societal welfare.
+                    </p>
+                    <p>
+                        His vision is to encourage education, empowerment, and opportunities for individuals from diverse socio-economic backgrounds. Through his initiatives, he strives to promote kindness, dignity, and sustainable community development.
+                    </p>
+                    <div class="p-4 rounded-2xl bg-emerald-50/70 border-l-4 border-emerald-600 mt-2">
+                        <p class="text-emerald-950 font-medium italic text-sm">
+                            “He strongly believes that meaningful change begins with responsible individuals and collective action. With a spirit of service and leadership, he continues to work toward building a more supportive and empowered society.”
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 4. Mr. M. Himavanth Kumar - Trustee -->
+        <article class="member-card rounded-3xl p-6 sm:p-10 border border-amber-900/15 bg-white">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div class="lg:col-span-4 flex flex-col items-center text-center">
+                    <div class="w-48 sm:w-56 h-64 sm:h-72 rounded-2xl overflow-hidden shadow-xl border-4 border-amber-100 bg-stone-100 relative mb-4">
+                        <img src="{{ url_for('static', filename='images/team/himavanth_kumar.jpg') }}" alt="Mr. M. Himavanth Kumar" class="w-full h-full object-cover object-top">
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900">Mr. M. Himavanth Kumar</h2>
+                    <span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-purple-100 text-purple-900 border border-purple-300">
+                        Trustee
+                    </span>
+                    <div class="mt-4 flex flex-wrap justify-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">6+ Years Industry Experience</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Tata Motors & Citroën Alum</span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-slate-700 border border-stone-200">Tata AIA Life Insurance</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8 space-y-4 text-slate-700 leading-relaxed text-sm sm:text-base">
+                    <p>
+                        <strong>Mr. M. Himavanth Kumar</strong> is a dedicated and versatile professional with <strong>6+ years of rich industry experience</strong> in the automobile and financial services sector, having served in leadership and sales-management roles at leading automotive brands including <strong>Tata Motors</strong> and <strong>Citroën</strong>.
+                    </p>
+                    <p>
+                        He is currently associated with <strong>Tata AIA Life Insurance Company</strong> in an office-support role, bringing valuable cross-functional acumen to organizational logistics and administration.
+                    </p>
+                    <p>
+                        Experienced in team leadership, sales coordination, customer relationship management, operational support, and administration, he possesses a strong ability to adapt to diverse professional environments and steer community mobilization for the Trust.
+                    </p>
+                    <div class="p-4 rounded-2xl bg-purple-50/70 border-l-4 border-purple-600 mt-2">
+                        <p class="text-purple-950 font-medium italic text-sm">
+                            “Applying professional operational rigor, team leadership, and administrative excellence to amplify grassroots impact across all Think.4U Trust initiatives.”
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+    </div>
+
+    <!-- BOTTOM CROSS REDIRECT SECTION -->
+    <section class="bg-[#ebd9c7] border-t border-[#d8beaa] py-14 px-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-10">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-900 block mb-1">Explore More</span>
+                <h3 class="text-2xl sm:text-3xl font-black text-slate-900">Connect With Other Trust Verticals</h3>
+                <p class="text-sm text-slate-700 mt-1">Discover our full organizational background and operational leaders.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- About Trust Card -->
+                <a href="{{ url_for('about') }}" class="group member-card rounded-2xl p-6 flex flex-col justify-between hover:border-amber-500 transition duration-300">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                            <i data-lucide="info" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-amber-700 uppercase tracking-wider block mb-1">Organization Overview</span>
+                        <h4 class="text-xl font-black text-slate-900 mb-2 group-hover:text-amber-800 transition">About Think.4U</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Discover our founding story, vision, mission, strategic focus areas, and 2025–2026 planned activities.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-amber-800">
+                        <span>Read About Trust</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                    </div>
+                </a>
+
+                <!-- Managing Team Card -->
+                <a href="{{ url_for('managingteam') }}" class="group member-card rounded-2xl p-6 flex flex-col justify-between hover:border-amber-500 transition duration-300">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-800 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                            <i data-lucide="briefcase" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">Executive Leadership</span>
+                        <h4 class="text-xl font-black text-slate-900 mb-2 group-hover:text-emerald-800 transition">Managing Team</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Meet the executive leadership translating strategy into execution, community outreach, and daily operations.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-emerald-800">
+                        <span>View Managing Team</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                    </div>
+                </a>
+
+                <!-- Core Team Card -->
+                <a href="{{ url_for('coreteam') }}" class="group member-card rounded-2xl p-6 flex flex-col justify-between hover:border-amber-500 transition duration-300">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-800 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-blue-700 uppercase tracking-wider block mb-1">Functional Directors</span>
+                        <h4 class="text-xl font-black text-slate-900 mb-2 group-hover:text-blue-800 transition">Core Team</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Learn more about our Directors leading Youth, Women, Cultural, Innovation, and Legal programs.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-blue-800">
+                        <span>View Core Team</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+{% endblock %}

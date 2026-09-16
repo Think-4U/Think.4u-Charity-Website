@@ -242,6 +242,7 @@ def verify_turnstile(token, ip=None):
         response = requests.post(
             "https://challenges.cloudflare.com/turnstile/v0/siteverify",
             data=data,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
             timeout=10.0,
         )
         if response.status_code != 200:
@@ -618,6 +619,15 @@ def normalize_url(value, max_length=800):
     return url
 
 
+def is_safe_redirect_url(target):
+    """Ensure redirect destination is a relative local path, preventing open redirects."""
+    if not target or not isinstance(target, str):
+        return False
+    parsed = urlparse(target)
+    return parsed.scheme == "" and parsed.netloc == "" and target.startswith("/") and not target.startswith("//")
+
+
+
 def normalize_meeting_time(value):
     """Return a validated 24-hour HH:MM time, or an empty string."""
     raw_value = clean_text(value, 20)
@@ -902,17 +912,18 @@ CMS_DEFAULTS = {
     "reg_number": "",
     "tax_id": "",
     "cert_80g": "",
-    "contact_email": "hello@think4u.org",
-    "contact_phone": "+91 9876543210",
-    "contact_whatsapp": "+91 9876543210",
-    "contact_address": "Hyderabad, Telangana, India",
-    "geo_latitude": "17.3850",
-    "geo_longitude": "78.4867",
-    "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Hyderabad%2C%20Telangana%2C%20India",
-    "google_maps_embed_url": "https://www.google.com/maps?q=Hyderabad%2C%20Telangana%2C%20India&output=embed",
+    "contact_email": "info@think4u.org",
+    "contact_phone": "+91 99591 28946",
+    "contact_whatsapp": "+91 99591 28946",
+    "contact_address": "Flat no: 203, Surabhi residency gangastan dullapally hyderabad Telangana pin 500014",
+    "geo_latitude": "17.5485038",
+    "geo_longitude": "78.4631349",
+    "google_maps_url": "https://www.google.com/maps/place/17%C2%B032'54.6%22N+78%C2%B027'47.3%22E/@17.5485038,78.46056,17z/data=!3m1!4b1!4m4!3m3!8m2!3d17.5485038!4d78.4631349?hl=en&entry=ttu&g_ep=EgoyMDI2MDkxMy4wIKXMDSoASAFQAw%3D%3D",
+    "google_maps_embed_url": "https://www.google.com/maps?q=17.5485038,78.4631349&output=embed",
     "social_facebook": "",
     "social_twitter": "",
-    "social_instagram": "",
+    "social_instagram": "https://www.instagram.com/think.4u",
+    "social_youtube": "https://www.youtube.com/@Think.4U-h9g",
     "social_linkedin": "",
     "maintenance_enabled": "false",
     "maintenance_start": "",
@@ -1133,6 +1144,10 @@ def apply_paid_donation_effects(donation):
             f"Your donation of Rs {donation.get('amount', 0)/100:.2f} for {donation.get('purpose_label') or 'Think.4U'} was received successfully."
         )
     update_fundraiser_raised(donation)
+    try:
+        send_donation_receipt_email_if_needed(donation)
+    except Exception as e:
+        app.logger.warning(f"Auto-receipt email dispatch failed: {e}")
 
 
 def jitsi_domain():
@@ -1383,7 +1398,7 @@ def generate_csrf_token():
 def verify_csrf_token():
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return True
-    if request.endpoint in {"razorpay_webhook", "payment_success_redirect"}:
+    if request.endpoint == "payment_success_redirect":
         return True
     # Accept the standard header and the legacy spelling used by older cached
     # meeting pages. Both values are verified against the per-session token.
@@ -1491,7 +1506,7 @@ def send_otp_email(email, otp_code, flow_label):
         otp=otp_code,
         expires_minutes=max(1, OTP_EXPIRY_SECONDS // 60),
         flow_label=flow_label,
-        logo_url=f"{site_url}/static/images/logo-white.png",
+        logo_url=f"{site_url}/static/images/updated_main_logo.jpeg",
         website_url=site_url,
     )
     ok, _err = send_email_sync(subject=subject, recipients=[email], html=html_content)
@@ -1857,26 +1872,34 @@ def set_security_headers(response):
         "geolocation=(), "
         "accelerometer=*, "
         "gyroscope=*, "
-        "magnetometer=*"
+        "magnetometer=*, "
+        'private-state-token-redemption=(self "https://challenges.cloudflare.com"), '
+        'private-state-token-issuance=(self "https://challenges.cloudflare.com")'
     )
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    # same-origin CORP blocks Turnstile/Vercel challenge workers from reading
+    # first-party assets during bot verification and surfaces Cloudflare's
+    # "%{placeholder.com}" interstitial with Ray ID undefined.
+    response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["Origin-Agent-Cluster"] = "?1"
     if ENFORCE_HTTPS:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    challenge_src = "https://challenges.cloudflare.com https://*.cloudflare.com https://vercel.live https://va.vercel-scripts.com"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "frame-ancestors 'none'; "
-        "img-src 'self' data: https:; "
+        "img-src 'self' data: blob: https:; "
         "media-src 'self' blob: data:; "
-        f"script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://challenges.cloudflare.com {jitsi_src}; "
+        "worker-src 'self' blob: https://challenges.cloudflare.com; "
+        "child-src 'self' blob: https://challenges.cloudflare.com; "
+        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {challenge_src} {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {challenge_src} {jitsi_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com https://challenges.cloudflare.com {jitsi_src}; "
-        f"frame-src https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com https://challenges.cloudflare.com {jitsi_src}; "
+        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
+        f"frame-src 'self' https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
         "base-uri 'self'; "
         "form-action 'self'; "
         "object-src 'none'"
@@ -1892,7 +1915,7 @@ def set_security_headers(response):
 def build_branded_email(title, body_html, preheader=""):
     """Render the reusable branded transactional-email layout."""
     site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
-    logo_url = f"{site_url}/static/images/logo-white.png"
+    logo_url = f"{site_url}/static/images/updated_main_logo.jpeg"
     return render_template(
         "emails/base_email.html",
         email_title=title,
@@ -2027,7 +2050,6 @@ def index():
                           hero_media=hero_media,
                           gallery_photos=gallery_photos,
                           gallery_videos=gallery_videos,
-                          razor_key=RAZOR_KEY,
                           stats=stats)
 
 
@@ -2486,62 +2508,7 @@ def payment_success_redirect():
     return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
 
-@app.route("/razorpay-webhook", methods=["POST"])
-def razorpay_webhook():
-    """Handle Razorpay webhook events"""
-    if not RAZORPAY_ENABLED:
-        return jsonify({"error": "Razorpay not configured"}), 503
 
-    webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
-    webhook_signature = request.headers.get('X-Razorpay-Signature')
-    webhook_body = request.get_data()
-
-    try:
-        if not verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
-            return jsonify({"error": "Invalid webhook signature"}), 400
-
-        event = request.json or {}
-        event_type = event.get('event')
-
-        if event_type == 'payment.captured':
-            payment = event.get('payload', {}).get('payment', {}).get('entity', {})
-            order_id = payment.get('order_id')
-            payment_id = payment.get('id')
-            if order_id and payment_id:
-                existing_response = supabase.table('donations').select("*").eq('razorpay_order_id', order_id).limit(1).execute()
-                existing_donation = (existing_response.data or [None])[0]
-                was_already_paid = bool(existing_donation and existing_donation.get("status") == "paid")
-                update_response = supabase.table('donations') \
-                    .update({
-                        "razorpay_payment_id": payment_id,
-                        "status": "paid",
-                        "payment_method": "Razorpay"
-                    }) \
-                    .eq('razorpay_order_id', order_id) \
-                    .execute()
-                if update_response.data and not was_already_paid:
-                    donation = update_response.data[0]
-                    apply_paid_donation_effects(donation)
-                    send_donation_receipt_email_if_needed(donation)
-        elif event_type == 'payment.failed':
-            payment = event.get('payload', {}).get('payment', {}).get('entity', {})
-            order_id = payment.get('order_id')
-            payment_id = payment.get('id')
-            if order_id:
-                update_payload = {"status": "failed"}
-                if payment_id:
-                    update_payload["razorpay_payment_id"] = payment_id
-                supabase.table('donations') \
-                    .update(update_payload) \
-                    .eq('razorpay_order_id', order_id) \
-                    .eq('status', 'pending') \
-                    .execute()
-
-        return jsonify({"status": "ok"}), 200
-
-    except Exception as e:
-        app.logger.error(f"Webhook error: {e}")
-        return jsonify({"error": "Webhook validation failed"}), 400
 
 
 @app.route("/upi-qr")
@@ -2797,7 +2764,11 @@ def generate_receipt_pdf(context):
     pdf.setFont("Helvetica-Bold", 7)
     pdf.drawString(left + 304, y - 16, "RECEIPT DATE")
     pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(left + 304, y - 31, created_at.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y"))
+    try:
+        _ist = ZoneInfo("Asia/Kolkata")
+    except Exception:
+        _ist = timezone(timedelta(hours=5, minutes=30))
+    pdf.drawString(left + 304, y - 31, created_at.astimezone(_ist).strftime("%d %b %Y"))
     pdf.setStrokeColor(green)
     pdf.setFillColor(colors.HexColor("#F0FAF3"))
     pdf.roundRect(right - 119, y - 44, 119, 44, 6, stroke=1, fill=1)
@@ -3328,7 +3299,7 @@ def verify_login():
 
         flash("Logged in successfully.", "success")
         next_page = payload.get("next_page")
-        if next_page:
+        if next_page and is_safe_redirect_url(next_page):
             return redirect(next_page)
         if user.role == "coordinator":
             return redirect(url_for("coordinator_portal"))
@@ -5071,6 +5042,30 @@ def grievance_feedback():
 
     recent_donations = get_recent_user_donations(current_user.id, current_user.email, limit=5)
     return render_template("grievance.html", grievances=items, recent_donations=recent_donations)
+
+
+@app.route("/about")
+@app.route("/about-us")
+def about():
+    return render_template("about.html")
+
+
+@app.route("/governingbody")
+@app.route("/governing-body")
+def governingbody():
+    return render_template("governingbody.html")
+
+
+@app.route("/managingteam")
+@app.route("/managing-team")
+def managingteam():
+    return render_template("managingteam.html")
+
+
+@app.route("/coreteam")
+@app.route("/core-team")
+def coreteam():
+    return render_template("coreteam.html")
 
 
 @app.route("/policy-terms")

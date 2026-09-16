@@ -69,3 +69,6 @@ For the supplied self-hosted Docker configuration, set `JITSI_JWT_SECRET` to the
 same secret as the host's `JWT_APP_SECRET` and set `JITSI_JWT_ALGORITHM=HS256` in
 the Think4u deployment. The supplied RSA variables are for a JaaS/asymmetric JWT
 setup and are not interchangeable with the Docker shared secret.
+
+
+Think.4U Beta Environment

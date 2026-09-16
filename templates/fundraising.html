@@ -1,40 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Fundraising - Think.4U{% endblock %}
+{% block title %}Fundraising Campaigns - Think.4U{% endblock %}
 
 {% block content %}
-<section class="px-4 py-10">
+<section class="px-4 py-14 bg-[#fcf8f3] min-h-screen text-[#24120b]">
     <div class="max-w-6xl mx-auto">
-        <h1 class="text-4xl font-black text-slate-900 mb-2">Fundraising Campaigns</h1>
-        <p class="text-slate-600 mb-8">View active fundraisers and donate to any campaign.</p>
+        <div class="mb-10 text-center sm:text-left">
+            <span class="inline-block px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold uppercase tracking-wider mb-2">
+                Active Campaigns
+            </span>
+            <h1 class="text-4xl sm:text-5xl font-black text-slate-900 mb-2">Fundraising Initiatives</h1>
+            <p class="text-slate-600 max-w-xl">Every rupee goes directly to verified community welfare, child education, and emergency aid.</p>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-7">
             {% for c in campaigns %}
-            <div class="bg-white rounded-2xl shadow border p-6">
-                <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ c.title }}</h2>
-                <p class="text-slate-700 mb-4">{{ c.description }}</p>
+            <div class="bg-white rounded-3xl shadow-lg border border-amber-900/10 p-7 hover:border-amber-500/30 transition flex flex-col justify-between">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900 mb-2">{{ c.title }}</h2>
+                    <p class="text-slate-700 leading-relaxed mb-6">{{ c.description }}</p>
 
-                {% set target = (c.target_amount or 0) %}
-                {% set raised = (c.raised_amount or 0) %}
-                {% set percent = ((raised / target) * 100) if target else 0 %}
-                <div class="mb-3">
-                    <div class="flex justify-between text-sm text-slate-600 mb-1">
-                        <span>Raised Rs {{ "{:,.0f}".format(raised) }}</span>
-                        <span>Target Rs {{ "{:,.0f}".format(target) }}</span>
+                    {% set target = (c.target_amount or 0) %}
+                    {% set raised = (c.raised_amount or 0) %}
+                    {% set percent = ((raised / target) * 100) if target else 0 %}
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm font-semibold text-slate-700 mb-1.5">
+                            <span>Raised: <strong class="text-emerald-700">₹{{ "{:,.0f}".format(raised) }}</strong></span>
+                            <span>Target: <strong class="text-slate-900">₹{{ "{:,.0f}".format(target) }}</strong></span>
+                        </div>
+                        <div class="w-full bg-stone-100 rounded-full h-3.5 overflow-hidden border border-stone-200">
+                            {% set style_attr = 'style="width: ' ~ [percent, 100]|min ~ '%;"' %}
+                            <div class="h-3.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 transition-all duration-500" {{ style_attr | safe }}></div>
+                        </div>
                     </div>
-                    <div class="w-full bg-slate-200 rounded-full h-3">
-                        {% set style_attr = 'style="width: ' ~ [percent, 100]|min ~ '%;"' %}
-                        <div class="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" {{ style_attr | safe }}></div>
-                    </div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-amber-800 mb-6">{{ "{:.1f}".format(percent) }}% Completed</p>
                 </div>
-                <p class="text-sm text-slate-500 mb-4">{{ "{:.1f}".format(percent) }}% complete</p>
 
-                <a href="{{ url_for('donate', purpose_type='fundraiser', purpose_id=c.id, purpose_label=c.title) }}" class="inline-flex px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold">
-                    Donate to This Cause
-                </a>
+                <div>
+                    <a href="{{ url_for('donate', purpose_type='fundraiser', purpose_id=c.id, purpose_label=c.title) }}" class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#24120b] to-[#4a2012] hover:from-[#38180e] hover:to-[#5e2815] text-white font-bold text-sm shadow-md transition border border-amber-500/30">
+                        <span>Donate to This Cause</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-amber-400"></i>
+                    </a>
+                </div>
             </div>
             {% else %}
-            <div class="col-span-full bg-white rounded-2xl shadow border p-8 text-center text-slate-600">
-                No fundraising campaigns available right now.
+            <div class="col-span-full bg-white rounded-3xl shadow-lg border border-amber-900/10 p-12 text-center text-slate-600">
+                <p class="text-lg font-semibold mb-2">No active fundraising campaigns at this moment.</p>
+                <p class="text-sm text-slate-500 mb-5">You can still make a general contribution to support our mission.</p>
+                <a href="{{ url_for('donate') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#d58d4b] hover:bg-[#b86725] text-white font-bold transition">
+                    Make a General Donation
+                </a>
             </div>
             {% endfor %}
         </div>

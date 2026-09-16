@@ -2,27 +2,30 @@
 {% block title %}Events - Think.4U{% endblock %}
 
 {% block content %}
-<section class="px-4 py-10">
+<section class="px-4 py-14 bg-[#fcf8f3] min-h-screen text-[#24120b]">
     <div class="max-w-5xl mx-auto">
-        <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-10">
             <div>
-                <h1 class="text-4xl font-black text-slate-900 mb-2">Upcoming Events</h1>
-                <p class="text-slate-600">Register here to participate. Certificates are approved event-wise by admin.</p>
+                <span class="inline-block px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold uppercase tracking-wider mb-2">
+                    Community Drives
+                </span>
+                <h1 class="text-4xl sm:text-5xl font-black text-slate-900 mb-2">Upcoming Events</h1>
+                <p class="text-slate-600 max-w-xl">Register here to participate. Certificates are verified and approved event-wise by admin.</p>
             </div>
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('certificates_page') }}" class="px-4 py-2 rounded-xl bg-violet-50 text-violet-700 font-semibold">My Certificates</a>
+            <a href="{{ url_for('certificates_page') }}" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold shadow transition hover:from-amber-700 hover:to-amber-800">My Certificates</a>
             {% else %}
-            <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-violet-50 text-violet-700 font-semibold">Login to Register</a>
+            <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-5 py-2.5 rounded-xl bg-[#24120b] text-white font-bold shadow transition hover:bg-[#38180e] border border-amber-500/30">Login to Register</a>
             {% endif %}
         </div>
 
         {% if events %}
-        <div class="space-y-4">
+        <div class="space-y-5">
             {% for e in events %}
             {% set event_id = e.id|int %}
             {% set registration = registration_map.get(event_id) if registration_map else None %}
             {% set cert = certificate_map.get(event_id) if certificate_map else None %}
-            <div class="bg-white rounded-2xl shadow border p-5">
+            <div class="bg-white rounded-3xl shadow-lg border border-amber-900/10 p-6 sm:p-7 hover:border-amber-500/30 transition">
                 <div class="flex flex-wrap gap-4 items-start justify-between">
                     <div class="flex-1 min-w-[240px]">
                         <h2 class="text-xl font-bold text-slate-900">{{ e.title or 'Event' }}</h2>

@@ -193,25 +193,158 @@
 
     <section class="py-16 surface" id="about">
         <div class="container mx-auto px-4">
-            <h2 class="section-title">About Think.4U</h2>
-            <p class="section-subtitle">{{ get_cms('mission_text', 'Think.4U is a community charity platform dedicated to promoting education, empowerment, health, and measurable social impact.') }}</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-6xl mx-auto">
-                <div class="media-frame content-card">
-                    <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U community work">
+            <div class="text-center max-w-3xl mx-auto mb-12">
+                <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-900 border border-amber-400/30 mb-3">
+                    <i data-lucide="heart-handshake" class="w-4 h-4 text-amber-700"></i> Love in Action, Care with Compassion
+                </span>
+                <h2 class="section-title">About Think.4U Charitable Trust</h2>
+                <p class="text-lg font-bold text-amber-800 italic mb-2">“Think. Empower. Uplift.”</p>
+                <p class="section-subtitle mb-0">
+                    A public charitable trust established to empower communities through quality education, skill development, preventive healthcare, environmental sustainability, and holistic social welfare initiatives.
+                </p>
+            </div>
+
+            <!-- Main Intro & Key Pillars -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center max-w-6xl mx-auto mb-12">
+                <div class="lg:col-span-5">
+                    <div class="content-card p-6 sm:p-8 bg-gradient-to-br from-white via-amber-50/50 to-orange-50/30 text-center border-2 border-amber-900/10">
+                        <div class="w-24 h-24 mx-auto mb-4 rounded-2xl overflow-hidden shadow-md border border-amber-200 bg-white p-2">
+                            <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U Logo" class="w-full h-full object-contain">
+                        </div>
+                        <h3 class="text-2xl font-black text-slate-900 mb-1">Think.4U Foundation</h3>
+                        <p class="text-xs font-bold text-amber-800 uppercase tracking-wider mb-4">Indian Trusts Act, 1882</p>
+                        <p class="text-sm text-slate-700 leading-relaxed mb-6">
+                            Meaningful change begins with thoughtful action. We partner with volunteers, academicians, and corporate CSR wings to bring lasting, scalable impact.
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                            <a href="{{ url_for('about') }}" class="btn-cta text-sm py-2.5 px-4 justify-center">
+                                <i data-lucide="info" class="w-4 h-4"></i> Read Full Story
+                            </a>
+                            <a href="{{ url_for('static', filename='documents/1. THINK.4U CHARTITABLE TRUST.pdf') }}" target="_blank" download class="btn-cta btn-secondary text-sm py-2.5 px-4 justify-center">
+                                <i data-lucide="file-text" class="w-4 h-4"></i> Trust PDF
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="grid gap-4">
-                    <div class="content-card p-5 flex gap-4">
-                        <i data-lucide="graduation-cap" class="w-7 h-7 text-amber-700 flex-shrink-0"></i>
-                        <p class="text-slate-700">Education support and scholarships for children and youth.</p>
+
+                <div class="lg:col-span-7 grid gap-4">
+                    <div class="content-card p-5 flex gap-4 items-start hover:border-amber-400 transition">
+                        <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-base mb-1">Education & Youth Scholarships</h4>
+                            <p class="text-slate-700 text-sm">Providing learning materials, school kits, and financial scholarships for economically weaker students.</p>
+                        </div>
                     </div>
-                    <div class="content-card p-5 flex gap-4">
-                        <i data-lucide="shield-plus" class="w-7 h-7 text-emerald-700 flex-shrink-0"></i>
-                        <p class="text-slate-700">Preventive health, mental health, and community care initiatives.</p>
+                    <div class="content-card p-5 flex gap-4 items-start hover:border-amber-400 transition">
+                        <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="heart-pulse" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-base mb-1">Health, Nutrition & Hygiene</h4>
+                            <p class="text-slate-700 text-sm">Organizing health camps, blood donation drives, mental wellbeing sessions, and menstrual hygiene drives.</p>
+                        </div>
                     </div>
-                    <div class="content-card p-5 flex gap-4">
-                        <i data-lucide="users" class="w-7 h-7 text-blue-700 flex-shrink-0"></i>
-                        <p class="text-slate-700">Women empowerment, rural support, and transparent impact programs.</p>
+                    <div class="content-card p-5 flex gap-4 items-start hover:border-amber-400 transition">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-base mb-1">Women Empowerment & Skill Building</h4>
+                            <p class="text-slate-700 text-sm">Vocational training, handicrafts, tailoring, and micro-entrepreneurship support for self-reliance.</p>
+                        </div>
                     </div>
+                    <div class="content-card p-5 flex gap-4 items-start hover:border-amber-400 transition">
+                        <div class="w-12 h-12 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="leaf" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-base mb-1">Environmental Sustainability & Relief</h4>
+                            <p class="text-slate-700 text-sm">Tree plantation drives (2,000+ saplings), clean-water initiatives, and disaster relief programs.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick-Access Cards to the 4 Key Sections -->
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-6">
+                    <h3 class="text-xl sm:text-2xl font-black text-slate-900">Explore Trust Leadership & Governance</h3>
+                    <p class="text-xs sm:text-sm text-slate-600 mt-1">Click below to learn more about our organization, trustees, and operational leadership.</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <!-- Card 1: About Organization -->
+                    <a href="{{ url_for('about') }}" class="content-card p-5 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition duration-300 group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center mb-3 group-hover:scale-110 transition">
+                                <i data-lucide="info" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-amber-700 uppercase tracking-wider block mb-1">Trust Profile</span>
+                            <h4 class="text-lg font-black text-slate-900 mb-1 group-hover:text-amber-800 transition">About Think.4U</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Vision, mission, strategic objectives, 2025–2026 roadmap, and measurable outcomes.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-amber-800">
+                            <span>Read More</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                        </div>
+                    </a>
+
+                    <!-- Card 2: Governing Body -->
+                    <a href="{{ url_for('governingbody') }}" class="content-card p-5 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition duration-300 group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center mb-3 group-hover:scale-110 transition">
+                                <i data-lucide="shield" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-amber-700 uppercase tracking-wider block mb-1">Stewardship</span>
+                            <h4 class="text-lg font-black text-slate-900 mb-1 group-hover:text-amber-800 transition">Governing Body</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Board of Trustees providing institutional guidance, policy oversight, and ethical stewardship.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-amber-800">
+                            <span>Meet Trustees</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                        </div>
+                    </a>
+
+                    <!-- Card 3: Managing Team -->
+                    <a href="{{ url_for('managingteam') }}" class="content-card p-5 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition duration-300 group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-800 flex items-center justify-center mb-3 group-hover:scale-110 transition">
+                                <i data-lucide="briefcase" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block mb-1">Execution</span>
+                            <h4 class="text-lg font-black text-slate-900 mb-1 group-hover:text-emerald-800 transition">Managing Team</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Executive management overseeing operations, CSR partnerships, campaigns, and delivery.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-emerald-800">
+                            <span>View Management</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                        </div>
+                    </a>
+
+                    <!-- Card 4: Core Team -->
+                    <a href="{{ url_for('coreteam') }}" class="content-card p-5 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition duration-300 group">
+                        <div>
+                            <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-800 flex items-center justify-center mb-3 group-hover:scale-110 transition">
+                                <i data-lucide="users" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider block mb-1">Grassroots</span>
+                            <h4 class="text-lg font-black text-slate-900 mb-1 group-hover:text-blue-800 transition">Core Team</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Directors spearheading Youth, Women, Cultural Heritage, Innovation, and Legal compliance.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-xs font-bold text-blue-800">
+                            <span>View Core Team</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition"></i>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>

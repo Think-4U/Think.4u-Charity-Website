@@ -5082,6 +5082,30 @@ def grievance_feedback():
     return render_template("grievance.html", grievances=items, recent_donations=recent_donations)
 
 
+@app.route("/about")
+@app.route("/about-us")
+def about():
+    return render_template("about.html")
+
+
+@app.route("/governingbody")
+@app.route("/governing-body")
+def governingbody():
+    return render_template("governingbody.html")
+
+
+@app.route("/managingteam")
+@app.route("/managing-team")
+def managingteam():
+    return render_template("managingteam.html")
+
+
+@app.route("/coreteam")
+@app.route("/core-team")
+def coreteam():
+    return render_template("coreteam.html")
+
+
 @app.route("/policy-terms")
 def policy_terms():
     return render_template("policy_terms.html")

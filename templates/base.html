@@ -72,6 +72,112 @@
             text-shadow:0 1px 1px rgba(0,0,0,0.3);
         }
         .nav-menu a:hover { color:var(--charity-gold); }
+        /* HEADER DROPDOWN */
+        .nav-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .nav-dropdown-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: rgba(255,255,255,0.9);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: inherit;
+            font-weight: 500;
+            padding: 0.5rem 0;
+            transition: color 0.3s ease;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+        }
+        .nav-dropdown:hover .nav-dropdown-btn,
+        .nav-dropdown.open .nav-dropdown-btn {
+            color: var(--charity-gold);
+        }
+        .nav-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: -1rem;
+            min-width: 250px;
+            background: #24120c;
+            border: 1px solid rgba(213, 141, 75, 0.35);
+            border-radius: 12px;
+            padding: 0.5rem 0;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.45);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(12px);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1050;
+            list-style: none;
+        }
+        .nav-dropdown:hover .nav-dropdown-menu,
+        .nav-dropdown:focus-within .nav-dropdown-menu,
+        .nav-dropdown.open .nav-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .nav-dropdown-menu li {
+            margin: 0;
+        }
+        .nav-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.25rem;
+            color: rgba(255,255,255,0.9) !important;
+            font-size: 0.92rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .nav-dropdown-menu a:hover {
+            background: rgba(213, 141, 75, 0.18);
+            color: var(--charity-gold) !important;
+            padding-left: 1.5rem;
+        }
+        .nav-dropdown-menu a svg,
+        .nav-dropdown-menu a i {
+            width: 16px;
+            height: 16px;
+            color: var(--charity-gold);
+            flex-shrink: 0;
+        }
+        /* SCROLL TO TOP */
+        #scroll-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--charity-gold), var(--charity-gold-hover));
+            color: #ffffff;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(16px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #scroll-to-top.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        #scroll-to-top:hover {
+            transform: translateY(-4px) scale(1.08);
+            box-shadow: 0 14px 28px rgba(213, 141, 75, 0.45);
+            background: linear-gradient(135deg, #e39d5b, #b86725);
+        }
         .btn-header {
             background:var(--charity-gold);
             color:white;
@@ -194,7 +300,18 @@
         <div class="header-container">
             <div class="logo"><a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U Logo"></a></div>
             <ul class="nav-menu hidden md:flex">
-                <li><a href="{{ url_for('index') }}#about">About</a></li>
+                <li class="nav-dropdown">
+                    <button type="button" class="nav-dropdown-btn" id="about-dropdown-btn" aria-haspopup="true" aria-expanded="false" data-no-loader>
+                        <span>About Us</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+                    </button>
+                    <ul class="nav-dropdown-menu" aria-labelledby="about-dropdown-btn">
+                        <li><a href="{{ url_for('about') }}"><i data-lucide="info"></i>About Think.4U</a></li>
+                        <li><a href="{{ url_for('governingbody') }}"><i data-lucide="shield"></i>Governing Body</a></li>
+                        <li><a href="{{ url_for('managingteam') }}"><i data-lucide="briefcase"></i>Managing Team</a></li>
+                        <li><a href="{{ url_for('coreteam') }}"><i data-lucide="users"></i>Core Team</a></li>
+                    </ul>
+                </li>
                 <li><a href="{{ url_for('index') }}#programs">Programs</a></li>
                 <li><a href="{{ url_for('events_page') }}">Events</a></li>
                 <li><a href="{{ url_for('fundraising') }}">Fundraising</a></li>
@@ -212,8 +329,14 @@
             </ul>
             <button id="mobile-menu-btn" class="md:hidden text-white hover:text-charity-gold transition"><i data-lucide="menu" class="w-8 h-8"></i></button>
         </div>
-        <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 space-y-4 text-center">
-            <a href="{{ url_for('index') }}#about" class="block text-white hover:text-charity-gold py-2">About</a>
+        <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 space-y-3 text-center border-t border-white/10 pt-4">
+            <div class="space-y-1 bg-white/5 rounded-xl p-3 border border-white/10 text-left">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-400 block pb-1 px-2">About Organization</span>
+                <a href="{{ url_for('about') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="info" class="w-4 h-4 text-amber-400"></i>About Think.4U</a>
+                <a href="{{ url_for('governingbody') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="shield" class="w-4 h-4 text-amber-400"></i>Governing Body</a>
+                <a href="{{ url_for('managingteam') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="briefcase" class="w-4 h-4 text-amber-400"></i>Managing Team</a>
+                <a href="{{ url_for('coreteam') }}" class="flex items-center gap-2 text-white hover:text-charity-gold py-1.5 px-2 rounded hover:bg-white/5 text-sm"><i data-lucide="users" class="w-4 h-4 text-amber-400"></i>Core Team</a>
+            </div>
             <a href="{{ url_for('index') }}#programs" class="block text-white hover:text-charity-gold py-2">Programs</a>
             <a href="{{ url_for('events_page') }}" class="block text-white hover:text-charity-gold py-2">Events</a>
             <a href="{{ url_for('fundraising') }}" class="block text-white hover:text-charity-gold py-2">Fundraising</a>
@@ -251,7 +374,7 @@
     <footer id="contact">
         <div class="footer-content">
             <div class="footer-section"><h3>Think.4U</h3><p>{{ get_cms('mission_text', 'Making a positive impact through education, empowerment, and community development.') }}</p></div>
-            <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('index') }}#about">About Us</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('events_page') }}">Events</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
+            <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('about') }}">About Us</a></li><li><a href="{{ url_for('governingbody') }}">Governing Body</a></li><li><a href="{{ url_for('managingteam') }}">Managing Team</a></li><li><a href="{{ url_for('coreteam') }}">Core Team</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('events_page') }}">Events</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
             <div class="footer-section"><h3>Contact</h3><ul><li>Email: {{ get_cms('contact_email', 'hello@think4u.org') }}</li><li>Phone: {{ get_cms('contact_phone', '+91 9876543210') }}</li><li>Address: {{ get_cms('contact_address', 'Hyderabad, Telangana, India') }}</li><li><a href="{{ url_for('contact') }}">Contact Form</a></li></ul></div>
             <div class="footer-section"><h3>Follow Us</h3><ul><li><a href="{{ get_cms('social_facebook', '#') }}">Facebook</a></li><li><a href="{{ get_cms('social_instagram', '#') }}">Instagram</a></li><li><a href="{{ get_cms('social_twitter', '#') }}">Twitter</a></li><li><a href="{{ get_cms('social_linkedin', '#') }}">LinkedIn</a></li></ul></div>
         </div>
@@ -337,9 +460,44 @@
             }));
             document.addEventListener('click', ev=>{ const a=ev.target.closest('a'); if(a && !a.hasAttribute('data-no-loader') && a.target!=='_blank' && !a.hasAttribute('download') && !ev.defaultPrevented && !ev.metaKey && !ev.ctrlKey && !ev.shiftKey && !ev.altKey){ const href=a.getAttribute('href'); if(href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !(href.includes('#') && (href.startsWith('/')||href.startsWith(window.location.pathname)))) window.showGlobalLoader('Opening page...'); } }, true);
             document.addEventListener('submit', e=>{ if(!e.target.hasAttribute('data-no-loader')) window.showGlobalLoader('Processing...'); }, true);
+            // Scroll to top button logic
+            const scrollBtn = document.getElementById('scroll-to-top');
+            if (scrollBtn) {
+                window.addEventListener('scroll', () => {
+                    if (window.scrollY > 280) {
+                        scrollBtn.classList.add('show');
+                    } else {
+                        scrollBtn.classList.remove('show');
+                    }
+                }, { passive: true });
+                scrollBtn.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            // About Us dropdown interaction
+            const aboutBtn = document.getElementById('about-dropdown-btn');
+            const aboutDropdown = aboutBtn?.closest('.nav-dropdown');
+            if (aboutBtn && aboutDropdown) {
+                aboutBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    aboutDropdown.classList.toggle('open');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!aboutDropdown.contains(e.target)) {
+                        aboutDropdown.classList.remove('open');
+                    }
+                });
+            }
         });
         window.addEventListener('pageshow',()=>window.hideGlobalLoader());
     </script>
     {% block extra_js %}{% endblock %}
+
+    <!-- Universal Scroll-to-Top Button -->
+    <button id="scroll-to-top" aria-label="Scroll to top" title="Scroll to top" data-no-loader>
+        <i data-lucide="chevron-up" class="w-6 h-6 stroke-[2.5]"></i>
+    </button>
 </body>
 </html>

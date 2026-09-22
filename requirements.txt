@@ -3,7 +3,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 Flask-Mail==0.9.1
 razorpay==1.4.1
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9.9
 python-dotenv==1.2.2
 qrcode==7.4.2
 Pillow==12.2.0

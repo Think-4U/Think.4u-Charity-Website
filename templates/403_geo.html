@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Access Restricted – Think.4U{% endblock %}
+
+{% block content %}
+<section class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-20">
+  <div class="max-w-lg w-full text-center">
+
+    <!-- Icon -->
+    <div class="flex justify-center mb-6">
+      <div class="bg-red-100 rounded-full p-6 inline-flex">
+        <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Heading -->
+    <h1 class="text-3xl font-bold text-gray-800 mb-3">Access Restricted</h1>
+    <p class="text-gray-500 text-lg mb-6">
+      Sorry, this service is currently available only in selected regions.<br>
+      Our platform is not accessible from your location.
+    </p>
+
+    <!-- Country badge (shown only when detected) -->
+    {% if country %}
+    <div class="inline-flex items-center gap-2 bg-gray-200 text-gray-600 text-sm font-medium px-4 py-2 rounded-full mb-6">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      Detected location: <span class="font-bold">{{ country }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Divider -->
+    <hr class="border-gray-200 mb-6">
+
+    <!-- Contact note -->
+    <p class="text-gray-400 text-sm">
+      If you believe this is a mistake, please contact us at
+      <a href="mailto:info@think4u.in" class="text-blue-500 hover:underline">info@think4u.in</a>.
+    </p>
+
+    <!-- Back link -->
+    <div class="mt-8">
+      <a href="/"
+        class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back to homepage
+      </a>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

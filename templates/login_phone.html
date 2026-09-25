@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Mobile Login - Think.4U{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-2xl border border-gray-100 animate-fadeIn">
+        <div class="text-center">
+            <div class="mx-auto h-14 w-14 rounded-full overflow-hidden bg-[#1f0606] flex items-center justify-center shadow-lg">
+                <img src="{{ url_for('static', filename='images/logo-black.png') }}" alt="Think.4U Logo" class="w-full h-full object-cover">
+            </div>
+            <h2 class="text-3xl font-black text-charity-dark tracking-tight mt-4">Sign In with Mobile</h2>
+            <p class="mt-2 text-sm text-gray-500">Fast and secure login with 6-digit SMS OTP</p>
+        </div>
+
+        <div id="statusAlert" class="hidden p-4 rounded-xl text-sm font-semibold"></div>
+
+        <form id="phoneLoginForm" class="mt-8 space-y-6" method="POST" action="{{ url_for('login_phone') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="turnstile_token" id="turnstile_token" value="">
+
+            <div class="space-y-4">
+                <div>
+                    <label for="phone" class="block text-sm font-bold text-charity-dark mb-1">Mobile Number (India)</label>
+                    <div class="flex rounded-xl shadow-sm border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-charity-gold">
+                        <span class="inline-flex items-center px-4 bg-gray-100 text-gray-700 font-bold border-r border-gray-300 text-sm">
+                            +91
+                        </span>
+                        <input id="phone" name="phone" type="tel" required maxlength="10"
+                               value="{{ phone|default('') }}"
+                               class="block w-full px-4 py-3 placeholder-gray-400 focus:outline-none text-charity-dark font-semibold"
+                               placeholder="9876543210">
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="button" id="sendOtpBtn"
+                            class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow transition">
+                        Get OTP via SMS
+                    </button>
+                </div>
+
+                <div id="otpSection" class="space-y-2">
+                    <label for="otp" class="block text-sm font-bold text-charity-dark mb-1">Enter 6-Digit SMS OTP</label>
+                    <input id="otp" name="otp" type="text" maxlength="6" pattern="[0-9]{6}" required
+                           class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 text-center tracking-widest text-xl font-bold focus:outline-none focus:ring-2 focus:ring-charity-gold focus:border-transparent transition-all"
+                           placeholder="••••••">
+                    <p class="text-xs text-gray-500">Enter the 6-digit code received on your mobile.</p>
+                </div>
+
+                {% if turnstile_site_key %}
+                <div class="flex justify-center my-4">
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
+                </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" id="submitLoginBtn"
+                    class="w-full py-4 px-4 bg-[#92400e] text-white font-bold rounded-xl shadow-md hover:bg-[#78350f] transition-all hover:scale-[1.02]">
+                Verify &amp; Sign In
+            </button>
+        </form>
+
+        <div class="pt-6 border-t border-gray-100 flex flex-col gap-3 text-center">
+            <a href="{{ url_for('login') }}" class="text-sm font-bold text-slate-700 hover:text-amber-800 transition">
+                &larr; Sign in with Email &amp; Password
+            </a>
+            <p class="text-xs text-gray-500">
+                Don't have an account?
+                <a href="{{ url_for('signup') }}" class="font-bold text-charity-gold hover:underline">Sign up</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const sendOtpBtn = document.getElementById("sendOtpBtn");
+    const phoneInput = document.getElementById("phone");
+    const statusAlert = document.getElementById("statusAlert");
+    let countdownInterval = null;
+
+    function showAlert(msg, isError) {
+        statusAlert.className = `p-4 rounded-xl text-sm font-semibold mb-4 ${isError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}`;
+        statusAlert.textContent = msg;
+        statusAlert.classList.remove("hidden");
+    }
+
+    sendOtpBtn.addEventListener("click", async () => {
+        const phone = phoneInput.value.replace(/\D/g, "");
+        if (phone.length !== 10) {
+            showAlert("Please enter a valid 10-digit Indian mobile number.", true);
+            phoneInput.focus();
+            return;
+        }
+
+        sendOtpBtn.disabled = true;
+        sendOtpBtn.textContent = "Sending OTP...";
+
+        try {
+            const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
+            const turnstileEl = document.querySelector('[name="cf-turnstile-response"]');
+            const turnstileToken = turnstileEl ? turnstileEl.value : "";
+
+            const resp = await fetch("{{ url_for('api_sms_send_otp') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({
+                    phone: phone,
+                    purpose: "login",
+                    turnstile_token: turnstileToken
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || data.error) {
+                showAlert(data.error || "Failed to send SMS OTP. Please retry.", true);
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = "Get OTP via SMS";
+                return;
+            }
+
+            showAlert("OTP sent successfully to +91-" + phone + ". Please check your messages.", false);
+            document.getElementById("otp").focus();
+
+            // Start 60-second cooldown
+            let seconds = 60;
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                seconds--;
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
+                    sendOtpBtn.disabled = false;
+                    sendOtpBtn.textContent = "Resend OTP";
+                } else {
+                    sendOtpBtn.textContent = `Resend in ${seconds}s`;
+                }
+            }, 1000);
+
+        } catch (err) {
+            showAlert("Network error while requesting OTP. Please check connection.", true);
+            sendOtpBtn.disabled = false;
+            sendOtpBtn.textContent = "Get OTP via SMS";
+        }
+    });
+});
+</script>
+{% endblock %}

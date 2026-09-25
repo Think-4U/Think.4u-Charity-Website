@@ -8,6 +8,7 @@ import csv
 import secrets
 import re
 import threading
+import time
 import logging
 import hashlib
 import hmac
@@ -52,6 +53,25 @@ except ImportError:
 
 # Load environment variables
 load_dotenv()
+
+from payment_gateways import (
+    get_active_payment_gateway,
+    payment_manager,
+    CashfreeGateway,
+    RazorpayGateway,
+    BasePaymentGateway
+)
+from sms_service import (
+    generate_and_send_mobile_otp,
+    verify_mobile_otp,
+    normalize_phone as normalize_mobile_phone
+)
+from auth_social import (
+    is_google_auth_configured,
+    get_google_auth_url,
+    exchange_code_for_google_user,
+    verify_google_credential_token
+)
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
@@ -148,6 +168,15 @@ AUTH_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("AUTH_RATE_LIMIT_MAX_REQUESTS", "20
 INACTIVITY_TIMEOUT_SECONDS = int(os.getenv("INACTIVITY_TIMEOUT_SECONDS", "900"))
 ALLOW_DEV_OTP_FALLBACK = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == "true"
 DEV_OTP_FALLBACK_ENABLED = ALLOW_DEV_OTP_FALLBACK and not ENFORCE_HTTPS
+# ---------------------------------------------------------------------------
+# Geo-blocking
+# GEO_BLOCK_ENABLED=false disables all country checks (useful in dev/testing).
+# ALLOWED_COUNTRIES is a comma-separated list of ISO-3166-1 alpha-2 codes.
+# Default: India only.  Example: ALLOWED_COUNTRIES=IN,AU,GB
+# ---------------------------------------------------------------------------
+GEO_BLOCK_ENABLED = os.getenv("GEO_BLOCK_ENABLED", "true").lower() == "true"
+_raw_allowed = os.getenv("ALLOWED_COUNTRIES", "IN")
+ALLOWED_COUNTRIES: set = {c.strip().upper() for c in _raw_allowed.split(",") if c.strip()}
 PAYMENT_PENDING_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_PENDING_TIMEOUT_MINUTES", "15"))
 JITSI_MEET_DOMAIN = os.getenv("JITSI_MEET_DOMAIN", "meet.domain.com").strip()
 JITSI_API_SCRIPT_URL = os.getenv("JITSI_API_SCRIPT_URL", "").strip()
@@ -329,62 +358,51 @@ if SUPABASE_ENABLED and supabase_key_role != "service_role":
 
 
 # ------------------------------
-# Razorpay Configuration
+# Common Payment Gateway Architecture (Cashfree, Razorpay, Pluggable)
 # ------------------------------
 RAZOR_KEY = os.getenv('RAZOR_KEY_ID')
 RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET')
-RAZORPAY_ENABLED = bool(RAZOR_KEY and RAZOR_SECRET)
+CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID') or os.getenv('CASHFREE_CLIENT_ID')
+CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY') or os.getenv('CASHFREE_CLIENT_SECRET')
 
-if not RAZORPAY_ENABLED:
-    app.logger.warning("Razorpay keys missing. Online payment routes are disabled.")
+def get_active_gateway(gateway_id=None):
+    """Retrieve the active or specified payment gateway instance."""
+    return get_active_payment_gateway(gateway_id)
+
+ACTIVE_PAYMENT_GW = get_active_gateway()
+ONLINE_PAYMENTS_ENABLED = ACTIVE_PAYMENT_GW.is_configured()
+RAZORPAY_ENABLED = ONLINE_PAYMENTS_ENABLED
+
+if not ONLINE_PAYMENTS_ENABLED:
+    app.logger.warning(
+        f"Payment gateway credentials missing for '{ACTIVE_PAYMENT_GW.gateway_id}'. "
+        "Online payment checkout routes will report unavailable."
+    )
+else:
+    app.logger.info(f"Primary payment gateway active: {ACTIVE_PAYMENT_GW.gateway_name} (ID: {ACTIVE_PAYMENT_GW.gateway_id})")
 
 
 def create_razorpay_order(amount, currency, receipt, notes=None):
-    if not RAZORPAY_ENABLED:
+    """Backward-compatible order creator."""
+    gw = get_active_gateway("razorpay")
+    if not gw.is_configured():
         raise RuntimeError("Razorpay is not configured")
-    payload = {
-        "amount": amount,
-        "currency": currency,
-        "receipt": receipt,
-        "payment_capture": 1,
-    }
-    if isinstance(notes, dict) and notes:
-        payload["notes"] = notes
-
-    response = httpx.post(
-        "https://api.razorpay.com/v1/orders",
-        auth=(RAZOR_KEY, RAZOR_SECRET),
-        json=payload,
-        timeout=15.0,
-    )
-    if response.status_code not in (200, 201):
-        raise RuntimeError(f"Razorpay order creation failed: {response.status_code} {response.text}")
-    return response.json()
+    res = gw.create_order(amount_paise=amount, currency=currency, donor_details=None, notes=notes)
+    return res["raw_response"]
 
 
 def verify_checkout_signature(payload):
     """Verify Razorpay checkout signature without SDK."""
-    order_id = payload.get("razorpay_order_id")
-    payment_id = payload.get("razorpay_payment_id")
-    signature = payload.get("razorpay_signature")
-    if not all([order_id, payment_id, signature, RAZOR_SECRET]):
-        return False
-
-    message = f"{order_id}|{payment_id}".encode("utf-8")
-    expected = hmac.new(RAZOR_SECRET.encode("utf-8"), message, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature)
+    gw = get_active_gateway("razorpay")
+    res = gw.verify_payment(payload)
+    return res.get("verified", False)
 
 
 def verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
-    # A webhook endpoint must fail closed. Accepting an unsigned payload would
-    # allow an attacker to mark any pending donation as paid.
-    if not webhook_secret:
-        app.logger.error("Razorpay webhook rejected because RAZORPAY_WEBHOOK_SECRET is not configured.")
-        return False
-    if not webhook_signature:
-        return False
-    expected = hmac.new(webhook_secret.encode("utf-8"), webhook_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, webhook_signature)
+    """Verify webhook signature."""
+    gw = get_active_gateway("razorpay")
+    res = gw.verify_webhook({"X-Razorpay-Signature": webhook_signature}, webhook_body)
+    return res.get("verified", False)
 
 
 # ------------------------------
@@ -579,6 +597,60 @@ def get_client_ip():
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     return request.remote_addr or "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Geo-blocking helper — country look-up with a simple in-memory cache.
+# Uses ip-api.com (free tier, no key required, 45 req/min limit).
+# Private / loopback IPs are never blocked (returns None).
+# ---------------------------------------------------------------------------
+_GEO_CACHE: dict = {}          # { ip: (country_code | None, expires_ts) }
+_GEO_CACHE_TTL = 86400         # 24 hours
+_GEO_CACHE_MAX = 4096          # evict oldest when full
+
+_PRIVATE_IP_PREFIXES = (
+    "127.", "10.", "192.168.", "::1", "fc", "fd",
+    "169.254.", "172.16.", "172.17.", "172.18.", "172.19.",
+    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+    "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+    "172.30.", "172.31.",
+)
+
+def _is_private_ip(ip: str) -> bool:
+    return ip in ("unknown", "localhost") or any(ip.startswith(p) for p in _PRIVATE_IP_PREFIXES)
+
+
+def get_ip_country(ip: str) -> str | None:
+    """Return the ISO-3166-1 alpha-2 country code for *ip*, or None on failure."""
+    if _is_private_ip(ip):
+        return None  # never block local/private IPs
+
+    now = time.time()
+    cached = _GEO_CACHE.get(ip)
+    if cached:
+        code, expires = cached
+        if now < expires:
+            return code
+        del _GEO_CACHE[ip]
+
+    try:
+        resp = httpx.get(
+            f"http://ip-api.com/json/{ip}",
+            params={"fields": "status,countryCode"},
+            timeout=2.5,
+        )
+        data = resp.json()
+        code = data.get("countryCode") if data.get("status") == "success" else None
+    except Exception:
+        code = None  # fail open — don't block on lookup error
+
+    # Evict oldest entry if cache is full
+    if len(_GEO_CACHE) >= _GEO_CACHE_MAX:
+        oldest_key = next(iter(_GEO_CACHE))
+        del _GEO_CACHE[oldest_key]
+
+    _GEO_CACHE[ip] = (code, now + _GEO_CACHE_TTL)
+    return code
 
 
 def clean_text(value, max_length=255, keep_new_lines=False):
@@ -1398,7 +1470,7 @@ def generate_csrf_token():
 def verify_csrf_token():
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return True
-    if request.endpoint == "payment_success_redirect":
+    if request.endpoint in {"payment_success_redirect", "payment_webhook", "api_payment_webhook", "auth_google_credential"}:
         return True
     # Accept the standard header and the legacy spelling used by older cached
     # meeting pages. Both values are verified against the per-session token.
@@ -1755,6 +1827,41 @@ def maintenance_window_is_active(settings=None):
 
 @app.before_request
 def apply_security_controls():
+    # ------------------------------------------------------------------
+    # Geo-blocking: reject requests from countries not in ALLOWED_COUNTRIES.
+    # Exempted paths: static assets, webhooks (payment gateway IPs differ),
+    # and the health-check endpoint.
+    # ------------------------------------------------------------------
+    if GEO_BLOCK_ENABLED and ALLOWED_COUNTRIES:
+        _geo_exempt_endpoints = {
+            "static", "healthz", "health",
+            "payment_webhook", "api_payment_webhook",
+        }
+        _geo_exempt_prefixes = ("/static/", "/payment-webhook", "/api/payment/webhook")
+        _is_exempt = (
+            (request.endpoint or "") in _geo_exempt_endpoints
+            or any(request.path.startswith(p) for p in _geo_exempt_prefixes)
+        )
+        if not _is_exempt:
+            # Cloudflare sets CF-IPCountry header — use it when available (fastest, no extra call).
+            cf_country = request.headers.get("CF-IPCountry", "").strip().upper()
+            if cf_country and cf_country not in ("XX", "T1"):
+                visitor_country = cf_country
+            else:
+                visitor_country = get_ip_country(get_client_ip())
+
+            if visitor_country and visitor_country not in ALLOWED_COUNTRIES:
+                app.logger.warning(
+                    "geo_blocked ip=%s country=%s path=%s",
+                    get_client_ip(), visitor_country, request.path,
+                )
+                if request.path.startswith("/api/") or request.is_json:
+                    return jsonify({
+                        "error": "Access restricted",
+                        "message": "This service is not available in your region.",
+                    }), 403
+                return render_template("403_geo.html", country=visitor_country), 403
+
     if ENFORCE_HTTPS and not app.debug and not request.is_secure:
         proto = request.headers.get("X-Forwarded-Proto", "http")
         if proto != "https" and request.host.split(":")[0] not in {"localhost", "127.0.0.1"}:
@@ -1893,15 +2000,15 @@ def set_security_headers(response):
         "media-src 'self' blob: data:; "
         "worker-src 'self' blob: https://challenges.cloudflare.com; "
         "child-src 'self' blob: https://challenges.cloudflare.com; "
-        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {challenge_src} {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com {challenge_src} {jitsi_src}; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://sdk.cashfree.com https://*.cashfree.com https://accounts.google.com {challenge_src} {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://sdk.cashfree.com https://*.cashfree.com https://accounts.google.com {challenge_src} {jitsi_src}; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
+        "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://*.google.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
-        f"frame-src 'self' https://*.razorpay.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
+        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://api.cashfree.com https://sandbox.cashfree.com https://*.cashfree.com https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
+        f"frame-src 'self' https://*.razorpay.com https://*.cashfree.com https://accounts.google.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
         "base-uri 'self'; "
-        "form-action 'self'; "
+        "form-action 'self' https://*.cashfree.com https://*.razorpay.com https://accounts.google.com; "
         "object-src 'none'"
     )
     if current_user.is_authenticated and not request.path.startswith("/static/"):
@@ -2063,11 +2170,15 @@ def favicon():
 
 @app.route("/healthz")
 def healthz():
+    active_gw = get_active_payment_gateway()
     return jsonify({
         "status": "ok",
         "version": APP_VERSION,
         "supabase_enabled": SUPABASE_ENABLED,
-        "razorpay_enabled": RAZORPAY_ENABLED,
+        "active_gateway": active_gw.gateway_id,
+        "active_gateway_name": active_gw.gateway_name,
+        "payment_enabled": active_gw.is_configured(),
+        "gateways": payment_manager.list_gateways(),
     }), 200
 
 
@@ -2095,11 +2206,18 @@ def donate():
         donor_phone = getattr(current_user, "phone", "") or ""
         donor_address = getattr(current_user, "address", "") or ""
 
+    active_gw = get_active_payment_gateway()
+    cashfree_mode = getattr(active_gw, "sdk_mode", "production") if active_gw.gateway_id == "cashfree" else "production"
+
     return render_template(
         "donate.html",
         amount_display=amount_rupees,
         amount_paise=amount_paise,
         razor_key=RAZOR_KEY,
+        active_gateway=active_gw.gateway_id,
+        active_gateway_name=active_gw.gateway_name,
+        cashfree_mode=cashfree_mode,
+        is_payment_enabled=active_gw.is_configured(),
         donor_name=donor_name,
         donor_email=donor_email,
         donor_phone=donor_phone,
@@ -2296,9 +2414,11 @@ def donate_upi_verify():
 @app.route("/create-order", methods=["POST"])
 @login_required
 def create_order():
-    """Create Razorpay order for logged-in donor"""
-    if not RAZORPAY_ENABLED:
-        return jsonify({"error": "Payment gateway is temporarily unavailable"}), 503
+    """Create payment gateway order for logged-in donor (Cashfree, Razorpay, or pluggable gateway)."""
+    active_gw = get_active_gateway()
+    if not active_gw.is_configured():
+        app.logger.warning(f"Payment gateway '{active_gw.gateway_id}' is not configured.")
+        return jsonify({"error": f"Payment gateway ({active_gw.gateway_name}) is temporarily unavailable"}), 503
 
     data = request.get_json(silent=True) or {}
 
@@ -2320,20 +2440,29 @@ def create_order():
         return jsonify({"error": "Missing donor details"}), 400
 
     donation_ref, donation_number = make_donation_ref(user_id=current_user.id, email=donor_email)
-    receipt = donation_ref[:40]
+    return_url = f"{request.host_url.rstrip('/')}{url_for('payment_success_redirect')}"
 
     try:
-        order = create_razorpay_order(
-            amount=amount,
+        order = active_gw.create_order(
+            amount_paise=amount,
             currency="INR",
-            receipt=receipt,
+            donor_details={
+                "user_id": current_user.id,
+                "name": donor_name,
+                "email": donor_email,
+                "phone": donor_phone,
+                "address": donor_address
+            },
             notes={
                 "user_id": str(current_user.id),
                 "email": donor_email,
                 "donation_ref": donation_ref,
                 "purpose": purpose_label,
-            }
+            },
+            return_url=return_url
         )
+
+        gateway_order_id = order["order_id"]
 
         donation_payload = {
             "user_id": db_id(current_user.id),
@@ -2347,7 +2476,8 @@ def create_order():
             "purpose_type": purpose_type,
             "purpose_id": purpose_id or None,
             "purpose_label": purpose_label,
-            "razorpay_order_id": order["id"],
+            "razorpay_order_id": gateway_order_id,
+            "payment_method": active_gw.gateway_name,
             "status": "pending",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
@@ -2359,29 +2489,35 @@ def create_order():
             supabase.table("donations").insert(donation_payload).execute()
 
         return jsonify({
-            "id": order["id"],
+            "id": gateway_order_id,
+            "order_id": gateway_order_id,
+            "gateway": order.get("gateway", active_gw.gateway_id),
+            "gateway_name": order.get("gateway_name", active_gw.gateway_name),
+            "checkout_mode": order.get("checkout_mode", "redirect"),
+            "cashfree_mode": order.get("cashfree_mode", "production"),
+            "payment_session_id": order.get("payment_session_id", ""),
             "amount": order["amount"],
             "currency": order["currency"],
-            "key_id": RAZOR_KEY,
+            "key_id": order.get("key_id", RAZOR_KEY),
             "donation_ref": donation_ref,
             "purpose_label": purpose_label,
         })
 
     except RuntimeError as e:
         error_text = str(e)
-        app.logger.error(f"Razorpay error: {error_text}")
+        app.logger.error(f"Gateway order creation error: {error_text}")
         if "BAD_REQUEST_ERROR" in error_text or "input_validation_failed" in error_text:
             return jsonify({"error": "Payment order was rejected by gateway. Please verify details and retry."}), 400
-        return jsonify({"error": "Payment service unavailable"}), 503
+        return jsonify({"error": "Payment service temporarily unavailable. Please retry shortly."}), 503
     except Exception as e:
         app.logger.error(f"Order creation failed: {e}")
-        return jsonify({"error": "Could not create order"}), 500
+        return jsonify({"error": "Could not create payment order"}), 500
 
 
 @app.route("/payment-status", methods=["POST"])
 @login_required
 def payment_status_update():
-    """Mark interrupted Razorpay attempt as failed/cancelled for quicker dashboard visibility."""
+    """Mark interrupted payment attempt as failed/cancelled for quicker dashboard visibility."""
     data = request.get_json(silent=True) or {}
     order_id = clean_text(data.get("order_id"), 120)
     raw_status = clean_text(data.get("status"), 40).lower()
@@ -2392,10 +2528,11 @@ def payment_status_update():
     if raw_status in {"retryable", "in_progress", "temporary_failure"}:
         return jsonify({"ok": True, "updated": False}), 200
 
-    status = "failed" if raw_status in {"failed", "cancelled", "closed", "dismissed", "expired"} else "failed"
+    status = "failed"
+    active_gw = get_active_gateway()
     update_payload = {
         "status": status,
-        "payment_method": "Razorpay",
+        "payment_method": active_gw.gateway_name,
     }
 
     try:
@@ -2422,15 +2559,31 @@ def payment_status_update():
 
 @app.route("/payment-success", methods=["GET", "POST"])
 def payment_success_redirect():
-    """Handle Razorpay success/failure redirect."""
-    if not RAZORPAY_ENABLED:
+    """Handle payment success redirect for Cashfree, Razorpay, or pluggable gateway."""
+    params = request.values
+    order_id = clean_text(
+        params.get("order_id") or params.get("order_token") or params.get("razorpay_order_id") or params.get("cf_order_id"),
+        120
+    )
+    gateway_param = clean_text(params.get("gateway"), 40).lower()
+
+    # Auto-detect gateway if not explicitly supplied
+    if not gateway_param:
+        if order_id.upper().startswith("CF_") or params.get("cf_order_id"):
+            gateway_param = "cashfree"
+        elif params.get("razorpay_signature") or params.get("checkout_signature"):
+            gateway_param = "razorpay"
+        else:
+            gateway_param = get_active_gateway().gateway_id
+
+    gw = get_active_gateway(gateway_param)
+
+    if not gw.is_configured():
         flash("Payment verification service unavailable. Please contact support.", "error")
         return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
-    params = request.values
-    payment_id = clean_text(params.get("payment_token") or params.get("razorpay_payment_id"), 120)
-    order_id = clean_text(params.get("order_token") or params.get("razorpay_order_id"), 120)
-    signature = clean_text(params.get("checkout_signature") or params.get("razorpay_signature"), 180)
+    payment_id = clean_text(params.get("payment_token") or params.get("razorpay_payment_id") or params.get("cf_payment_id") or params.get("payment_id"), 120)
+    signature = clean_text(params.get("checkout_signature") or params.get("razorpay_signature"), 250)
     error_code = clean_text(params.get("error_code"), 80)
     error_description = clean_text(params.get("error_description"), 250)
 
@@ -2438,7 +2591,7 @@ def payment_success_redirect():
         if current_user.is_authenticated:
             try:
                 supabase.table("donations") \
-                    .update({"status": "failed", "payment_method": "Razorpay"}) \
+                    .update({"status": "failed", "payment_method": gw.gateway_name}) \
                     .eq("razorpay_order_id", order_id) \
                     .eq("user_id", current_db_user_id()) \
                     .eq("status", "pending") \
@@ -2449,61 +2602,134 @@ def payment_success_redirect():
         flash(error_description or "Payment failed or was cancelled.", "error")
         return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
-    if not all([payment_id, order_id, signature]):
-        flash('Invalid payment data', 'error')
-        return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
+    if not order_id:
+        flash("Invalid payment return data: missing order reference.", "error")
+        return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
-    payload = {
-        'razorpay_order_id': order_id,
-        'razorpay_payment_id': payment_id,
-        'razorpay_signature': signature
+    verify_payload = {
+        "order_id": order_id,
+        "order_token": order_id,
+        "razorpay_order_id": order_id,
+        "payment_id": payment_id,
+        "payment_token": payment_id,
+        "razorpay_payment_id": payment_id,
+        "checkout_signature": signature,
+        "razorpay_signature": signature,
     }
 
     try:
-        if not verify_checkout_signature(payload):
-            flash('Payment verification failed', 'error')
-            return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
+        verification_result = gw.verify_payment(verify_payload)
+        if not verification_result.get("verified"):
+            err_msg = verification_result.get("error") or "Payment verification failed."
+            app.logger.warning(f"Payment verification failed for order {order_id} via {gw.gateway_name}: {err_msg}")
+            flash("Payment verification failed. If your account was debited, our team will verify it shortly.", "error")
+            return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
-        existing_response = supabase.table('donations') \
+        existing_response = supabase.table("donations") \
             .select("*") \
-            .eq('razorpay_order_id', order_id) \
+            .eq("razorpay_order_id", order_id) \
             .limit(1) \
             .execute()
         existing_donation = (existing_response.data or [None])[0]
-        was_already_paid = bool(existing_donation and existing_donation.get("status") == "paid")
 
-        response = supabase.table('donations') \
+        if not existing_donation:
+            flash("Donation record not found.", "error")
+            return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
+
+        # SECURITY CHECK: Verify amount paid matches expected amount (prevents amount tampering)
+        verified_amount_paise = verification_result.get("amount_paise")
+        if verified_amount_paise and verified_amount_paise < int(existing_donation.get("amount", 0)):
+            app.logger.error(
+                f"SECURITY ALERT: Amount tampering detected! Expected {existing_donation['amount']} paise, "
+                f"received {verified_amount_paise} paise for order {order_id}."
+            )
+            flash("Payment verification failed due to amount discrepancy.", "error")
+            return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
+
+        was_already_paid = bool(existing_donation.get("status") == "paid")
+        final_payment_id = verification_result.get("payment_id") or payment_id or f"{gw.gateway_id}_{order_id}"
+
+        response = supabase.table("donations") \
             .update({
-                "razorpay_payment_id": payment_id,
-                "razorpay_signature": signature,
+                "razorpay_payment_id": final_payment_id,
+                "razorpay_signature": signature or f"{gw.gateway_id}_verified",
                 "status": "paid",
-                "payment_method": "Razorpay"
+                "payment_method": gw.gateway_name
             }) \
-            .eq('razorpay_order_id', order_id) \
+            .eq("razorpay_order_id", order_id) \
             .execute()
 
         if response.data:
             donation = response.data[0]
-            user_id = donation.get("user_id")
             if not was_already_paid:
                 try:
                     apply_paid_donation_effects(donation)
                 except Exception as effect_error:
                     app.logger.warning(f"Donation side effects skipped: {effect_error}")
                 send_donation_receipt_email_if_needed(donation)
-            flash('Thank you for your donation!', 'success')
+
+            flash("Thank you for your generous donation!", "success")
             if current_user.is_authenticated:
                 if str(donation.get("user_id")) == str(current_user.id) or donation.get("email") == current_user.email:
-                    return redirect(url_for('donation_receipt', donation_id=donation['id']))
+                    return redirect(url_for("donation_receipt", donation_id=donation["id"]))
                 return redirect(url_for("dashboard"))
             return redirect(url_for("login", next=url_for("user_donations")))
 
-        flash('Donation record not found', 'error')
-        return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
+        flash("Donation record could not be updated.", "error")
+        return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
     except Exception as e:
         app.logger.error(f"Payment success handling error: {e}")
-        flash('Error processing payment', 'error')
+        flash("Error processing payment verification.", "error")
+
+    return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
+
+
+@app.route("/payment-webhook", methods=["POST"])
+@app.route("/api/payment/webhook", methods=["POST"])
+def payment_webhook():
+    """Server-to-server webhook endpoint for Cashfree & Razorpay payment confirmations."""
+    raw_body = request.get_data()
+    headers = dict(request.headers)
+
+    # Detect gateway from headers
+    if "x-webhook-signature" in request.headers or "X-Webhook-Signature" in request.headers:
+        gw = get_active_gateway("cashfree")
+    elif "X-Razorpay-Signature" in request.headers or "x-razorpay-signature" in request.headers:
+        gw = get_active_gateway("razorpay")
+    else:
+        gw = get_active_gateway()
+
+    res = gw.verify_webhook(headers, raw_body)
+    if not res.get("verified"):
+        app.logger.warning(f"Webhook signature rejected for {gw.gateway_name}: {res.get('error')}")
+        return jsonify({"error": "Invalid signature"}), 400
+
+    order_id = res.get("order_id")
+    payment_id = res.get("payment_id")
+    status = res.get("status")
+
+    if order_id and status == "PAID":
+        try:
+            existing = supabase.table("donations").select("*").eq("razorpay_order_id", order_id).limit(1).execute()
+            if existing.data:
+                donation = existing.data[0]
+                if donation.get("status") != "paid":
+                    supabase.table("donations").update({
+                        "razorpay_payment_id": payment_id,
+                        "status": "paid",
+                        "payment_method": gw.gateway_name
+                    }).eq("razorpay_order_id", order_id).execute()
+                    try:
+                        apply_paid_donation_effects(donation)
+                    except Exception as e:
+                        app.logger.warning(f"Webhook side effects skipped: {e}")
+                    send_donation_receipt_email_if_needed(donation)
+        except Exception as e:
+            app.logger.error(f"Webhook processing error: {e}")
+            return jsonify({"error": "Processing failed"}), 500
+
+    return jsonify({"status": "ok"}), 200
 
     return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
 
@@ -3306,6 +3532,290 @@ def verify_login():
         return redirect(url_for("admin_dashboard" if user.is_admin else "dashboard"))
 
     return render_template("verify_otp.html", flow="login")
+
+
+# ==============================================================================
+# SMS OTP & Mobile Verification Routes
+# ==============================================================================
+@app.route("/api/sms/send-otp", methods=["POST"])
+def api_sms_send_otp():
+    """Send SMS OTP to Indian mobile number with rate limiting and turnstile check."""
+    data = request.get_json(silent=True) or request.form or {}
+    phone = clean_text(data.get("phone"), 20)
+    purpose = clean_text(data.get("purpose") or "login", 30).lower()
+
+    if not phone:
+        return jsonify({"error": "Phone number is required."}), 400
+
+    turnstile_token = get_turnstile_token()
+    if not verify_turnstile(turnstile_token, get_client_ip()):
+        return jsonify({"error": "Security verification failed. Please try again."}), 400
+
+    success, msg, norm_phone = generate_and_send_mobile_otp(
+        phone_input=phone,
+        purpose=purpose,
+        ip=get_client_ip()
+    )
+    if not success:
+        return jsonify({"error": msg}), 400
+
+    return jsonify({
+        "ok": True,
+        "message": msg,
+        "phone": norm_phone
+    }), 200
+
+
+@app.route("/api/sms/verify-otp", methods=["POST"])
+def api_sms_verify_otp():
+    """Verify SMS OTP for mobile number."""
+    data = request.get_json(silent=True) or request.form or {}
+    phone = clean_text(data.get("phone"), 20)
+    otp = clean_text(data.get("otp"), 10)
+    purpose = clean_text(data.get("purpose") or "login", 30).lower()
+
+    if not phone or not otp:
+        return jsonify({"error": "Phone number and OTP code are required."}), 400
+
+    verified, msg, metadata = verify_mobile_otp(phone, otp, purpose=purpose)
+    if not verified:
+        return jsonify({"error": msg}), 400
+
+    return jsonify({
+        "ok": True,
+        "verified": True,
+        "message": msg
+    }), 200
+
+
+@app.route("/login-phone", methods=["GET", "POST"])
+def login_phone():
+    """Direct mobile login with SMS OTP."""
+    if current_user.is_authenticated:
+        return redirect(url_for("admin_dashboard" if current_user.is_admin else "dashboard"))
+
+    if request.method == "POST":
+        phone_raw = request.form.get("phone", "")
+        otp_code = request.form.get("otp", "")
+        turnstile_token = get_turnstile_token()
+
+        if not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
+            return render_template("login_phone.html")
+
+        verified, msg, _ = verify_mobile_otp(phone_raw, otp_code, purpose="login")
+        if not verified:
+            flash(msg, "error")
+            return render_template("login_phone.html", phone=phone_raw)
+
+        norm_phone = normalize_mobile_phone(phone_raw)
+        try:
+            # Check if user exists with this phone number
+            existing = supabase.table("users").select("*").eq("phone", norm_phone).limit(1).execute()
+            user_row = (existing.data or [None])[0]
+
+            if not user_row:
+                # Auto-create user account
+                synthetic_email = f"user_{norm_phone}@think4u.local"
+                email_check = supabase.table("users").select("*").eq("email", synthetic_email).limit(1).execute()
+                if email_check.data:
+                    user_row = email_check.data[0]
+                else:
+                    insert_data = {
+                        "email": synthetic_email,
+                        "name": f"User {norm_phone[-4:]}",
+                        "phone": norm_phone,
+                        "password_hash": generate_password_hash(secrets.token_urlsafe(16)),
+                        "role": "donor",
+                        "is_admin": False,
+                        "email_verified": True,
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    try:
+                        create_res = supabase.table("users").insert(insert_data).execute()
+                        user_row = (create_res.data or [None])[0]
+                    except Exception:
+                        insert_data.pop("phone", None)
+                        create_res = supabase.table("users").insert(insert_data).execute()
+                        user_row = (create_res.data or [None])[0]
+
+            if not user_row:
+                flash("Could not sign in with this mobile number. Please try again.", "error")
+                return render_template("login_phone.html")
+
+            user = User(
+                id=user_row["id"],
+                email=user_row["email"],
+                name=user_row.get("name", "User"),
+                is_admin=user_row.get("is_admin", False),
+                role=user_row.get("role", "donor"),
+                phone=user_row.get("phone", norm_phone)
+            )
+            login_user(user)
+            flash("Signed in successfully with mobile number!", "success")
+            return redirect(url_for("admin_dashboard" if user.is_admin else "dashboard"))
+
+        except Exception as e:
+            app.logger.error(f"Mobile login error: {e}")
+            flash("Error during mobile login. Please try again.", "error")
+            return render_template("login_phone.html")
+
+    return render_template("login_phone.html")
+
+
+# ==============================================================================
+# Social Authentication Routes (Google OAuth 2.0 & Google Sign-In)
+# ==============================================================================
+@app.route("/auth/google")
+def auth_google():
+    """Initiate Google OAuth 2.0 login/signup."""
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
+    if not is_google_auth_configured():
+        flash("Google sign-in is not configured yet. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET or use email/mobile login.", "info")
+        return redirect(url_for("login"))
+
+    state = secrets.token_urlsafe(32)
+    session["_google_oauth_state"] = state
+    next_url = request.args.get("next")
+    if next_url and is_safe_redirect_url(next_url):
+        session["_google_next_url"] = next_url
+
+    redirect_uri = url_for("auth_google_callback", _external=True)
+    google_url = get_google_auth_url(redirect_uri, state)
+    return redirect(google_url)
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    """Handle Google OAuth 2.0 callback."""
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
+    state = request.args.get("state")
+    code = request.args.get("code")
+    error = request.args.get("error")
+
+    expected_state = session.pop("_google_oauth_state", None)
+    next_url = session.pop("_google_next_url", None)
+
+    if error:
+        flash(f"Google sign-in was cancelled or encountered an error: {error}", "error")
+        return redirect(url_for("login"))
+
+    if not state or not expected_state or not secrets.compare_digest(state, expected_state):
+        flash("Security validation failed during Google sign-in. Please try again.", "error")
+        return redirect(url_for("login"))
+
+    if not code:
+        flash("No authorization code returned from Google.", "error")
+        return redirect(url_for("login"))
+
+    redirect_uri = url_for("auth_google_callback", _external=True)
+    ok, google_user, err_msg = exchange_code_for_google_user(code, redirect_uri)
+    if not ok:
+        flash(f"Could not complete Google sign-in: {err_msg}", "error")
+        return redirect(url_for("login"))
+
+    email = google_user["email"]
+    name = google_user.get("name") or email.split("@")[0]
+
+    try:
+        # Check if user already exists
+        existing = supabase.table("users").select("*").eq("email", email).limit(1).execute()
+        user_row = (existing.data or [None])[0]
+
+        if not user_row:
+            # Create user account
+            insert_payload = {
+                "email": email,
+                "name": clean_text(name, 120),
+                "password_hash": generate_password_hash(secrets.token_urlsafe(32)),
+                "role": "donor",
+                "is_admin": False,
+                "email_verified": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            create_resp = supabase.table("users").insert(insert_payload).execute()
+            user_row = (create_resp.data or [None])[0]
+
+        if not user_row:
+            flash("Unable to create or load your account.", "error")
+            return redirect(url_for("login"))
+
+        user = User(
+            id=user_row["id"],
+            email=user_row["email"],
+            name=user_row.get("name", name),
+            is_admin=user_row.get("is_admin", False),
+            role=user_row.get("role", "donor"),
+            phone=user_row.get("phone")
+        )
+        login_user(user)
+        flash(f"Welcome, {user.name}! Signed in with Google.", "success")
+
+        if next_url and is_safe_redirect_url(next_url):
+            return redirect(next_url)
+        return redirect(url_for("admin_dashboard" if user.is_admin else "dashboard"))
+
+    except Exception as e:
+        app.logger.error(f"Google login callback exception: {e}")
+        flash("An error occurred while finishing Google sign-in. Please try again.", "error")
+        return redirect(url_for("login"))
+
+
+@app.route("/auth/google/credential", methods=["POST"])
+def auth_google_credential():
+    """Verify Google One Tap / Sign-In credential token via JSON POST."""
+    data = request.get_json(silent=True) or {}
+    token = data.get("credential")
+    if not token:
+        return jsonify({"error": "Missing Google credential token"}), 400
+
+    ok, google_user, err_msg = verify_google_credential_token(token)
+    if not ok:
+        return jsonify({"error": err_msg}), 400
+
+    email = google_user["email"]
+    name = google_user.get("name") or email.split("@")[0]
+
+    try:
+        existing = supabase.table("users").select("*").eq("email", email).limit(1).execute()
+        user_row = (existing.data or [None])[0]
+
+        if not user_row:
+            insert_payload = {
+                "email": email,
+                "name": clean_text(name, 120),
+                "password_hash": generate_password_hash(secrets.token_urlsafe(32)),
+                "role": "donor",
+                "is_admin": False,
+                "email_verified": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            create_resp = supabase.table("users").insert(insert_payload).execute()
+            user_row = (create_resp.data or [None])[0]
+
+        if not user_row:
+            return jsonify({"error": "Unable to initialize account"}), 500
+
+        user = User(
+            id=user_row["id"],
+            email=user_row["email"],
+            name=user_row.get("name", name),
+            is_admin=user_row.get("is_admin", False),
+            role=user_row.get("role", "donor"),
+            phone=user_row.get("phone")
+        )
+        login_user(user)
+
+        target_url = url_for("admin_dashboard" if user.is_admin else "dashboard")
+        return jsonify({"ok": True, "redirect": target_url}), 200
+
+    except Exception as e:
+        app.logger.error(f"Google credential auth error: {e}")
+        return jsonify({"error": "Authentication failed"}), 500
 
 
 @app.route("/logout")

@@ -19,5 +19,4 @@ num2words
 reportlab==4.0.8
 PyJWT==2.13.0
 cryptography==46.0.6
-
 tzdata>=2024.1

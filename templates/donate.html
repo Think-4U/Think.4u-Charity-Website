@@ -128,6 +128,7 @@
   </div>
 </section>
 
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
   const AUTHENTICATED = JSON.parse('{{ "true" if current_user.is_authenticated else "false" }}');
@@ -322,10 +323,6 @@
       setStatus("warning", "You are offline", "Reconnect to the internet and try again.");
       return;
     }
-    if (typeof Razorpay === "undefined") {
-      await window.showUiAlert("Secure payment failed to load. Please retry.", "error", "Payment Unavailable");
-      return;
-    }
 
     try {
       const verified = await ensureVerified(data);
@@ -339,16 +336,56 @@
         order = reusableOrder;
       } else {
         order = await createOrder(data);
-        lastOrderId = order.id;
+        lastOrderId = order.id || order.order_id;
         reusableOrder = { ...order, expiresAt: Date.now() + ORDER_RETRY_WINDOW_MS };
       }
 
       setStatus("loading", "Opening checkout", `Donation ref ${order.donation_ref || "will be generated"} is ready.`);
+
+      const gateway = (order.gateway || "{{ active_gateway|default('cashfree') }}").toLowerCase();
+
+      // --- Cashfree Checkout Flow ---
+      if (gateway === "cashfree" || order.checkout_mode === "cashfree_drop" || order.payment_session_id) {
+        if (typeof Cashfree === "undefined") {
+          await window.showUiAlert("Cashfree payment gateway script failed to load. Please retry.", "error", "Payment Error");
+          setButtonState(false, "Retry Payment");
+          return;
+        }
+
+        const cashfreeMode = order.cashfree_mode || "{{ cashfree_mode|default('production') }}";
+        const cashfree = Cashfree({ mode: cashfreeMode });
+        setButtonState(true, "Redirecting to Cashfree checkout...");
+
+        cashfree.checkout({
+          paymentSessionId: order.payment_session_id,
+          redirectTarget: "_self"
+        }).then(function (result) {
+          if (result && result.error) {
+            const errDesc = result.error.message || "Payment initiation failed.";
+            setStatus("error", "Payment failed", errDesc);
+            setButtonState(false, "Retry Payment");
+            reportPaymentStatus(order.id || order.order_id, "failed", errDesc);
+          }
+        }).catch(function (err) {
+          const errDesc = err?.message || "Cashfree payment closed or failed.";
+          setStatus("error", "Payment failed", errDesc);
+          setButtonState(false, "Retry Payment");
+        });
+        return;
+      }
+
+      // --- Razorpay Modal Flow ---
+      if (typeof Razorpay === "undefined") {
+        await window.showUiAlert("Secure payment failed to load. Please retry.", "error", "Payment Unavailable");
+        setButtonState(false, "Retry Payment");
+        return;
+      }
+
       const rzp = new Razorpay({
         key: order.key_id || "{{ razor_key }}",
         amount: order.amount,
         currency: "INR",
-        order_id: order.id,
+        order_id: order.id || order.order_id,
         name: "Think.4U",
         description: data.purpose_label || "Donation",
         timeout: RETRY_WINDOW_MINUTES * 60,
@@ -357,7 +394,7 @@
           ondismiss: async function () {
             setStatus("warning", "Checkout closed", "Payment was not completed. You can retry safely.");
             setButtonState(false, "Retry Payment");
-            await reportPaymentStatus(order.id, "retryable", "Checkout closed by user");
+            await reportPaymentStatus(order.id || order.order_id, "retryable", "Checkout closed by user");
           }
         },
         handler: function (response) {
@@ -377,6 +414,7 @@
           }
           const providerPrefix = ["razor", "pay"].join("");
           const secureFields = [
+            ["gateway", "razorpay"],
             ["payment_token", response[`${providerPrefix}_payment_id`]],
             ["order_token", response[`${providerPrefix}_order_id`]],
             ["checkout_signature", response[`${providerPrefix}_signature`]]
@@ -398,7 +436,7 @@
         const reason = response?.error?.description || "Payment failed. Please retry.";
         setStatus("error", "Payment failed", reason);
         setButtonState(false, "Retry Payment");
-        await reportPaymentStatus(order.id, "failed", reason);
+        await reportPaymentStatus(order.id || order.order_id, "failed", reason);
       });
       rzp.open();
     } catch (err) {

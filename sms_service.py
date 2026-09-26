@@ -88,97 +88,164 @@ def record_sms_request(phone: str, ip: str = None):
         _IP_RATE_STATE[ip].append(now)
 
 
+def is_valid_secret(val: str) -> bool:
+    """Check if an API secret or key is set and not a placeholder."""
+    if not val or not isinstance(val, str):
+        return False
+    v = val.strip().lower()
+    return not (v == "" or v.startswith("your-") or "xxxx" in v or v == "none")
+
+
 def send_sms_via_provider(phone: str, otp: str, message: str) -> (bool, str):
     """
     Send SMS via the configured gateway.
+    Respects SMS_PROVIDER env var (twilio, fast2sms, msg91, webhook).
+    Falls back gracefully to other configured providers or dev sandbox.
     """
-    # 1. Fast2SMS
-    if FAST2SMS_API_KEY:
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                res = client.post(
-                    "https://www.fast2sms.com/dev/bulkV2",
-                    headers={"authorization": FAST2SMS_API_KEY},
-                    json={
-                        "variables_values": otp,
-                        "route": "otp",
-                        "numbers": phone
-                    }
-                )
-                if res.status_code == 200:
-                    data = res.json()
-                    if data.get("return") is True or "successful" in str(data.get("message", "")).lower():
-                        return True, "SMS sent successfully."
-                    return False, f"Fast2SMS error: {data.get('message', 'Delivery failed')}"
-                return False, f"Fast2SMS HTTP {res.status_code}"
-        except Exception as e:
-            logger.error(f"Fast2SMS error: {e}")
-            return False, str(e)
+    provider = os.getenv("SMS_PROVIDER", "").strip().lower()
+    fast2sms_key = os.getenv("FAST2SMS_API_KEY", "").strip()
+    twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    twilio_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    twilio_phone = (os.getenv("TWILIO_PHONE_NUMBER") or os.getenv("TWILIO_FROM") or "").strip()
+    twilio_messaging_sid = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "").strip()
+    twilio_main_ac = (os.getenv("TWILIO_MAIN_ACCOUNT_SID") or os.getenv("TWILIO_ACCOUNT_SID") or "").strip()
+    msg91_key = os.getenv("MSG91_AUTH_KEY", "").strip()
+    sms_webhook = os.getenv("SMS_WEBHOOK_URL", "").strip()
+    dev_fallback = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == "true"
 
-    # 2. Twilio
-    if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER:
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
+    # Order providers according to user preference or valid configuration
+    if provider == "twilio" or (is_valid_secret(twilio_sid) and not is_valid_secret(fast2sms_key)):
+        active_order = ["twilio", "fast2sms", "msg91", "webhook"]
+    elif provider == "msg91":
+        active_order = ["msg91", "twilio", "fast2sms", "webhook"]
+    elif provider == "fast2sms":
+        active_order = ["fast2sms", "twilio", "msg91", "webhook"]
+    else:
+        active_order = ["twilio", "fast2sms", "msg91", "webhook"]
+
+    last_error = ""
+
+    for p in active_order:
+        # Twilio dispatch
+        if p == "twilio" and is_valid_secret(twilio_sid) and is_valid_secret(twilio_token):
+            if not twilio_phone and not twilio_messaging_sid:
+                last_error = "Twilio configuration incomplete: TWILIO_PHONE_NUMBER or TWILIO_MESSAGING_SERVICE_SID is missing in .env"
+                logger.warning(last_error)
+                if dev_fallback:
+                    logger.warning(
+                        f"\n======================================================\n"
+                        f"[DEV SIMULATOR] (Twilio phone number not configured yet)\n"
+                        f"Mobile: +91-{phone}\n"
+                        f"OTP Code: >>> {otp} <<<\n"
+                        f"======================================================"
+                    )
+                    return True, "SMS sent (sandbox/dev mode - check terminal)."
+                continue
+
+            try:
+                # If twilio_sid is an API key (SK...), URL needs the main Account SID (AC...)
+                ac_sid = twilio_main_ac if twilio_main_ac.startswith("AC") else twilio_sid
+                url = f"https://api.twilio.com/2010-04-01/Accounts/{ac_sid}/Messages.json"
                 formatted_phone = f"+91{phone}" if not phone.startswith("+") else phone
-                res = client.post(
-                    url,
-                    auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
-                    data={
-                        "From": TWILIO_PHONE_NUMBER,
-                        "To": formatted_phone,
-                        "Body": message
-                    }
-                )
-                if res.status_code in (200, 201):
-                    return True, "SMS sent via Twilio."
-                return False, f"Twilio HTTP {res.status_code}: {res.text}"
-        except Exception as e:
-            logger.error(f"Twilio error: {e}")
-            return False, str(e)
 
-    # 3. MSG91
-    if MSG91_AUTH_KEY:
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                res = client.post(
-                    "https://control.msg91.com/api/v5/otp",
-                    headers={"authkey": MSG91_AUTH_KEY, "Content-Type": "application/json"},
-                    json={
-                        "template_id": os.getenv("MSG91_TEMPLATE_ID", ""),
-                        "mobile": f"91{phone}",
-                        "otp": otp
-                    }
-                )
-                if res.status_code in (200, 201):
-                    return True, "SMS sent via MSG91."
-                return False, f"MSG91 HTTP {res.status_code}"
-        except Exception as e:
-            logger.error(f"MSG91 error: {e}")
-            return False, str(e)
+                payload = {
+                    "To": formatted_phone,
+                    "Body": message
+                }
+                if twilio_messaging_sid:
+                    payload["MessagingServiceSid"] = twilio_messaging_sid
+                elif twilio_phone:
+                    payload["From"] = twilio_phone
 
-    # 4. Generic SMS Webhook
-    if SMS_WEBHOOK_URL:
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                res = client.post(
-                    SMS_WEBHOOK_URL,
-                    json={"phone": phone, "otp": otp, "message": message}
-                )
-                if res.status_code in (200, 201):
-                    return True, "SMS sent via webhook."
-        except Exception as e:
-            logger.error(f"SMS webhook error: {e}")
+                with httpx.Client(timeout=10.0) as client:
+                    res = client.post(
+                        url,
+                        auth=(twilio_sid, twilio_token),
+                        data=payload
+                    )
+                    if res.status_code in (200, 201):
+                        return True, "SMS sent via Twilio."
+                    last_error = f"Twilio HTTP {res.status_code}: {res.text}"
+                    logger.error(last_error)
+            except Exception as e:
+                last_error = f"Twilio error: {e}"
+                logger.error(last_error)
 
-    # Fallback to dev/sandbox simulator
-    logger.warning(
-        f"\n======================================================\n"
-        f"[SMS OTP SIMULATOR] Mobile: +91-{phone}\n"
-        f"OTP Code: >>> {otp} <<<\n"
-        f"Message: {message}\n"
-        f"======================================================"
-    )
-    return True, "SMS sent (sandbox mode)."
+        # Fast2SMS dispatch
+        elif p == "fast2sms" and is_valid_secret(fast2sms_key):
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    res = client.post(
+                        "https://www.fast2sms.com/dev/bulkV2",
+                        headers={"authorization": fast2sms_key},
+                        json={
+                            "variables_values": otp,
+                            "route": "otp",
+                            "numbers": phone
+                        }
+                    )
+                    if res.status_code == 200:
+                        data = res.json()
+                        if data.get("return") is True or "successful" in str(data.get("message", "")).lower():
+                            return True, "SMS sent successfully."
+                        last_error = f"Fast2SMS error: {data.get('message', 'Delivery failed')}"
+                        logger.error(last_error)
+                    else:
+                        last_error = f"Fast2SMS HTTP {res.status_code}"
+                        logger.error(last_error)
+            except Exception as e:
+                last_error = f"Fast2SMS error: {e}"
+                logger.error(last_error)
+
+        # MSG91 dispatch
+        elif p == "msg91" and is_valid_secret(msg91_key):
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    res = client.post(
+                        "https://control.msg91.com/api/v5/otp",
+                        headers={"authkey": msg91_key, "Content-Type": "application/json"},
+                        json={
+                            "template_id": os.getenv("MSG91_TEMPLATE_ID", ""),
+                            "mobile": f"91{phone}",
+                            "otp": otp
+                        }
+                    )
+                    if res.status_code in (200, 201):
+                        return True, "SMS sent via MSG91."
+                    last_error = f"MSG91 HTTP {res.status_code}"
+                    logger.error(last_error)
+            except Exception as e:
+                last_error = f"MSG91 error: {e}"
+                logger.error(last_error)
+
+        # Webhook dispatch
+        elif p == "webhook" and is_valid_secret(sms_webhook):
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    res = client.post(
+                        sms_webhook,
+                        json={"phone": phone, "otp": otp, "message": message}
+                    )
+                    if res.status_code in (200, 201):
+                        return True, "SMS sent via webhook."
+                    last_error = f"SMS webhook HTTP {res.status_code}"
+            except Exception as e:
+                last_error = f"SMS webhook error: {e}"
+                logger.error(last_error)
+
+    # If no provider succeeded and dev fallback is enabled, simulate and allow
+    if dev_fallback:
+        logger.warning(
+            f"\n======================================================\n"
+            f"[SMS OTP SIMULATOR] Mobile: +91-{phone}\n"
+            f"OTP Code: >>> {otp} <<<\n"
+            f"Message: {message}\n"
+            f"Note: {last_error or 'Simulated in dev mode'}\n"
+            f"======================================================"
+        )
+        return True, "SMS sent (sandbox/dev mode - check terminal)."
+
+    return False, last_error or "No SMS provider could be contacted."
 
 
 def generate_and_send_mobile_otp(

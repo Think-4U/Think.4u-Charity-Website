@@ -2685,11 +2685,36 @@ def payment_success_redirect():
     return redirect(url_for("donate") if current_user.is_authenticated else url_for("index"))
 
 
-@app.route("/payment-webhook", methods=["POST"])
-@app.route("/api/payment/webhook", methods=["POST"])
+@app.route("/payment-webhook", methods=["GET", "POST"])
+@app.route("/api/payment/webhook", methods=["GET", "POST"])
 def payment_webhook():
     """Server-to-server webhook endpoint for Cashfree & Razorpay payment confirmations."""
+
+    # Cashfree may send a GET request to verify the URL is reachable.
+    if request.method == "GET":
+        return jsonify({"status": "ok", "service": "think4u-webhook"}), 200
+
     raw_body = request.get_data()
+
+    # Empty body = Cashfree dashboard test ping (URL reachability check).
+    # Respond 200 immediately so the dashboard marks the endpoint as valid.
+    if not raw_body or raw_body.strip() in (b"", b"null", b"{}"):
+        return jsonify({"status": "ok"}), 200
+
+    # Try to detect a Cashfree test event even without a valid signature.
+    # Cashfree sends test pings with a recognisable event type field.
+    try:
+        _test_body = pyjson.loads(raw_body)
+        _event_type = (
+            _test_body.get("type") or
+            _test_body.get("event_type") or
+            _test_body.get("data", {}).get("payment", {}).get("payment_status", "")
+        )
+        if str(_event_type).upper() in ("TEST", "TEST_WEBHOOK", "PING", "WEBHOOK_TEST"):
+            return jsonify({"status": "ok"}), 200
+    except Exception:
+        pass
+
     headers = dict(request.headers)
 
     # Detect gateway from headers
@@ -2730,9 +2755,6 @@ def payment_webhook():
             return jsonify({"error": "Processing failed"}), 500
 
     return jsonify({"status": "ok"}), 200
-
-    return redirect(url_for('donate') if current_user.is_authenticated else url_for("index"))
-
 
 
 

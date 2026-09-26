@@ -32,6 +32,12 @@
                     </div>
                 </div>
 
+                {% if turnstile_site_key %}
+                <div class="flex justify-center my-3">
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
+                </div>
+                {% endif %}
+
                 <div class="flex justify-end">
                     <button type="button" id="sendOtpBtn"
                             class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow transition">
@@ -46,12 +52,6 @@
                            placeholder="••••••">
                     <p class="text-xs text-gray-500">Enter the 6-digit code received on your mobile.</p>
                 </div>
-
-                {% if turnstile_site_key %}
-                <div class="flex justify-center my-4">
-                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
-                </div>
-                {% endif %}
             </div>
 
             <button type="submit" id="submitLoginBtn"
@@ -98,8 +98,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
-            const turnstileEl = document.querySelector('[name="cf-turnstile-response"]');
-            const turnstileToken = turnstileEl ? turnstileEl.value : "";
+
+            let turnstileToken = "";
+            if (window.turnstile) {
+                try {
+                    turnstileToken = window.turnstile.getResponse();
+                } catch (_) {}
+            }
+            if (!turnstileToken) {
+                const turnstileEl = document.querySelector('[name="cf-turnstile-response"]');
+                turnstileToken = turnstileEl ? turnstileEl.value : "";
+            }
+
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const hasTurnstile = document.querySelector('.cf-turnstile');
+            if (hasTurnstile && !turnstileToken && !isLocalDev) {
+                showAlert("Please complete the Cloudflare security verification before requesting OTP.", true);
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = "Get OTP via SMS";
+                return;
+            }
 
             const resp = await fetch("{{ url_for('api_sms_send_otp') }}", {
                 method: "POST",
@@ -110,6 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     phone: phone,
                     purpose: "login",
+                    "cf-turnstile-response": turnstileToken,
                     turnstile_token: turnstileToken
                 })
             });

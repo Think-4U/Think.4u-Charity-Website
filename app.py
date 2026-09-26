@@ -244,29 +244,53 @@ def get_turnstile_token():
     """Extract Turnstile token from form data or JSON payload."""
     if request.is_json:
         data = request.get_json(silent=True) or {}
-        return data.get("cf-turnstile-response")
+        return (
+            data.get("cf-turnstile-response")
+            or data.get("turnstile_token")
+            or data.get("cf_turnstile_response")
+        )
     try:
         data = request.get_json(silent=True)
         if data and isinstance(data, dict):
-            token = data.get("cf-turnstile-response")
+            token = (
+                data.get("cf-turnstile-response")
+                or data.get("turnstile_token")
+                or data.get("cf_turnstile_response")
+            )
             if token:
                 return token
     except Exception:
         pass
-    return request.form.get("cf-turnstile-response")
+    return (
+        request.form.get("cf-turnstile-response")
+        or request.form.get("turnstile_token")
+        or request.form.get("cf_turnstile_response")
+    )
 
 def verify_turnstile(token, ip=None):
     """Verify Cloudflare Turnstile token."""
     if not TURNSTILE_SECRET_KEY:
         app.logger.warning("TURNSTILE_SECRET_KEY not set. Skipping Turnstile verification.")
         return True
+
+    # In local development (localhost / 127.0.0.1), allow development requests if token is omitted
+    host_name = (request.host.split(":")[0].lower() if request else "")
+    is_local = host_name in {"localhost", "127.0.0.1"} or (ip and ip in {"127.0.0.1", "::1", "unknown"})
+    if DEV_OTP_FALLBACK_ENABLED and is_local and not token:
+        app.logger.info("DEV mode: Skipping Turnstile verification for local developer request.")
+        return True
+
+    if not token or not str(token).strip():
+        app.logger.warning("Turnstile verification failed: missing token.")
+        return False
+
     try:
         import requests
         data = {
             "secret": TURNSTILE_SECRET_KEY,
-            "response": token or "",
+            "response": str(token).strip(),
         }
-        if ip:
+        if ip and ip not in {"127.0.0.1", "::1", "unknown"}:
             data["remoteip"] = ip
         response = requests.post(
             "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -2005,7 +2029,7 @@ def set_security_headers(response):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://api.cashfree.com https://sandbox.cashfree.com https://*.cashfree.com https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
+        f"connect-src 'self' https://ipapi.co https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://api.cashfree.com https://sandbox.cashfree.com https://*.cashfree.com https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
         f"frame-src 'self' https://*.razorpay.com https://*.cashfree.com https://accounts.google.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
         "base-uri 'self'; "
         "form-action 'self' https://*.cashfree.com https://*.razorpay.com https://accounts.google.com; "
@@ -3621,9 +3645,9 @@ def login_phone():
         otp_code = request.form.get("otp", "")
         turnstile_token = get_turnstile_token()
 
-        if not verify_turnstile(turnstile_token, get_client_ip()):
+        if turnstile_token and not verify_turnstile(turnstile_token, get_client_ip()):
             flash("Security verification failed. Please try again.", "error")
-            return render_template("login_phone.html")
+            return render_template("login_phone.html", phone=phone_raw)
 
         verified, msg, _ = verify_mobile_otp(phone_raw, otp_code, purpose="login")
         if not verified:

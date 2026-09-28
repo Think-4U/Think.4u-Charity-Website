@@ -81,6 +81,35 @@
                     </select>
                 </div>
 
+                <!-- Optional Phone Verification -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                    <p class="text-xs font-bold text-amber-800 uppercase tracking-wide">📱 Optional: Verify Mobile (enables SMS OTP login)</p>
+                    <div id="phoneVerifyStatus" class="hidden text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                        ✅ Phone verified!
+                    </div>
+                    <div class="flex rounded-xl shadow-sm border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-charity-gold">
+                        <span class="inline-flex items-center px-3 bg-gray-100 text-gray-700 font-bold border-r border-gray-300 text-sm">+91</span>
+                        <input id="signupPhone" name="phone" type="tel" maxlength="10"
+                               value="{{ phone|default('') }}"
+                               class="block w-full px-3 py-2.5 placeholder-gray-400 focus:outline-none text-charity-dark font-semibold text-sm"
+                               placeholder="10-digit mobile number">
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <button type="button" id="signupSendOtpBtn"
+                                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow transition shrink-0">
+                            Send OTP
+                        </button>
+                        <input id="signupPhoneOtp" name="phone_otp" type="text" maxlength="6" pattern="[0-9]{6}"
+                               class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 text-center tracking-widest font-bold focus:outline-none focus:ring-2 focus:ring-charity-gold text-sm"
+                               placeholder="6-digit OTP">
+                        <button type="button" id="signupVerifyOtpBtn"
+                                class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold rounded-lg shadow transition shrink-0">
+                            Verify
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500">Verifying your phone lets you log in via Mobile OTP later.</p>
+                </div>
+
                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label for="captcha_answer" class="block text-sm font-bold text-charity-dark mb-2">Security Question: <span class="text-charity-gold">{{ captcha_question }}</span></label>
                     <input id="captcha_answer" name="captcha_answer" type="text" required 
@@ -109,4 +138,96 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const sendBtn = document.getElementById("signupSendOtpBtn");
+    const verifyBtn = document.getElementById("signupVerifyOtpBtn");
+    const phoneInput = document.getElementById("signupPhone");
+    const otpInput = document.getElementById("signupPhoneOtp");
+    const statusDiv = document.getElementById("phoneVerifyStatus");
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
+
+    function showStatus(msg, ok) {
+        statusDiv.className = `text-xs font-semibold rounded-lg px-3 py-2 ${ok ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-red-700 bg-red-50 border border-red-200'}`;
+        statusDiv.textContent = msg;
+        statusDiv.classList.remove("hidden");
+    }
+
+    if (sendBtn) {
+        sendBtn.addEventListener("click", async () => {
+            const phone = phoneInput.value.replace(/\D/g, "");
+            if (phone.length !== 10) {
+                showStatus("Enter a valid 10-digit Indian mobile number.", false);
+                return;
+            }
+            sendBtn.disabled = true;
+            sendBtn.textContent = "Sending…";
+            try {
+                const res = await fetch("{{ url_for('api_sms_send_otp') }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+                    body: JSON.stringify({ phone, purpose: "signup" })
+                });
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    showStatus(data.error || "Failed to send OTP.", false);
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = "Send OTP";
+                    return;
+                }
+                showStatus("OTP sent to +91-" + phone + ". Check your messages.", true);
+                let s = 60;
+                const iv = setInterval(() => {
+                    s--;
+                    if (s <= 0) { clearInterval(iv); sendBtn.disabled = false; sendBtn.textContent = "Resend OTP"; }
+                    else sendBtn.textContent = `Resend in ${s}s`;
+                }, 1000);
+            } catch {
+                showStatus("Network error while sending OTP.", false);
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Send OTP";
+            }
+        });
+    }
+
+    if (verifyBtn) {
+        verifyBtn.addEventListener("click", async () => {
+            const phone = phoneInput.value.replace(/\D/g, "");
+            const otp = otpInput.value.trim();
+            if (phone.length !== 10 || otp.length !== 6) {
+                showStatus("Enter both a valid phone number and the 6-digit OTP.", false);
+                return;
+            }
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = "Verifying…";
+            try {
+                const res = await fetch("{{ url_for('api_sms_verify_otp') }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+                    body: JSON.stringify({ phone, otp, purpose: "signup" })
+                });
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    showStatus(data.error || "OTP verification failed.", false);
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = "Verify";
+                    return;
+                }
+                showStatus("✅ Phone verified! It will be linked to your account.", true);
+                verifyBtn.disabled = true;
+                verifyBtn.textContent = "✓ Verified";
+                phoneInput.readOnly = true;
+                otpInput.readOnly = true;
+            } catch {
+                showStatus("Network error during verification.", false);
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = "Verify";
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

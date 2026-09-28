@@ -1170,19 +1170,28 @@ def send_generated_password_email(email, name, password):
     )
 
 
-def get_or_create_public_donor(name, email, phone, address=""):
+def get_or_create_public_donor(name, email=None, phone=None, address=""):
     generated = None
     try:
-        existing_response = supabase.table("users").select("*").eq("email", email).limit(1).execute()
-        existing_row = (existing_response.data or [None])[0]
+        existing_row = None
+        if email:
+            existing_response = supabase.table("users").select("*").eq("email", email).limit(1).execute()
+            existing_row = (existing_response.data or [None])[0]
+        if not existing_row and phone:
+            existing_response = supabase.table("users").select("*").eq("phone", phone).limit(1).execute()
+            existing_row = (existing_response.data or [None])[0]
+
         if existing_row:
             update_payload = {
                 "name": existing_row.get("name") or clean_text(name, 120),
                 "phone": existing_row.get("phone") or phone,
                 "address": existing_row.get("address") or clean_text(address, 500),
-                "email_verified": True,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
+            if email and not existing_row.get("email"):
+                update_payload["email"] = email
+            if email:
+                update_payload["email_verified"] = True
             try:
                 updated = supabase.table("users").update(update_payload).eq("id", existing_row["id"]).execute()
                 return (updated.data or [existing_row])[0], generated
@@ -1190,15 +1199,16 @@ def get_or_create_public_donor(name, email, phone, address=""):
                 return existing_row, generated
 
         generated = generated_password()
+        final_email = email or f"donor_{phone or secrets.token_hex(4)}@think4u.local"
         payload = {
-            "email": email,
-            "name": clean_text(name, 120) or email.split("@")[0],
+            "email": final_email,
+            "name": clean_text(name, 120) or final_email.split("@")[0],
             "phone": phone,
             "address": clean_text(address, 500),
             "password_hash": generate_password_hash(generated),
             "is_admin": False,
             "role": "donor",
-            "email_verified": True,
+            "email_verified": bool(email),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         try:
@@ -2254,7 +2264,7 @@ def donate():
 
 @app.route("/donation/start", methods=["POST"])
 def start_public_donation_verification():
-    """Send OTP for anonymous/public donation checkout."""
+    """Send OTP for anonymous/public donation checkout (supports mobile SMS OTP or Email OTP)."""
     if current_user.is_authenticated:
         return jsonify({"ok": True, "verified": True}), 200
 
@@ -2267,58 +2277,122 @@ def start_public_donation_verification():
     email = normalize_email(data.get("email"))
     phone = normalize_phone(data.get("phone", ""))
     address = clean_text(data.get("address"), 500)
+    channel = (data.get("channel") or data.get("verify_method") or "").lower()
 
     try:
         amount = int(data.get("amount", 0))
     except (TypeError, ValueError):
         amount = 0
 
-    if not name or not email or not phone:
-        return jsonify({"error": "Name, valid email, and 10 digit phone are required"}), 400
+    if not name:
+        return jsonify({"error": "Donor name is required"}), 400
     if amount < 1000:
         return jsonify({"error": "Minimum donation is Rs 10"}), 400
 
-    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
-    otp = set_pending_otp("donation_public", email, {
-        "name": name,
-        "email": email,
-        "phone": phone,
-        "address": address,
-        "purpose_type": purpose_type,
-        "purpose_id": purpose_id,
-        "purpose_label": purpose_label,
-    })
-    email_sent = send_otp_email(email, otp, "Donation Verification")
-    if not email_sent:
-        if DEV_OTP_FALLBACK_ENABLED:
-            app.logger.warning(f"DEV OTP fallback (donation) for {email}: {otp}")
-            return jsonify({"ok": True, "message": "OTP email failed; development OTP printed in server terminal"}), 200
-        session.pop("pending_donation_public", None)
-        return jsonify({"error": "Unable to send OTP email right now"}), 503
+    # Auto-select channel if not explicitly chosen: phone if valid 10-digit phone given, else email
+    if not channel:
+        channel = "phone" if (phone and len(phone) == 10) else "email"
 
-    return jsonify({"ok": True, "message": "OTP sent to donor email"}), 200
+    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
+
+    if channel == "phone":
+        if not phone or len(phone) != 10:
+            return jsonify({"error": "A valid 10-digit Indian mobile number is required for SMS OTP"}), 400
+
+        from sms_service import generate_and_send_mobile_otp
+        ok, send_msg, _ = generate_and_send_mobile_otp(
+            phone,
+            purpose="donation_public",
+            ip=get_client_ip(),
+            metadata={"name": name, "email": email, "address": address, "amount": amount}
+        )
+        if not ok:
+            return jsonify({"error": f"Failed to send SMS OTP: {send_msg}"}), 400
+
+        session["pending_donation_channel"] = "phone"
+        session["pending_donation_phone"] = phone
+        session["pending_donation_data"] = {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "address": address,
+            "purpose_type": purpose_type,
+            "purpose_id": purpose_id,
+            "purpose_label": purpose_label,
+        }
+        return jsonify({"ok": True, "channel": "phone", "message": f"6-digit SMS OTP sent to +91-{phone}"}), 200
+
+    else:
+        # Email OTP
+        if not email:
+            return jsonify({"error": "A valid email address is required for Email OTP"}), 400
+
+        otp = set_pending_otp("donation_public", email, {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "address": address,
+            "purpose_type": purpose_type,
+            "purpose_id": purpose_id,
+            "purpose_label": purpose_label,
+        })
+        session["pending_donation_channel"] = "email"
+        session["pending_donation_email"] = email
+
+        email_sent = send_otp_email(email, otp, "Donation Verification")
+        if not email_sent:
+            if DEV_OTP_FALLBACK_ENABLED:
+                app.logger.warning(f"DEV OTP fallback (donation) for {email}: {otp}")
+                return jsonify({"ok": True, "channel": "email", "message": "OTP email failed; development OTP printed in server terminal"}), 200
+            session.pop("pending_donation_public", None)
+            return jsonify({"error": "Unable to send OTP email right now. Please select Mobile SMS verification."}), 503
+
+        return jsonify({"ok": True, "channel": "email", "message": f"OTP sent to {email}"}), 200
 
 
 @app.route("/donation/verify", methods=["POST"])
 def verify_public_donation():
-    """Verify public donation OTP and create/login donor account."""
+    """Verify public donation OTP (supports mobile SMS OTP or Email OTP) and create/login donor account."""
     if current_user.is_authenticated:
         return jsonify({"ok": True, "verified": True}), 200
 
     data = request.get_json(silent=True) or {}
     otp_code = clean_text(data.get("otp"), 10)
-    ok, payload_or_message = validate_pending_otp("donation_public", otp_code)
-    if not ok:
-        return jsonify({"error": payload_or_message}), 400
+    channel = session.get("pending_donation_channel") or data.get("channel") or ("phone" if data.get("phone") else "email")
 
-    payload = payload_or_message.get("payload", {})
-    email = payload_or_message.get("email")
-    user_row, temp_password = get_or_create_public_donor(
-        name=payload.get("name"),
-        email=email,
-        phone=payload.get("phone"),
-        address=payload.get("address"),
-    )
+    if channel == "phone":
+        phone = session.get("pending_donation_phone") or normalize_phone(data.get("phone", ""))
+        from sms_service import verify_mobile_otp
+        verified, msg, metadata = verify_mobile_otp(phone, otp_code, purpose="donation_public")
+        if not verified:
+            return jsonify({"error": msg}), 400
+
+        saved_data = session.get("pending_donation_data") or metadata or {}
+        donor_name = saved_data.get("name") or data.get("name")
+        donor_email = saved_data.get("email") or data.get("email")
+        donor_address = saved_data.get("address") or data.get("address")
+
+        user_row, temp_password = get_or_create_public_donor(
+            name=donor_name,
+            email=donor_email,
+            phone=phone,
+            address=donor_address
+        )
+    else:
+        # Email OTP flow
+        ok, payload_or_message = validate_pending_otp("donation_public", otp_code)
+        if not ok:
+            return jsonify({"error": payload_or_message}), 400
+
+        payload = payload_or_message.get("payload", {})
+        email = payload_or_message.get("email")
+        user_row, temp_password = get_or_create_public_donor(
+            name=payload.get("name"),
+            email=email,
+            phone=payload.get("phone"),
+            address=payload.get("address"),
+        )
+
     if not user_row:
         return jsonify({"error": "Unable to prepare donor account"}), 500
 
@@ -2333,13 +2407,16 @@ def verify_public_donation():
     )
     login_user(user)
     session.pop("pending_donation_public", None)
+    session.pop("pending_donation_channel", None)
+    session.pop("pending_donation_phone", None)
+    session.pop("pending_donation_data", None)
 
-    if temp_password:
-        send_generated_password_email(email, user.name, temp_password)
+    if temp_password and user.email and not user.email.endswith("@think4u.local"):
+        send_generated_password_email(user.email, user.name, temp_password)
         create_notification_for_user(
             user.id,
             "Account created",
-            "Your Think.4U account was created after email verification. A temporary password was mailed to you."
+            "Your Think.4U account was created after verification. A temporary password was mailed to you."
         )
 
     return jsonify({
@@ -2463,8 +2540,13 @@ def create_order():
     if not donor_name or not donor_phone:
         return jsonify({"error": "Missing donor details"}), 400
 
-    donation_ref, donation_number = make_donation_ref(user_id=current_user.id, email=donor_email)
-    return_url = f"{request.host_url.rstrip('/')}{url_for('payment_success_redirect')}"
+    base_host = request.host_url.rstrip('/')
+    if base_host.startswith("http://"):
+        if "127.0.0.1" in base_host or "localhost" in base_host:
+            base_host = "https://think4u.org"
+        else:
+            base_host = "https://" + base_host[len("http://"):]
+    return_url = f"{base_host}{url_for('payment_success_redirect')}"
 
     try:
         order = active_gw.create_order(
@@ -3323,6 +3405,14 @@ def signup():
         role = clean_text(request.form.get("role") or "donor", 20).lower()
         captcha_answer = request.form.get("captcha_answer")
         turnstile_token = get_turnstile_token()
+        # New: handle optional phone verification
+        phone_raw = clean_text(request.form.get("phone", ""), 20)
+        phone_otp = clean_text(request.form.get("phone_otp", ""), 10)
+        if phone_raw:
+            verified_phone, phone_msg, _ = verify_mobile_otp(phone_raw, phone_otp, purpose="signup")
+            if not verified_phone:
+                flash(f"Phone verification failed: {phone_msg}", "error")
+                return render_template("signup.html", captcha_question=generate_math_captcha("signup"), phone=phone_raw)
 
         if not verify_math_captcha("signup", captcha_answer):
             flash("Captcha verification failed.", "error")
@@ -3354,10 +3444,12 @@ def signup():
                 flash("Account already exists. Please log in.", "info")
                 return redirect(url_for("login"))
 
+            norm_phone_signup = normalize_mobile_phone(phone_raw) if phone_raw else None
             otp = set_pending_otp("signup", email, {
                 "name": name,
                 "password_hash": generate_password_hash(password),
                 "role": role,
+                "phone": norm_phone_signup,
             })
             email_sent = send_otp_email(email, otp, "Signup Verification")
             if email_sent:
@@ -3417,6 +3509,8 @@ def verify_signup():
                 "email_verified": True,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
+            if payload.get("phone"):
+                insert_payload["phone"] = payload["phone"]
 
             try:
                 create_response = supabase.table("users").insert(insert_payload).execute()

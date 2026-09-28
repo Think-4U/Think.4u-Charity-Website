@@ -166,7 +166,13 @@ class CashfreeGateway(BasePaymentGateway):
         if return_url:
             separator = "&" if "?" in return_url else "?"
             # Cashfree replaces {order_id} placeholder in return_url
-            order_meta["return_url"] = f"{return_url}{separator}order_id={{order_id}}&gateway=cashfree"
+            formatted_return_url = f"{return_url}{separator}order_id={{order_id}}&gateway=cashfree"
+            if formatted_return_url.startswith("http://"):
+                if "127.0.0.1" in formatted_return_url or "localhost" in formatted_return_url:
+                    formatted_return_url = "https://think4u.org/payment-success?order_id={order_id}&gateway=cashfree"
+                else:
+                    formatted_return_url = "https://" + formatted_return_url[len("http://"):]
+            order_meta["return_url"] = formatted_return_url
 
         order_note = ""
         if notes and isinstance(notes, dict):

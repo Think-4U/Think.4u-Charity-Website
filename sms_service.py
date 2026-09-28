@@ -111,7 +111,7 @@ def send_sms_via_provider(phone: str, otp: str, message: str) -> (bool, str):
     twilio_main_ac = (os.getenv("TWILIO_MAIN_ACCOUNT_SID") or os.getenv("TWILIO_ACCOUNT_SID") or "").strip()
     msg91_key = os.getenv("MSG91_AUTH_KEY", "").strip()
     sms_webhook = os.getenv("SMS_WEBHOOK_URL", "").strip()
-    dev_fallback = os.getenv("ALLOW_DEV_OTP_FALLBACK", "true").lower() == "true"
+    dev_fallback = os.getenv("ALLOW_DEV_OTP_FALLBACK", "false").lower() == "true"
 
     # Order providers according to user preference or valid configuration
     if provider == "twilio" or (is_valid_secret(twilio_sid) and not is_valid_secret(fast2sms_key)):

@@ -79,15 +79,35 @@
         <input id="purpose_id" type="hidden" value="{{ donation_context.purpose_id or '' }}">
         <input id="purpose_label" type="hidden" value="{{ donation_context.purpose_label or 'Self donation' }}">
 
+        {% if not current_user.is_authenticated %}
+        <div class="mb-5 p-4 rounded-xl border border-amber-200 bg-amber-50/70">
+          <p class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-2">Quick Donor Verification:</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <label class="flex items-center gap-2.5 p-3 rounded-lg border border-amber-300 bg-white cursor-pointer hover:border-amber-500 transition shadow-sm">
+              <input type="radio" name="otp_channel" value="phone" checked class="text-amber-800 focus:ring-amber-700">
+              <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <i data-lucide="smartphone" class="w-4 h-4 text-amber-600"></i> Verify via Mobile SMS
+              </span>
+            </label>
+            <label class="flex items-center gap-2.5 p-3 rounded-lg border border-gray-200 bg-white cursor-pointer hover:border-amber-500 transition shadow-sm">
+              <input type="radio" name="otp_channel" value="email" class="text-amber-800 focus:ring-amber-700">
+              <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <i data-lucide="mail" class="w-4 h-4 text-slate-500"></i> Verify via Email
+              </span>
+            </label>
+          </div>
+        </div>
+        {% endif %}
+
         <div id="otp-panel" class="hidden mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p class="font-bold text-amber-900 mb-2">Verify email OTP</p>
+          <p id="otp-panel-title" class="font-bold text-amber-900 mb-2">Enter Verification OTP</p>
           <div class="flex flex-col sm:flex-row gap-3">
             <input id="donation_otp" type="text" maxlength="6" placeholder="6 digit OTP"
               class="flex-1 p-3 rounded-lg border-2 border-amber-200 focus:outline-none focus:border-amber-700 tracking-widest font-bold text-center">
-            <button id="verifyOtpBtn" type="button" class="px-5 py-3 rounded-lg bg-amber-800 text-white font-bold">Verify OTP</button>
+            <button id="verifyOtpBtn" type="button" class="px-5 py-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white font-bold transition">Verify OTP</button>
           </div>
           <div class="mt-3 flex items-center justify-between">
-            <p class="text-sm text-amber-800">After verification, a secure account is created and the temporary password is emailed to you.</p>
+            <p id="otp-panel-desc" class="text-sm text-amber-800">Enter the 6-digit code to complete verification.</p>
             <button id="resendOtpBtn" type="button" class="text-sm font-bold text-amber-900 hover:underline hidden disabled:opacity-50 disabled:no-underline">Resend OTP</button>
           </div>
         </div>
@@ -108,7 +128,7 @@
 
         <button id="payBtn"
           class="w-full bg-amber-800 hover:bg-amber-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-lg transition">
-          <span id="btnText">{% if current_user.is_authenticated %}Donate Now{% else %}Verify Email & Donate{% endif %}</span>
+          <span id="btnText">{% if current_user.is_authenticated %}Donate Now{% else %}Verify &amp; Proceed to Donate{% endif %}</span>
         </button>
       </div>
 
@@ -194,9 +214,19 @@
     return data;
   }
 
+  function getSelectedChannel() {
+    const el = document.querySelector('input[name="otp_channel"]:checked');
+    return el ? el.value : 'phone';
+  }
+
   function validatePayload(data) {
-    if (!data.name || !data.email || !data.phone) return "Please fill name, email, and phone.";
-    if (!/^\d{10}$/.test(data.phone)) return "Enter valid 10 digit phone number.";
+    if (!data.name) return "Please enter your full name.";
+    const channel = getSelectedChannel();
+    if (channel === 'phone') {
+      if (!data.phone || !/^\d{10}$/.test(data.phone)) return "Please enter a valid 10-digit Indian mobile number.";
+    } else {
+      if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return "Please enter a valid email address.";
+    }
     if (!Number.isFinite(data.amount) || data.amount < 1000) return "Minimum donation is Rs 10.";
     return "";
   }
@@ -239,7 +269,12 @@
     resendBtn.disabled = true;
     resendBtn.textContent = "Sending...";
     try {
-      const data = await postJson("{{ url_for('resend_otp', flow='donation_public') }}", {});
+      const channel = getSelectedChannel();
+      const payloadData = payload();
+      const data = await postJson("{{ url_for('start_public_donation_verification') }}", {
+        ...payloadData,
+        channel: channel
+      });
       await window.showUiAlert(data.message || "OTP Resent", "success", "OTP Sent");
       startResendTimer();
     } catch (err) {
@@ -260,12 +295,28 @@
       }
       return false;
     }
+    const channel = getSelectedChannel();
     setButtonState(true, "Sending OTP...");
-    setStatus("loading", "Sending OTP", "Please check your donor email for the verification code.");
-    await postJson("{{ url_for('start_public_donation_verification') }}", data);
+    setStatus("loading", "Sending OTP", channel === 'phone' ? "Sending 6-digit SMS OTP to your mobile..." : "Sending 6-digit verification code to your email...");
+    
+    const turnstileEl = document.querySelector('[name="cf-turnstile-response"]');
+    const turnstileToken = turnstileEl ? turnstileEl.value : "";
+
+    const res = await postJson("{{ url_for('start_public_donation_verification') }}", {
+      ...data,
+      channel: channel,
+      "cf-turnstile-response": turnstileToken,
+      turnstile_token: turnstileToken
+    });
+
     otpPanel.classList.remove("hidden");
+    const titleEl = document.getElementById("otp-panel-title");
+    const descEl = document.getElementById("otp-panel-desc");
+    if (titleEl) titleEl.textContent = channel === 'phone' ? "Verify Mobile SMS OTP" : "Verify Email OTP";
+    if (descEl) descEl.textContent = channel === 'phone' ? `Enter the 6-digit code sent to +91-${data.phone}` : `Enter the 6-digit code sent to ${data.email}`;
+
     setButtonState(false, "Verify OTP & Continue");
-    setStatus("warning", "OTP sent", "Enter the OTP sent to your email, then continue payment.");
+    setStatus("warning", "OTP sent", res.message || (channel === 'phone' ? `SMS OTP sent to +91-${data.phone}` : `OTP sent to ${data.email}`));
     startResendTimer();
     return false;
   }
@@ -279,13 +330,23 @@
     try {
       verifyOtpBtn.disabled = true;
       verifyOtpBtn.textContent = "Verifying...";
-      await postJson("{{ url_for('verify_public_donation') }}", { otp });
+      const channel = getSelectedChannel();
+      await postJson("{{ url_for('verify_public_donation') }}", {
+        otp,
+        channel: channel,
+        phone: (phoneInput.value || "").trim(),
+        email: (emailInput.value || "").trim(),
+        name: (nameInput.value || "").trim(),
+        address: (addressInput.value || "").trim()
+      });
       donationVerified = true;
       otpPanel.classList.add("hidden");
+      phoneInput.readOnly = true;
+      phoneInput.classList.add("bg-slate-100");
       emailInput.readOnly = true;
       emailInput.classList.add("bg-slate-100");
       setButtonState(false, "Donate Now");
-      setStatus("success", "Email verified", "You can now complete the payment securely.");
+      setStatus("success", "Verified", "Verification successful! You can now proceed to payment.");
     } catch (err) {
       await window.showUiAlert(err.message, "error", "OTP Failed");
       setStatus("error", "OTP failed", err.message);

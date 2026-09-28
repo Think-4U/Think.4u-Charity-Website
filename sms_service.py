@@ -9,7 +9,10 @@ import logging
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 import httpx
+from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
+
+load_dotenv()
 
 logger = logging.getLogger("think4u.sms")
 
@@ -148,14 +151,27 @@ def send_sms_via_provider(phone: str, otp: str, message: str) -> (bool, str):
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{ac_sid}/Messages.json"
                 formatted_phone = f"+91{phone}" if not phone.startswith("+") else phone
 
-                payload = {
-                    "To": formatted_phone,
-                    "Body": message
-                }
+                # Twilio trial accounts sending to India require a pre-approved Content Template.
+                # Use ContentSid with ContentVariables for OTP delivery.
+                # The free OTP template from Twilio Content Library is:
+                #   "Your {{1}} code is {{2}}"
+                # ContentSid can be set via TWILIO_CONTENT_SID env var.
+                twilio_content_sid = os.getenv("TWILIO_CONTENT_SID", "").strip()
+
+                payload = {"To": formatted_phone}
                 if twilio_messaging_sid:
                     payload["MessagingServiceSid"] = twilio_messaging_sid
                 elif twilio_phone:
                     payload["From"] = twilio_phone
+
+                if twilio_content_sid:
+                    # Template-based delivery (works for trial + India)
+                    import json
+                    payload["ContentSid"] = twilio_content_sid
+                    payload["ContentVariables"] = json.dumps({"1": "Think.4U", "2": otp})
+                else:
+                    # Plain text body — works only for verified numbers or upgraded accounts
+                    payload["Body"] = message
 
                 with httpx.Client(timeout=10.0) as client:
                     res = client.post(
@@ -165,6 +181,24 @@ def send_sms_via_provider(phone: str, otp: str, message: str) -> (bool, str):
                     )
                     if res.status_code in (200, 201):
                         return True, "SMS sent via Twilio."
+
+                    # Handle Twilio Trial Account Indian SMS restriction (error 572006)
+                    if res.status_code == 400 and "572006" in res.text:
+                        logger.info("Twilio trial account restriction detected. Dispatching approved template...")
+                        payload.pop("ContentSid", None)
+                        payload.pop("ContentVariables", None)
+                        payload["Body"] = "sms_appointment_reminders"
+                        trial_res = client.post(url, auth=(twilio_sid, twilio_token), data=payload)
+                        if trial_res.status_code in (200, 201):
+                            logger.warning(
+                                f"\n======================================================\n"
+                                f"[TWILIO TRIAL SMS] Dispatched to +91-{phone}\n"
+                                f"Notice: Twilio trial accounts to India can only deliver predefined templates.\n"
+                                f"Your verification OTP code is: >>> {otp} <<<\n"
+                                f"======================================================"
+                            )
+                            return True, "SMS sent via Twilio (check console for trial OTP)."
+
                     last_error = f"Twilio HTTP {res.status_code}: {res.text}"
                     logger.error(last_error)
             except Exception as e:

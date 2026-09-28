@@ -433,14 +433,13 @@ def verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
 # Admin Credentials
 # ------------------------------
 app.config.update(
-    MAIL_SERVER="smtp.gmail.com",
-    MAIL_PORT=587,
-    MAIL_USE_TLS=True,
+    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+    MAIL_PORT=int(os.getenv("MAIL_PORT", "587")),
+    MAIL_USE_TLS=os.getenv("MAIL_USE_TLS", "true").lower() in ("true", "1", "yes"),
+    MAIL_USE_SSL=os.getenv("MAIL_USE_SSL", "false").lower() in ("true", "1", "yes"),
     MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    # Gmail app passwords are commonly copied with display spaces. SMTP expects
-    # the underlying value, so normalize only whitespace around that value.
-    MAIL_PASSWORD=(os.getenv("MAIL_PASSWORD") or "").replace(" ", "").strip(),
-    MAIL_DEFAULT_SENDER=("Think.4U", os.getenv("MAIL_USERNAME"))
+    MAIL_PASSWORD=(os.getenv("MAIL_PASSWORD") or "").strip(),
+    MAIL_DEFAULT_SENDER=(os.getenv("MAIL_DEFAULT_SENDER_NAME", "Think.4U"), os.getenv("MAIL_USERNAME") or os.getenv("MAIL_DEFAULT_SENDER", "verify-otp@think4u.org"))
 )
 app.config["MAIL_TIMEOUT"] = 20
 

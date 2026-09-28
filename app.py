@@ -2549,6 +2549,9 @@ def create_order():
     return_url = f"{base_host}{url_for('payment_success_redirect')}"
 
     try:
+        donation_ref, donation_number = make_donation_ref(
+            user_id=current_user.id, email=donor_email
+        )
         order = active_gw.create_order(
             amount_paise=amount,
             currency="INR",

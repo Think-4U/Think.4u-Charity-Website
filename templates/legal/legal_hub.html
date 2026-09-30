@@ -5,172 +5,175 @@
 {% block legal_content %}
 <div class="space-y-8 text-slate-800 leading-relaxed">
     <!-- Header -->
-    <div class="border-b border-amber-900/10 pb-6">
+    <div class="border-b border-slate-200 pb-6">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-xs uppercase tracking-wide">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Master Documentation Directory
             </span>
-            <span class="text-xs text-slate-500 font-medium">Effective Date: 30 September 2026 | Last Updated: 30 September 2026</span>
+            <span class="text-xs text-slate-400 font-medium">Effective Date: 30 September 2026</span>
         </div>
-        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Think4U Policy &amp; Compliance Portal</h2>
-        <p class="text-sm text-slate-600 mt-2">
-            Explore our complete legal, governance, privacy, and operating frameworks. Think4U Charity Organization is committed to total transparency and regulatory compliance under Indian charitable laws.
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Policy &amp; Statutory Compliance Portal</h2>
+        <p class="text-sm text-slate-600 mt-2 max-w-3xl leading-relaxed">
+            Welcome to the official legal and compliance portal of Think4U Charity Organization. We uphold the highest standards of governance, financial transparency, and personal data protection under Indian charitable trust laws.
         </p>
     </div>
 
-    <!-- Quick Status Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-300">
-            <div class="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-1">
-                <i data-lucide="percent" class="w-4 h-4 text-amber-700"></i> Section 80G Status
-            </div>
+    <!-- 4 Key Transparency Badges -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
+            <span class="text-[11px] font-black uppercase tracking-wider text-amber-800 block mb-1">Section 80G Status</span>
             <p class="text-sm font-black text-slate-900">Application Under Process</p>
-            <p class="text-xs text-slate-600 mt-1">Pending formal approval from the Income Tax Department.</p>
+            <p class="text-xs text-slate-600 mt-1">Pending approval from the Income Tax Department.</p>
         </div>
 
-        <div class="p-4 rounded-2xl bg-blue-50/70 border border-blue-300">
-            <div class="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wider mb-1">
-                <i data-lucide="globe" class="w-4 h-4 text-blue-700"></i> FCRA &amp; Geography
-            </div>
+        <div class="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
+            <span class="text-[11px] font-black uppercase tracking-wider text-blue-800 block mb-1">FCRA &amp; Geography</span>
             <p class="text-sm font-black text-slate-900">Domestic Donations Only</p>
-            <p class="text-xs text-slate-600 mt-1">International donations restricted; FCRA application pending.</p>
+            <p class="text-xs text-slate-600 mt-1">Accepting donations from India; FCRA pending.</p>
         </div>
 
-        <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-300">
-            <div class="flex items-center gap-2 text-emerald-900 font-bold text-xs uppercase tracking-wider mb-1">
-                <i data-lucide="credit-card" class="w-4 h-4 text-emerald-700"></i> Payment Gateway
-            </div>
+        <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+            <span class="text-[11px] font-black uppercase tracking-wider text-emerald-800 block mb-1">Payment Gateway</span>
             <p class="text-sm font-black text-slate-900">Cashfree (PCI-DSS)</p>
-            <p class="text-xs text-slate-600 mt-1">UPI, Cards, Net Banking. No card details stored on our servers.</p>
+            <p class="text-xs text-slate-600 mt-1">UPI, Cards &amp; Net Banking. No card details stored.</p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-purple-50/70 border border-purple-200">
+            <span class="text-[11px] font-black uppercase tracking-wider text-purple-800 block mb-1">Privacy Standard</span>
+            <p class="text-sm font-black text-slate-900">Zero Ad Trackers</p>
+            <p class="text-xs text-slate-600 mt-1">No Google Analytics, Meta Pixel, or commercial trackers.</p>
         </div>
     </div>
 
-    <!-- Policy Cards Grid -->
-    <div class="pt-2">
-        <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <i data-lucide="book-open" class="w-5 h-5 text-amber-700"></i>
-            Published Legal Documents &amp; Notices
-        </h3>
+    <!-- Published Legal Documents Grid -->
+    <div class="pt-4">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <h3 class="text-lg font-black text-slate-900">Published Policy Frameworks</h3>
+                <p class="text-xs text-slate-500">Select any document below to inspect its complete official text:</p>
+            </div>
+            <span class="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">10 Frameworks</span>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- 1. Terms of Service -->
-            <a href="{{ url_for('terms_of_service') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('terms_of_service') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-100 group-hover:bg-amber-800 text-amber-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="file-text" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">1. Terms of Service</h4>
-                <p class="text-xs text-slate-600 mt-1">Governs website use, eligibility, user accounts, donations, prohibited conduct, IP, and legal jurisdiction.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Platform rules, user eligibility, account guidelines, donation redirection clauses, and Hyderabad legal jurisdiction.</p>
             </a>
 
             <!-- 2. Privacy Policy -->
-            <a href="{{ url_for('privacy_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('privacy_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-emerald-100 group-hover:bg-emerald-800 text-emerald-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="lock" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">2. Privacy Policy</h4>
-                <p class="text-xs text-slate-600 mt-1">Comprehensive privacy principles, data collection, Google OAuth, retention, and donor privacy rights.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Collection purposes, Google OAuth permissions, payment security, retention periods, and donor data rights under DPDP.</p>
             </a>
 
             <!-- 3. Donation & Refund -->
-            <a href="{{ url_for('refund_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('refund_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-100 group-hover:bg-amber-800 text-amber-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="receipt" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">3. Donation &amp; Refund Policy</h4>
-                <p class="text-xs text-slate-600 mt-1">Details on one-time donations, Cashfree processing, non-refundable contributions, and duplicate payment resolution.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Voluntary one-time donations, non-refundable policy, resolution criteria for technical/duplicate banking errors.</p>
             </a>
 
             <!-- 4. 80G Tax Notice -->
-            <a href="{{ url_for('tax_notice') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('tax_notice') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-100 group-hover:bg-amber-800 text-amber-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="percent" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">4. 80G &amp; Tax Deduction Notice</h4>
-                <p class="text-xs text-slate-600 mt-1">Statutory notice advising that Section 80G registration is currently under process with tax authorities.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Notice advising donors that our 80G application is under process and tax deductions should not currently be assumed.</p>
             </a>
 
             <!-- 5. India-Only & FCRA -->
-            <a href="{{ url_for('fcra_notice') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('fcra_notice') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-blue-100 group-hover:bg-blue-800 text-blue-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="globe" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">5. India-Only / FCRA Notice</h4>
-                <p class="text-xs text-slate-600 mt-1">Explanatory notice on domestic operations, geo-blocking controls, and pending FCRA authorization.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Statutory notice on IP geolocation controls, domestic operations, and prohibition on foreign contributions until FCRA approval.</p>
             </a>
 
             <!-- 6. Website Disclaimer -->
-            <a href="{{ url_for('disclaimer') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('disclaimer') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-slate-800 text-slate-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="alert-triangle" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">6. Website Disclaimer</h4>
-                <p class="text-xs text-slate-600 mt-1">General disclosures regarding informational content, external hyperlinks, and limitation of warranties.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">General informational disclaimers, external service links, limitation of warranties, and consumer rights preservation.</p>
             </a>
 
             <!-- 7. Grievance Redressal -->
-            <a href="{{ url_for('grievance_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('grievance_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-rose-100 group-hover:bg-rose-800 text-rose-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
-                        <i data-lucide="life-buoy" class="w-5 h-5"></i>
+                        <i data-lucide="headphones" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">7. Grievance Redressal Policy</h4>
-                <p class="text-xs text-slate-600 mt-1">Official escalation contacts, procedures, and timelines for donor and volunteer complaints.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Formal escalation paths, officer contacts, required dispute documentation, and 7 to 15-day resolution timelines.</p>
             </a>
 
             <!-- 8. Cookie Policy -->
-            <a href="{{ url_for('cookie_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('cookie_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-100 group-hover:bg-amber-800 text-amber-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="cookie" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">8. Cookie Policy</h4>
-                <p class="text-xs text-slate-600 mt-1">Transparent breakdown of essential session cookies and confirmation that advertising tracking is not used.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Breakdown of essential session cookies, fraud prevention safeguards, and instructions for managing browser preferences.</p>
             </a>
 
             <!-- 9. Security & Bug Bounty -->
-            <a href="{{ url_for('security_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('security_policy') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-purple-100 group-hover:bg-purple-800 text-purple-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="shield" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">9. Security &amp; Bug Bounty Policy</h4>
-                <p class="text-xs text-slate-600 mt-1">Responsible vulnerability reporting framework, safe-harbor terms, scope, and digital certificates.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Safe-harbour framework for ethical hackers, in-scope components, testing guidelines, and digital certificates.</p>
             </a>
 
             <!-- 10. Governance & Risk -->
-            <a href="{{ url_for('governance_policies') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/40 transition shadow-sm hover:shadow-md">
+            <a href="{{ url_for('governance_policies') }}" class="group block p-5 rounded-2xl border border-slate-200 hover:border-amber-500 bg-slate-50/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-100 group-hover:bg-amber-800 text-amber-800 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
                         <i data-lucide="landmark" class="w-5 h-5"></i>
                     </div>
-                    <span class="text-xs text-slate-400 group-hover:text-amber-700 font-bold flex items-center gap-1">Read Document &rarr;</span>
+                    <span class="text-xs text-slate-400 group-hover:text-amber-800 font-bold transition flex items-center gap-1">Read &rarr;</span>
                 </div>
                 <h4 class="text-base font-bold text-slate-900 mt-3 group-hover:text-amber-900">10. Governance &amp; Risk Policies</h4>
-                <p class="text-xs text-slate-600 mt-1">Internal Trust governance, anti-fraud, safeguarding, vendor risk, incident response, and whistleblowing.</p>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Sections 14.1 through 14.14 covering anti-fraud, safeguarding, vendor risk, incident response, and whistleblowing.</p>
             </a>
         </div>
     </div>

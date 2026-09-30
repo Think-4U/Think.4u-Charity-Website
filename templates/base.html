@@ -220,15 +220,15 @@
         }
         .footer-content {
             display:grid;
-            grid-template-columns:1.6fr 1.2fr 1.6fr 1fr;
-            gap:2.5rem;
-            max-width:1200px;
+            grid-template-columns:1.5fr 1fr 1.3fr 1.3fr 1fr;
+            gap:2rem;
+            max-width:1280px;
             margin:0 auto 2rem;
         }
-        @media(max-width:900px){
+        @media(max-width:1050px){
             .footer-content{grid-template-columns:1fr 1fr;}
         }
-        @media(max-width:560px){
+        @media(max-width:600px){
             .footer-content{grid-template-columns:1fr;}
         }
         .footer-section h3 {
@@ -411,7 +411,7 @@
         <div class="container mx-auto px-4">
             <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-3 sm:gap-6 text-sm">
                 <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="shield-check" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">100% Secure</span></div>
-                <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="award" class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">Tax Deductible</span></div>
+                <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="award" class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">Registered Charitable Trust</span></div>
                 <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="users" class="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">10,000+ Supporters</span></div>
                 <div class="flex items-center gap-2 text-slate-700 justify-center"><i data-lucide="heart" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-500 flex-shrink-0"></i><span class="font-semibold text-xs sm:text-sm">Transparent Impact</span></div>
             </div>
@@ -543,23 +543,55 @@
                 <a href="{{ url_for('index') }}">
                     <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think.4U" style="height:56px;width:auto;object-fit:contain;margin-bottom:1rem;border-radius:8px;">
                 </a>
-                <h3 style="margin-top:0;">Think.4U</h3>
+                <h3 style="margin-top:0;">Think4U Charity Organization</h3>
                 <p>{{ get_cms('mission_text', 'Making a positive impact through education, empowerment, and community development.') }}</p>
                 <div style="margin-top:1.25rem;">
                     <a href="{{ url_for('donate') }}" style="display:inline-block;padding:0.55rem 1.25rem;background:var(--charity-gold);color:white;border-radius:6px;font-weight:700;font-size:0.85rem;text-decoration:none;">Donate ❤️</a>
                     <a href="{{ url_for('volunteer') }}" style="display:inline-block;margin-left:0.5rem;padding:0.55rem 1.25rem;border:1px solid rgba(213,141,75,0.5);color:rgba(255,255,255,0.8);border-radius:6px;font-weight:600;font-size:0.85rem;text-decoration:none;">Volunteer</a>
                 </div>
             </div>
-            <div class="footer-section"><h3>Quick Links</h3><ul><li><a href="{{ url_for('about') }}">About Us</a></li><li><a href="{{ url_for('governingbody') }}">Governing Body</a></li><li><a href="{{ url_for('managingteam') }}">Managing Team</a></li><li><a href="{{ url_for('coreteam') }}">Core Team</a></li><li><a href="{{ url_for('index') }}#programs">Programs</a></li><li><a href="{{ url_for('events_page') }}">Events</a></li><li><a href="{{ url_for('fundraising') }}">Fundraising</a></li><li><a href="{{ url_for('index') }}#impact">Impact</a></li></ul></div>
+            
             <div class="footer-section">
-                <h3>Contact</h3>
+                <h3>Quick Links</h3>
                 <ul>
-                    <li><a href="mailto:info@think4u.org" class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4 text-amber-400"></i> info@think4u.org</a></li>
-                    <li><a href="tel:+919959128946" class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4 text-amber-400"></i> +91 99591 28946</a></li>
-                    <li><a href="https://www.google.com/maps/place/17%C2%B032'54.6%22N+78%C2%B027'47.3%22E/@17.5485038,78.46056,17z/data=!3m1!4b1!4m4!3m3!8m2!3d17.5485038!4d78.4631349?hl=en&entry=ttu&g_ep=EgoyMDI2MDkxMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="flex items-start gap-2"><i data-lucide="map-pin" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i> <span>Flat no: 203, Surabhi residency gangastan dullapally hyderabad Telangana pin 500014</span></a></li>
-                    <li><a href="{{ url_for('contact') }}" class="flex items-center gap-2 text-amber-400 font-semibold"><i data-lucide="send" class="w-4 h-4"></i> Contact Form</a></li>
+                    <li><a href="{{ url_for('about') }}">About Us</a></li>
+                    <li><a href="{{ url_for('governingbody') }}">Governing Body</a></li>
+                    <li><a href="{{ url_for('managingteam') }}">Managing Team</a></li>
+                    <li><a href="{{ url_for('coreteam') }}">Core Team</a></li>
+                    <li><a href="{{ url_for('index') }}#programs">Programs</a></li>
+                    <li><a href="{{ url_for('events_page') }}">Events</a></li>
+                    <li><a href="{{ url_for('fundraising') }}">Fundraising</a></li>
+                    <li><a href="{{ url_for('index') }}#impact">Impact</a></li>
                 </ul>
             </div>
+
+            <div class="footer-section">
+                <h3>Legal &amp; Compliance</h3>
+                <ul>
+                    <li><a href="{{ url_for('terms_of_service') }}">Terms of Service</a></li>
+                    <li><a href="{{ url_for('privacy_policy') }}">Privacy Policy</a></li>
+                    <li><a href="{{ url_for('refund_policy') }}">Donation &amp; Refund Policy</a></li>
+                    <li><a href="{{ url_for('cookie_policy') }}">Cookie Policy</a></li>
+                    <li><a href="{{ url_for('disclaimer') }}">Website Disclaimer</a></li>
+                    <li><a href="{{ url_for('tax_notice') }}">80G &amp; Tax Notice</a></li>
+                    <li><a href="{{ url_for('fcra_notice') }}">India-Only / FCRA Notice</a></li>
+                    <li><a href="{{ url_for('grievance_policy') }}">Grievance Redressal</a></li>
+                    <li><a href="{{ url_for('security_policy') }}">Security &amp; Bug Bounty</a></li>
+                    <li><a href="{{ url_for('governance_policies') }}">Governance &amp; Risk</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Contact &amp; Office</h3>
+                <ul>
+                    <li><a href="mailto:info@think4u.org" class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4 text-amber-400"></i> info@think4u.org</a></li>
+                    <li><a href="mailto:ceo@think4u.org" class="flex items-center gap-2"><i data-lucide="shield" class="w-4 h-4 text-amber-400"></i> ceo@think4u.org</a></li>
+                    <li><a href="tel:+919959128946" class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4 text-amber-400"></i> +91 99591 28946</a></li>
+                    <li><a href="https://www.google.com/maps/place/17%C2%B032'54.6%22N+78%C2%B027'47.3%22E/@17.5485038,78.46056,17z/data=!3m1!4b1!4m4!3m3!8m2!3d17.5485038!4d78.4631349?hl=en&entry=ttu&g_ep=EgoyMDI2MDkxMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="flex items-start gap-2"><i data-lucide="map-pin" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i> <span>Flat No. 203, Surabhi Residency, Gangastan, Dullapally, Hyderabad, Telangana – 500014, India</span></a></li>
+                    <li><a href="{{ url_for('contact') }}" class="flex items-center gap-2 text-amber-400 font-semibold"><i data-lucide="send" class="w-4 h-4"></i> Contact Support Form</a></li>
+                </ul>
+            </div>
+
             <div class="footer-section">
                 <h3>Follow Us</h3>
                 <ul>
@@ -572,14 +604,6 @@
                             <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
                             <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#1f0606"/>
                         </svg> Think.4U YouTube</a></li>
-                    <li style="margin-top:1.2rem;"><a href="tel:+919959128946" class="flex items-center gap-2">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(213,141,75,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17.5v-.58z"/>
-                        </svg> +91 99591 28946</a></li>
-                    <li><a href="mailto:info@think4u.org" class="flex items-center gap-2">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(213,141,75,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0">
-                            <rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/>
-                        </svg> info@think4u.org</a></li>
                     <li><a href="https://whatsapp.com/channel/0029VbCljLS9WtC3bCGFuO0j" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
                         <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;fill:rgba(213,141,75,1)">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
@@ -594,11 +618,153 @@
                 </ul>
             </div>
         </div>
-        <div class="footer-bottom"><p>&copy; {{ current_year }} Think.4U. All rights reserved. | <a href="{{ url_for('policy_terms') }}">Privacy Policy</a> | <a href="{{ url_for('policy_terms') }}">Terms of Service</a></p><p class="text-white/50 text-xs mt-2">Version {{ app_version }}</p></div>
+
+        <!-- Compliance & Legal Statutory Disclosures Strip -->
+        <div class="max-w-6xl mx-auto my-6 p-4 rounded-2xl bg-black/40 border border-amber-500/20 text-xs text-white/80 leading-relaxed flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="space-y-1 text-center md:text-left">
+                <p class="font-bold text-amber-400">Think4U Charity Organization &bull; Registered Charitable Trust</p>
+                <p class="text-white/70">
+                    <strong>Domestic Donations Only:</strong> International/foreign contributions are currently not accepted. The Website uses technical location controls to restrict access from outside India. Foreign Contribution Regulation Act (FCRA) application is submitted and pending.
+                </p>
+                <p class="text-amber-200/90">
+                    <strong>Section 80G Status:</strong> Application/approval relating to Section 80G is currently under process with the relevant government authority. Donors should not assume donations currently qualify for an 80G deduction until statutory approval is effective.
+                </p>
+            </div>
+            <button type="button" onclick="window.openConsentModal()" class="flex-shrink-0 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs transition flex items-center gap-1.5 whitespace-nowrap shadow-sm">
+                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                <span>Consent Settings</span>
+            </button>
+        </div>
+
+        <div class="footer-bottom">
+            <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs mb-3 text-white/75 font-medium">
+                <a href="{{ url_for('terms_of_service') }}" class="hover:text-amber-300">Terms of Service</a> &bull;
+                <a href="{{ url_for('privacy_policy') }}" class="hover:text-amber-300">Privacy Policy</a> &bull;
+                <a href="{{ url_for('refund_policy') }}" class="hover:text-amber-300">Donation &amp; Refund Policy</a> &bull;
+                <a href="{{ url_for('cookie_policy') }}" class="hover:text-amber-300">Cookie Policy</a> &bull;
+                <a href="{{ url_for('disclaimer') }}" class="hover:text-amber-300">Disclaimer</a> &bull;
+                <a href="{{ url_for('tax_notice') }}" class="hover:text-amber-300">80G &amp; Tax Notice</a> &bull;
+                <a href="{{ url_for('fcra_notice') }}" class="hover:text-amber-300">India-Only / FCRA Notice</a> &bull;
+                <a href="{{ url_for('grievance_policy') }}" class="hover:text-amber-300">Grievance Redressal</a> &bull;
+                <a href="{{ url_for('security_policy') }}" class="hover:text-amber-300">Security &amp; Bug Bounty</a> &bull;
+                <a href="{{ url_for('governance_policies') }}" class="hover:text-amber-300">Governance &amp; Risk</a>
+            </div>
+            <p>&copy; {{ current_year }} Think4U Charity Organization. All rights reserved.</p>
+            <p class="text-white/50 text-xs mt-1">Flat No. 203, Surabhi Residency, Gangastan, Dullapally, Hyderabad, Telangana – 500014, India | <a href="mailto:info@think4u.org" class="underline">info@think4u.org</a> | +91 99591 28946</p>
+            <p class="text-white/40 text-[11px] mt-1">Version {{ app_version }} &bull; Effective Legal Release: 30 September 2026</p>
+        </div>
     </footer>
 
-    <div id="cookie-banner" class="hidden fixed bottom-4 left-4 right-4 z-[9999] max-w-3xl mx-auto bg-slate-900 text-white rounded-2xl p-4 shadow-2xl">
-        <div class="flex flex-col md:flex-row md:items-center gap-4"><p class="text-sm text-white/90">We use cookies to keep your session secure and improve your experience. By continuing, you agree to our <a href="{{ url_for('policy_terms') }}" class="underline font-semibold">Policy & Terms</a>.</p><button id="cookie-accept-btn" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-semibold text-sm">Accept Cookies</button></div>
+    <!-- FIRST-VISIT LEGAL & PRIVACY CONSENT MODAL -->
+    <div id="first-visit-consent-modal" class="hidden fixed inset-0 z-[10005] bg-[#140604]/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="consent-modal-title">
+        <div class="relative bg-gradient-to-b from-[#24120b] to-[#1a0a05] text-white rounded-3xl shadow-2xl max-w-2xl w-full border-2 border-amber-500/40 p-6 sm:p-8 my-auto overflow-hidden animate-fadeScale">
+            <!-- Glowing ambient background -->
+            <div class="absolute -top-24 -right-24 w-60 h-60 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10">
+                <!-- Modal Header -->
+                <div class="flex items-start gap-4 mb-5">
+                    <div class="w-14 h-14 rounded-2xl bg-[#32170e] border border-amber-400/40 p-2 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <img src="{{ url_for('static', filename='images/updated_main_logo.jpeg') }}" alt="Think4U" class="w-full h-full object-contain rounded-xl">
+                    </div>
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-[11px] font-bold uppercase tracking-wider mb-1">
+                            <i data-lucide="shield-check" class="w-3 h-3"></i>
+                            Official First-Visit Consent
+                        </div>
+                        <h3 id="consent-modal-title" class="text-xl sm:text-2xl font-black text-white">
+                            Welcome to Think4U Charity Organization
+                        </h3>
+                        <p class="text-xs sm:text-sm text-amber-200/80">
+                            Registered Charitable Trust &bull; Hyderabad, Telangana, India
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Intro Description -->
+                <p class="text-xs sm:text-sm text-white/90 leading-relaxed mb-4">
+                    We value your privacy, safety, and transparency. Before using our website, making voluntary donations, or registering as a volunteer, please review and accept our operating terms and policies in accordance with applicable Indian laws.
+                </p>
+
+                <!-- Key Consent Disclosures -->
+                <div class="space-y-2.5 mb-5 text-xs sm:text-sm">
+                    <div class="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-3">
+                        <i data-lucide="file-check" class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <strong class="text-white">Terms of Service &amp; Privacy Policy:</strong>
+                            <p class="text-white/75 text-xs mt-0.5">
+                                You agree to use the platform lawfully and accept our <a href="{{ url_for('terms_of_service') }}" target="_blank" class="underline text-amber-300 font-semibold">Terms of Service</a> and <a href="{{ url_for('privacy_policy') }}" target="_blank" class="underline text-amber-300 font-semibold">Privacy Policy</a>. Personal data is securely protected and never sold.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-3">
+                        <i data-lucide="cookie" class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <strong class="text-white">Strictly Essential Cookies:</strong>
+                            <p class="text-white/75 text-xs mt-0.5">
+                                We use only essential cookies for authentication, CSRF security, and session maintenance. <span class="text-amber-200 font-semibold">No third-party ad tracking, Meta Pixels, or Google Analytics tracking cookies are used.</span> (<a href="{{ url_for('cookie_policy') }}" target="_blank" class="underline text-amber-300">Cookie Policy</a>)
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-3">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <strong class="text-white">India-Only Donations &amp; 80G Statutory Notice:</strong>
+                            <p class="text-white/75 text-xs mt-0.5">
+                                We currently accept domestic donations only (<a href="{{ url_for('fcra_notice') }}" target="_blank" class="underline text-amber-300">FCRA notice</a>). Section 80G tax exemption application is currently under process (<a href="{{ url_for('tax_notice') }}" target="_blank" class="underline text-amber-300">80G notice</a>) and donations are generally non-refundable (<a href="{{ url_for('refund_policy') }}" target="_blank" class="underline text-amber-300">Refund policy</a>).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Preferences Accordion (Optional details) -->
+                <div id="consent-preferences-panel" class="hidden mb-5 p-3.5 rounded-2xl bg-black/40 border border-amber-500/20 text-xs space-y-3">
+                    <p class="font-bold text-amber-300 uppercase tracking-wider text-[11px]">Granular Privacy Preferences</p>
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-white/5">
+                        <div>
+                            <p class="font-bold text-white">Essential Security &amp; Session Cookies</p>
+                            <p class="text-white/60 text-[11px]">Required for login, CSRF tokens, and secure checkout.</p>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-full">Always Active</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-white/5">
+                        <div>
+                            <p class="font-bold text-white">Functional Preferences &amp; Location Check</p>
+                            <p class="text-white/60 text-[11px]">Remembers consent choice and verifies domestic access.</p>
+                        </div>
+                        <input type="checkbox" id="pref-functional" checked class="w-4 h-4 text-amber-600 rounded border-amber-400 focus:ring-amber-500">
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-white/5">
+                        <div>
+                            <p class="font-bold text-white">Voluntary Communications &amp; Updates</p>
+                            <p class="text-white/60 text-[11px]">Optional program updates and impact news.</p>
+                        </div>
+                        <input type="checkbox" id="pref-communications" checked class="w-4 h-4 text-amber-600 rounded border-amber-400 focus:ring-amber-500">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                    <div class="flex items-center gap-3">
+                        <button type="button" id="consent-customize-btn" class="text-xs text-amber-300 hover:text-white underline font-medium py-1">
+                            Customize Preferences
+                        </button>
+                        <span class="text-white/30 hidden sm:inline">&bull;</span>
+                        <a href="{{ url_for('policy_terms') }}" target="_blank" class="text-xs text-white/70 hover:text-white underline">
+                            View All Policies
+                        </a>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="consent-accept-all-btn" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 via-[#d58d4b] to-amber-600 hover:brightness-110 text-white font-black text-sm shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            <span>Accept &amp; Continue</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- GLOBAL LUXURY DARK & GOLD LOADER -->
@@ -664,19 +830,68 @@
             if(Array.isArray(fm)) fm.forEach(([cat,msg],i)=>setTimeout(()=>window.showUiToast(msg,cat), i*220));
             const btn = document.getElementById('mobile-menu-btn'), menu = document.getElementById('mobile-menu');
             if(btn && menu) btn.addEventListener('click',()=>menu.classList.toggle('hidden'));
-            const cookieBanner = document.getElementById('cookie-banner'), acceptBtn = document.getElementById('cookie-accept-btn');
-            if(cookieBanner && !localStorage.getItem('cookie_consent_accepted')) cookieBanner.classList.remove('hidden');
-            if(acceptBtn) acceptBtn.addEventListener('click',async()=>{
-                localStorage.setItem('cookie_consent_accepted','true');
-                cookieBanner?.classList.add('hidden');
-                try {
-                    await fetch('{{ url_for("cookie_consent") }}', {
-                        method:'POST',
-                        headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({accepted:true, policy_version:'{{ app_version }}'})
-                    });
-                } catch (_) {}
-            });
+            // FIRST-VISIT LEGAL & PRIVACY CONSENT MODAL LOGIC
+            const consentModal = document.getElementById('first-visit-consent-modal');
+            const consentAcceptBtn = document.getElementById('consent-accept-all-btn');
+            const consentCustomizeBtn = document.getElementById('consent-customize-btn');
+            const consentPrefPanel = document.getElementById('consent-preferences-panel');
+
+            window.openConsentModal = function() {
+                if (consentModal) {
+                    consentModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            };
+
+            window.closeConsentModal = function() {
+                if (consentModal) {
+                    consentModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            };
+
+            if (consentCustomizeBtn && consentPrefPanel) {
+                consentCustomizeBtn.addEventListener('click', () => {
+                    consentPrefPanel.classList.toggle('hidden');
+                    consentCustomizeBtn.textContent = consentPrefPanel.classList.contains('hidden') ? 'Customize Preferences' : 'Hide Preferences';
+                });
+            }
+
+            // Check if user has already provided consent
+            const existingConsent = localStorage.getItem('think4u_consent_v2');
+            if (consentModal && !existingConsent) {
+                // First visit! Show the consent modal after a tiny delay for smooth rendering
+                setTimeout(() => {
+                    consentModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }, 400);
+            }
+
+            if (consentAcceptBtn) {
+                consentAcceptBtn.addEventListener('click', async () => {
+                    const consentPayload = {
+                        accepted: true,
+                        policy_version: '2026-09-30',
+                        functional_pref: document.getElementById('pref-functional')?.checked ?? true,
+                        communications_pref: document.getElementById('pref-communications')?.checked ?? true,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    localStorage.setItem('think4u_consent_v2', JSON.stringify(consentPayload));
+                    localStorage.setItem('cookie_consent_accepted', 'true');
+                    window.closeConsentModal();
+                    
+                    window.showUiToast('Preferences saved. Thank you for supporting Think4U!', 'success');
+
+                    try {
+                        await fetch('{{ url_for("cookie_consent") }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ accepted: true, policy_version: '2026-09-30' })
+                        });
+                    } catch (_) {}
+                });
+            }
             if(userIsAuthenticated) {
                 let inactivityTimer = null;
                 const reset = () => { if(inactivityTimer) clearTimeout(inactivityTimer); inactivityTimer = setTimeout(()=> window.showUiAlert(`Inactive for ${inactivityTimeoutMinutes} minute(s). Logging out.`,'warning','Session Expired').then(()=>window.location.assign('{{ url_for("logout") }}?reason=inactive')), inactivityMs); };

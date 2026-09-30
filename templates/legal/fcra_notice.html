@@ -1,0 +1,75 @@
+{% extends "legal/layout.html" %}
+
+{% set policy_title = "India-Only Donation / FCRA Notice" %}
+
+{% block legal_content %}
+<div class="space-y-8 text-slate-800 leading-relaxed">
+    <!-- Header -->
+    <div class="border-b border-amber-900/10 pb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-900 font-bold text-xs uppercase tracking-wide">
+                <i data-lucide="globe" class="w-3.5 h-3.5"></i> Section 5 of Master Legal Package
+            </span>
+            <span class="text-xs text-slate-500 font-medium">Effective Date: 30 September 2026 | FCRA Status: Application Pending</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">India-Only Donation &amp; FCRA Notice</h2>
+        <p class="text-sm text-slate-600 mt-2">
+            Statutory notice regarding domestic donations and Foreign Contribution Regulation Act (FCRA) compliance.
+        </p>
+    </div>
+
+    <!-- Main Notice Card -->
+    <div class="p-6 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 shadow-md">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i>
+            </div>
+            <div class="space-y-3">
+                <h3 class="text-lg font-black text-slate-900">Domestic Donations Only</h3>
+                <p class="text-sm text-slate-800 font-semibold leading-relaxed">
+                    Think4U Charity Organization currently accepts donations exclusively from within India and from Indian bank accounts / domestic payment methods through its Website.
+                </p>
+                <div class="p-4 rounded-xl bg-white/90 border border-blue-200 text-xs sm:text-sm text-slate-700 space-y-2.5">
+                    <p>
+                        &bull; <strong>Technical Location Controls:</strong> The Website uses technical location controls and IP-based geolocation checks to restrict access from outside India.
+                    </p>
+                    <p>
+                        &bull; <strong>International Contributions Prohibited:</strong> International or foreign contributions are currently <strong>NOT accepted</strong> through <a href="https://think4u.org" class="underline text-blue-800 font-bold">think4u.org</a>.
+                    </p>
+                    <p>
+                        &bull; <strong>FCRA Application Pending:</strong> Think4U has formally applied for applicable Foreign Contribution Regulation Act (FCRA) authorisation with the Ministry of Home Affairs, Government of India. Until required statutory authorisation is granted and effective, Think4U does not solicit or accept foreign contributions through this Website.
+                    </p>
+                    <p>
+                        &bull; <strong>No Circumvention:</strong> Users outside India must not attempt to bypass geographical or payment restrictions through VPNs, proxies, or foreign card payment gateways to donate.
+                    </p>
+                    <p>
+                        &bull; <strong>Future Operations:</strong> Foreign contribution arrangements, if legally permitted in the future, will be officially communicated through an updated policy and separate international donation channel.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explanatory Details -->
+    <div class="space-y-4 pt-2">
+        <h3 class="text-base font-bold text-slate-900">Why does this restriction exist?</h3>
+        <p class="text-sm text-slate-700">
+            Under the Foreign Contribution (Regulation) Act, 2010 (FCRA) in India, charitable non-governmental organizations must hold a valid FCRA registration or prior permission from the Central Government before receiving any donation or contribution from a foreign source (including foreign citizens, foreign corporations, or international cards).
+        </p>
+        <p class="text-sm text-slate-700">
+            Think4U strictly abides by Indian statutory norms and has temporarily restricted online donations to domestic sources within India.
+        </p>
+    </div>
+
+    <!-- Contact & Assistance -->
+    <div class="pt-6 border-t border-amber-900/10">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-amber-900 mb-2">Inquiries Regarding International Support</h3>
+        <p class="text-xs text-slate-600 mb-4">If you are based abroad and wish to connect with our mission or receive updates upon FCRA approval, please get in touch:</p>
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm space-y-1">
+            <p><strong>Email:</strong> <a href="mailto:info@think4u.org" class="text-amber-800 underline font-semibold">info@think4u.org</a></p>
+            <p><strong>Phone:</strong> <a href="tel:+919959128946" class="text-amber-800 underline font-semibold">+91 99591 28946</a></p>
+            <p><strong>Address:</strong> Flat No. 203, Surabhi Residency, Gangastan, Dullapally, Hyderabad, Telangana – 500014, India</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

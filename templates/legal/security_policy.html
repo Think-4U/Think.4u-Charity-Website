@@ -1,0 +1,243 @@
+{% extends "legal/layout.html" %}
+
+{% set policy_title = "Security Vulnerability Disclosure & Bug Bounty Policy" %}
+
+{% block legal_content %}
+<div class="space-y-8 text-slate-800 leading-relaxed">
+    <!-- Header -->
+    <div class="border-b border-amber-900/10 pb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-900 font-bold text-xs uppercase tracking-wide">
+                <i data-lucide="shield" class="w-3.5 h-3.5"></i> Section 9 of Master Legal Package
+            </span>
+            <span class="text-xs text-slate-500 font-medium">Effective Date: 30 September 2026 | Last Updated: 30 September 2026</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Security Vulnerability Disclosure &amp; Bug Bounty Policy</h2>
+        <p class="text-sm text-slate-600 mt-2">
+            Responsible disclosure framework for security researchers, ethical hackers, and cybersecurity professionals testing <a href="https://think4u.org" class="text-amber-800 underline">https://think4u.org</a>.
+        </p>
+    </div>
+
+    <!-- Intro Box -->
+    <div class="p-5 rounded-3xl bg-slate-900 text-white shadow-xl">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center flex-shrink-0 font-bold">
+                <i data-lucide="terminal" class="w-6 h-6"></i>
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-lg font-black text-white">Responsible Cybersecurity Research</h3>
+                <p class="text-xs sm:text-sm text-white/90 leading-relaxed">
+                    Think4U welcomes responsible security researchers, ethical hackers, and members of the cybersecurity community who identify and responsibly report vulnerabilities affecting <a href="https://think4u.org" class="underline text-amber-300">https://think4u.org</a>. We believe in coordinated disclosure to safeguard our donors, volunteers, and beneficiaries.
+                </p>
+                <div class="pt-1">
+                    <a href="mailto:info@think4u.org?subject=[Vulnerability%20Report]%20Think4U%20Security" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Submit Vulnerability Report</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sections -->
+    <div class="space-y-8 divide-y divide-amber-900/10">
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">1</span>
+                Purpose
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                This policy establishes a responsible vulnerability-reporting process and explains when recognition, digital appreciation certificates, or other rewards may be provided.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">2</span>
+                What Can Be Reported (In-Scope)
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-2">
+                <p>Website, authentication systems, authorization/access-control weaknesses, API endpoints, SQL/NoSQL injection, Cross-Site Scripting (XSS), Cross-Site Request Forgery (CSRF), Insecure Direct Object References (IDOR), security misconfigurations, sensitive information disclosure, payment-flow integrity bugs, session management vulnerabilities, and privilege escalation.</p>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">3</span>
+                Responsible Testing Guidelines
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-2">
+                <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs sm:text-sm">
+                    <li>Test only authorized Think4U production/staging domains (<code class="bg-slate-100 px-1.5 py-0.5 rounded text-amber-800">think4u.org</code>).</li>
+                    <li>Avoid accessing, reading, or storing real user/donor personal data.</li>
+                    <li>Create and use your own test accounts for evaluation.</li>
+                    <li>Avoid disruption, service degradation, or denial of service.</li>
+                    <li>Do not introduce malicious persistence, malware, backdoors, or social engineering.</li>
+                    <li>Do not execute fraudulent transactions or alter live donation records.</li>
+                    <li>Stop testing immediately once proof of concept is established and report promptly.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">4</span>
+                Prohibited Testing (Strictly Out of Scope)
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-2">
+                <p>Unless explicitly authorized in writing by Think4U leadership, the following actions are strictly prohibited:</p>
+                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-950 space-y-1">
+                    <p>&bull; Denial of Service (DoS / DDoS) attacks or harmful volume stress testing.</p>
+                    <p>&bull; Brute force attacks against legitimate donor accounts or staff logins.</p>
+                    <p>&bull; Credential stuffing, phishing, vishing, or social engineering targeting Think4U staff or volunteers.</p>
+                    <p>&bull; Physical attacks against facilities, offices, or personnel.</p>
+                    <p>&bull; Malware, trojans, ransomware, or web shells.</p>
+                    <p>&bull; Unauthorized downloading, copying, or public dissemination of donor or beneficiary data.</p>
+                    <p>&bull; Attacks directly against third-party providers (Cashfree, Google, Cloudflare, etc.).</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">5</span>
+                Privacy of Other Users
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                If a vulnerability inadvertently exposes another person’s personal data, stop accessing it immediately, access only the minimum necessary evidence to establish proof, do not copy, download, publish, or share it, do not contact affected individuals, and securely delete inadvertently obtained data where legally permissible.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">6</span>
+                Reporting Process
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-2">
+                <p>Report all findings to <a href="mailto:info@think4u.org" class="text-amber-800 underline font-bold">info@think4u.org</a> with the subject line <code class="bg-slate-100 px-1 py-0.5 rounded text-amber-800">[Vulnerability Report] Component - Vulnerability Type</code>.</p>
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1 font-mono">
+                    <p>&bull; Vulnerability Title &amp; Severity (Low / Medium / High / Critical)</p>
+                    <p>&bull; Affected URL, API Endpoint, or Parameter</p>
+                    <p>&bull; Step-by-Step Reproduction Instructions</p>
+                    <p>&bull; Proof of Concept (Screenshots / Script / Request Payload)</p>
+                    <p>&bull; Demonstrated Impact &amp; Suggested Remediation</p>
+                </div>
+                <p class="text-xs text-rose-800 font-semibold">Do NOT include passwords, OTPs, or credit card information in reports.</p>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">7</span>
+                Responsible Disclosure &amp; Embargo
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Researchers must give Think4U reasonable time (typically up to 90 days from verified acknowledgment) to investigate, fix, and verify the remediation before making any public disclosure. Premature public disclosure without reasonable opportunity invalidates recognition and reward eligibility.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">8</span>
+                Bug Bounty and Recognition
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Think4U may, at its sole discretion, provide digital appreciation certificates, vulnerability-discovery certificates, acknowledgement on an upcoming security Hall of Fame, appreciation letters, or professional recommendations. Recognition is entirely discretionary and not guaranteed for every report.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">9</span>
+                Monetary Bug Bounties
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Unless a specific monetary bounty program is expressly published with defined tiers and funding, <strong>no monetary reward is guaranteed</strong>. Any future bounty program will specify explicit eligibility, scope, tiers, and payment conditions.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">10</span>
+                Certificate Eligibility
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                A digital certificate may be issued where Think4U determines the vulnerability is genuine, reproducible, within scope, responsibly disclosed, and of demonstrable impact. A certificate does not constitute employment, professional accreditation, government certification, or a guarantee of future engagements. Think4U reserves the right to verify researcher identity.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">11</span>
+                Duplicate Reports
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                For duplicate vulnerability reports, recognition goes to the researcher whose complete and actionable report was received first chronologically, subject to Think4U’s evaluation.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">12</span>
+                Out-of-Scope Reports
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-1">
+                <p>The following categories are considered out of scope and ineligible for certificates or bounties:</p>
+                <p class="text-xs text-slate-600">&bull; Missing security headers (CSP, HSTS, X-Frame-Options) without demonstrated exploitability.</p>
+                <p class="text-xs text-slate-600">&bull; Outdated banner versions without a demonstrable vulnerability.</p>
+                <p class="text-xs text-slate-600">&bull; Theoretical or hypothetical issues without proof of concept.</p>
+                <p class="text-xs text-slate-600">&bull; Self-XSS or attacks requiring unlikely user actions with zero security impact.</p>
+                <p class="text-xs text-slate-600">&bull; Unvalidated automated vulnerability scanner output (e.g. Nessus, Qualys, Nikto dumps).</p>
+                <p class="text-xs text-slate-600">&bull; Best-practice suggestions, cosmetic issues, or rate limiting observations without impact.</p>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">13</span>
+                Safe-Harbour Intent
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Think4U intends to encourage good-faith security research. Researchers following this policy in full, avoiding data access/damage/disruption, and reporting promptly will be treated as conducting authorized security research to the extent permitted by law. This safe harbour does not authorize unlawful activity, data theft, or testing outside the designated scope.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">14</span>
+                No Guarantee of Acceptance
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Submission of a report does not guarantee acknowledgment, acceptance, remediation, recognition, a certificate, or monetary compensation.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">15</span>
+                Changes to Policy
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Think4U may modify this policy as its cybersecurity program develops. Researchers should review the current version before conducting security assessments.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center text-xs">16</span>
+                Security Contact
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <p class="font-bold text-slate-900">Think4U Charity Organization - Security Desk</p>
+                <p>Flat No. 203, Surabhi Residency, Gangastan, Dullapally, Hyderabad, Telangana – 500014, India.</p>
+                <p class="mt-1">
+                    <strong>Security Reports:</strong> <a href="mailto:info@think4u.org" class="text-amber-800 underline font-semibold">info@think4u.org</a> | 
+                    <strong>Phone:</strong> <a href="tel:+919959128946" class="text-amber-800 underline font-semibold">+91 99591 28946</a>
+                </p>
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}{{ policy_title|default("Legal & Compliance") }} - Think4U Charity Organization{% endblock %}
+
+{% block content %}
+<section class="bg-[#fcf8f3] min-h-screen text-[#24120b] py-8 sm:py-12 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Top Breadcrumb & Header -->
+        <div class="mb-8">
+            <nav class="flex items-center gap-2 text-xs font-semibold text-amber-900/70 mb-3" aria-label="Breadcrumb">
+                <a href="{{ url_for('index') }}" class="hover:text-amber-800 transition">Home</a>
+                <span>/</span>
+                <a href="{{ url_for('policy_terms') }}" class="hover:text-amber-800 transition">Legal Center</a>
+                <span>/</span>
+                <span class="text-amber-900 font-bold">{{ policy_title|default("Policy") }}</span>
+            </nav>
+
+            <div class="bg-gradient-to-br from-[#24120b] via-[#3a1d12] to-[#1a0c07] rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden border border-amber-500/20">
+                <div class="absolute -right-10 -bottom-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold uppercase tracking-wider mb-3">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                            Official Legal &amp; Compliance Center
+                        </div>
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2">
+                            {{ policy_title|default("Legal Documents") }}
+                        </h1>
+                        <p class="text-amber-100/80 text-sm sm:text-base max-w-2xl leading-relaxed">
+                            Think4U Charity Organization operates transparently under applicable Indian laws and charitable trust regulations.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3 self-start md:self-center">
+                        <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-xs sm:text-sm transition backdrop-blur-sm" title="Print document">
+                            <i data-lucide="printer" class="w-4 h-4 text-amber-300"></i>
+                            <span>Print Policy</span>
+                        </button>
+                        <button onclick="window.openConsentModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 font-semibold text-xs sm:text-sm transition" title="Consent settings">
+                            <i data-lucide="settings" class="w-4 h-4"></i>
+                            <span>Consent Settings</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Document Metadata Strip -->
+                <div class="mt-6 pt-5 border-t border-white/10 flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-amber-200/90 font-medium">
+                    <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-400"></i> Last Updated: 30 September 2026</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="building" class="w-3.5 h-3.5 text-amber-400"></i> Entity: Registered Charitable Trust</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-amber-400"></i> Jurisdiction: Hyderabad, Telangana, India</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-400"></i> 80G Status: Application Under Process</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Horizontal Policy Switcher -->
+        <div class="lg:hidden mb-6 overflow-x-auto pb-2 scrollbar-thin">
+            <div class="flex items-center gap-2 min-w-max">
+                <a href="{{ url_for('terms_of_service') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'terms' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Terms of Service
+                </a>
+                <a href="{{ url_for('privacy_policy') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'privacy' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Privacy Policy
+                </a>
+                <a href="{{ url_for('refund_policy') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'refund' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Donation &amp; Refund
+                </a>
+                <a href="{{ url_for('tax_notice') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'tax' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    80G Tax Notice
+                </a>
+                <a href="{{ url_for('fcra_notice') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'fcra' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    India-Only &amp; FCRA
+                </a>
+                <a href="{{ url_for('disclaimer') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'disclaimer' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Disclaimer
+                </a>
+                <a href="{{ url_for('grievance_policy') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'grievance' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Grievance Redressal
+                </a>
+                <a href="{{ url_for('cookie_policy') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'cookie' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Cookie Policy
+                </a>
+                <a href="{{ url_for('security_policy') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'security' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Security &amp; Bug Bounty
+                </a>
+                <a href="{{ url_for('governance_policies') }}" class="px-3.5 py-2 rounded-xl text-xs font-bold transition {% if active_policy == 'governance' %}bg-amber-800 text-white shadow-md{% else %}bg-white border border-amber-900/10 text-slate-700 hover:bg-amber-50{% endif %}">
+                    Governance &amp; Risk
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Layout: Sidebar & Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <!-- Sidebar (Desktop) -->
+            <aside class="hidden lg:block lg:col-span-4 xl:col-span-3 space-y-6 sticky top-24">
+                <!-- Navigation Card -->
+                <div class="bg-white rounded-3xl p-5 shadow-lg border border-amber-900/10">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-900 mb-3 px-2 flex items-center justify-between">
+                        <span>Legal Documents</span>
+                        <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">10 Policies</span>
+                    </h3>
+                    <nav class="space-y-1">
+                        <a href="{{ url_for('terms_of_service') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'terms' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="file-text" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'terms' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Terms of Service</span>
+                            <span class="text-[10px] opacity-75">v2.0</span>
+                        </a>
+
+                        <a href="{{ url_for('privacy_policy') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'privacy' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="lock" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'privacy' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Privacy Policy</span>
+                            <span class="text-[10px] opacity-75">DPDP</span>
+                        </a>
+
+                        <a href="{{ url_for('refund_policy') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'refund' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="receipt" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'refund' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Donation &amp; Refund</span>
+                            <span class="text-[10px] opacity-75">Cashfree</span>
+                        </a>
+
+                        <a href="{{ url_for('tax_notice') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'tax' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="percent" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'tax' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">80G &amp; Tax Notice</span>
+                            <span class="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded">Pending</span>
+                        </a>
+
+                        <a href="{{ url_for('fcra_notice') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'fcra' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="globe" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'fcra' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">India-Only / FCRA Notice</span>
+                            <span class="text-[10px] opacity-75">Domestic</span>
+                        </a>
+
+                        <a href="{{ url_for('disclaimer') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'disclaimer' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'disclaimer' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Website Disclaimer</span>
+                        </a>
+
+                        <a href="{{ url_for('grievance_policy') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'grievance' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="life-buoy" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'grievance' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Grievance Redressal</span>
+                            <span class="text-[10px] opacity-75">Support</span>
+                        </a>
+
+                        <a href="{{ url_for('cookie_policy') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'cookie' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="cookie" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'cookie' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Cookie Policy</span>
+                            <span class="text-[10px] opacity-75">Essential</span>
+                        </a>
+
+                        <a href="{{ url_for('security_policy') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'security' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="shield" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'security' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Security &amp; Bug Bounty</span>
+                            <span class="text-[10px] opacity-75">VDP</span>
+                        </a>
+
+                        <a href="{{ url_for('governance_policies') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition {% if active_policy == 'governance' %}bg-amber-800 text-white shadow-sm{% else %}text-slate-700 hover:bg-amber-50 hover:text-amber-900{% endif %}">
+                            <i data-lucide="landmark" class="w-4 h-4 flex-shrink-0 {% if active_policy == 'governance' %}text-amber-200{% else %}text-amber-700{% endif %}"></i>
+                            <span class="flex-1 truncate">Governance &amp; Risk (14.1-14)</span>
+                            <span class="text-[10px] opacity-75">Trust</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Organization Info Card -->
+                <div class="bg-white rounded-3xl p-5 shadow-lg border border-amber-900/10 space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                        <i data-lucide="building-2" class="w-4 h-4 text-amber-700"></i>
+                        Organisation Details
+                    </h3>
+                    <div class="text-xs space-y-2.5 text-slate-700 leading-relaxed border-t border-amber-900/10 pt-3">
+                        <div>
+                            <span class="text-slate-500 block text-[11px]">Legal Entity:</span>
+                            <strong class="font-bold text-slate-900">Think4U Charity Organization</strong> (Trust)
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[11px]">Registered Address:</span>
+                            <span>Flat No. 203, Surabhi Residency, Gangastan, Dullapally, Hyderabad, Telangana – 500014, India</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[11px]">Official Email:</span>
+                            <a href="mailto:info@think4u.org" class="font-semibold text-amber-800 hover:underline">info@think4u.org</a>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[11px]">Executive/CEO:</span>
+                            <a href="mailto:ceo@think4u.org" class="font-semibold text-amber-800 hover:underline">ceo@think4u.org</a>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[11px]">Official Contact Phone:</span>
+                            <a href="tel:+919959128946" class="font-semibold text-amber-800 hover:underline">+91 99591 28946</a>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-amber-900/10 flex flex-col gap-2">
+                        <a href="{{ url_for('contact') }}" class="w-full text-center px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 transition">
+                            Contact Organization
+                        </a>
+                        <a href="{{ url_for('grievance_feedback') }}" class="w-full text-center px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
+                            Submit a Grievance
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Legal Advisory Note -->
+                <div class="rounded-2xl p-4 bg-amber-50/70 border border-amber-300 text-[11px] text-amber-900/90 leading-relaxed">
+                    <p class="font-bold flex items-center gap-1.5 mb-1">
+                        <i data-lucide="info" class="w-3.5 h-3.5 text-amber-700 flex-shrink-0"></i>
+                        Legal &amp; Compliance Master Notice
+                    </p>
+                    <p>These legal documents constitute the working compliance package for Think4U Charity Organization. Updated: 30 September 2026. Items designated as pending verification represent ongoing statutory filings.</p>
+                </div>
+            </aside>
+
+            <!-- Document Content Column -->
+            <main class="lg:col-span-8 xl:col-span-9">
+                <article class="bg-white rounded-3xl shadow-xl border border-amber-900/10 p-6 sm:p-10 lg:p-12">
+                    {% block legal_content %}{% endblock %}
+
+                    <!-- Document Bottom Bar -->
+                    <div class="mt-12 pt-8 border-t border-amber-900/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+                        <div>
+                            <p><strong>Think4U Charity Organization</strong> &bull; Hyderabad, Telangana, India</p>
+                            <p class="text-[11px] mt-0.5">Master Legal &amp; Compliance Package &bull; Effective: 30 September 2026</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
+                                <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+                                <span>Back to Top</span>
+                            </button>
+                            <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-800 hover:bg-amber-900 text-white font-semibold transition">
+                                <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                                <span>Questions? Contact Us</span>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            </main>
+        </div>
+    </div>
+</section>
+{% endblock %}

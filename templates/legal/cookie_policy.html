@@ -1,0 +1,131 @@
+{% extends "legal/layout.html" %}
+
+{% set policy_title = "Cookie Policy" %}
+
+{% block legal_content %}
+<div class="space-y-8 text-slate-800 leading-relaxed">
+    <!-- Header -->
+    <div class="border-b border-amber-900/10 pb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-xs uppercase tracking-wide">
+                <i data-lucide="cookie" class="w-3.5 h-3.5"></i> Section 8 of Master Legal Package
+            </span>
+            <span class="text-xs text-slate-500 font-medium">Effective Date: 30 September 2026 | Last Updated: 30 September 2026</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Cookie Policy</h2>
+        <p class="text-sm text-slate-600 mt-2">
+            Information regarding how Think4U Charity Organization uses cookies and local storage technologies on <a href="https://think4u.org" class="text-amber-800 underline">https://think4u.org</a>.
+        </p>
+    </div>
+
+    <!-- Quick Status Box -->
+    <div class="p-5 rounded-3xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+            <i data-lucide="check-shield" class="w-6 h-6 text-emerald-700 flex-shrink-0 mt-0.5"></i>
+            <div>
+                <strong class="text-base font-bold">Privacy-First Commitment</strong>
+                <p class="text-xs sm:text-sm text-emerald-900 mt-0.5">
+                    We only use strictly essential cookies for secure logins, CSRF defense, and user preferences. We do NOT use third-party advertising cookies, cross-site trackers, or commercial tracking pixels.
+                </p>
+            </div>
+        </div>
+        <button onclick="window.openConsentModal()" class="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex-shrink-0 shadow-sm">
+            Manage Consent
+        </button>
+    </div>
+
+    <!-- Sections -->
+    <div class="space-y-8 divide-y divide-amber-900/10">
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">1</span>
+                What Are Cookies?
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Cookies are small text files or unique identifiers placed on your browser or device when visiting a website. They enable websites to recall your session, maintain secure logins, and remember display choices across pages.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">2</span>
+                How Think4U Uses Cookies
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-3">
+                <p>Think4U uses cookies and browser local storage strictly for the following functional purposes:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <strong class="text-slate-900 block mb-1">Session &amp; Authentication:</strong>
+                        <p class="text-xs text-slate-600">Maintaining active user sessions for registered donors, volunteers, coordinators, and administrators.</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <strong class="text-slate-900 block mb-1">Security &amp; CSRF Defense:</strong>
+                        <p class="text-xs text-slate-600">Cross-Site Request Forgery (CSRF) security tokens that verify that requests originate from legitimate users.</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <strong class="text-slate-900 block mb-1">Consent Preferences:</strong>
+                        <p class="text-xs text-slate-600">Remembering that you have acknowledged our policies so the consent modal does not repeatedly interrupt your visits.</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <strong class="text-slate-900 block mb-1">Basic UI Preferences:</strong>
+                        <p class="text-xs text-slate-600">Transient interface state, such as dismissed banners and navigation adjustments.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">3</span>
+                Analytics Tools Status
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-2">
+                <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 font-medium">
+                    Think4U currently does NOT use Google Analytics, Meta Pixel, Microsoft Clarity, or similar third-party analytics/advertising tracking systems.
+                </div>
+                <p class="text-xs text-slate-500">
+                    If modern privacy-respecting analytics are ever introduced in the future to improve website usability, this Policy will be updated and users will be notified with appropriate opt-in controls.
+                </p>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">4</span>
+                Third-Party Services
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Integrated third-party services—such as Cashfree for payment processing or Cloudflare Turnstile for bot protection—may independently set security cookies to prevent fraud and execute secure transactions under their respective privacy policies.
+            </p>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">5</span>
+                Managing &amp; Disabling Cookies
+            </h3>
+            <div class="text-sm text-slate-700 ml-9 space-y-2">
+                <p>Most modern web browsers allow you to view, manage, and delete cookies through browser settings. You can also block cookies entirely. However, please note that disabling essential cookies may prevent secure login, donor account access, or receipt downloads from functioning properly.</p>
+                <p>You can also reset your Think4U consent preferences at any time using our on-page settings button:</p>
+                <div class="pt-1">
+                    <button onclick="window.openConsentModal()" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition">
+                        Open Consent Preferences
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="pt-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">6</span>
+                Updates to Cookie Policy
+            </h3>
+            <p class="text-sm text-slate-700 ml-9">
+                Think4U may update this Cookie Policy when technology, statutory requirements, or Website functionality changes. The updated version will display the revised Effective Date.
+            </p>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

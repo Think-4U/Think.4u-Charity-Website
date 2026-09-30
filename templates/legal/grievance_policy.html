@@ -1,0 +1,133 @@
+{% extends "legal/layout.html" %}
+
+{% set policy_title = "Grievance Redressal Policy" %}
+
+{% block legal_content %}
+<div class="space-y-8 text-slate-800 leading-relaxed">
+    <!-- Header -->
+    <div class="border-b border-amber-900/10 pb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-900 font-bold text-xs uppercase tracking-wide">
+                <i data-lucide="life-buoy" class="w-3.5 h-3.5"></i> Section 7 of Master Legal Package
+            </span>
+            <span class="text-xs text-slate-500 font-medium">Effective Date: 30 September 2026 | Last Updated: 30 September 2026</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Grievance Redressal Policy</h2>
+        <p class="text-sm text-slate-600 mt-2">
+            Formal grievance resolution mechanism and escalating procedure for donors, volunteers, beneficiaries, and users of Think4U Charity Organization.
+        </p>
+    </div>
+
+    <!-- Contact Details Card -->
+    <div class="p-6 rounded-3xl bg-slate-900 text-white shadow-xl">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center flex-shrink-0 font-bold">
+                <i data-lucide="headphones" class="w-6 h-6"></i>
+            </div>
+            <div class="space-y-3">
+                <h3 class="text-lg font-black text-white">Grievance Redressal Officer &amp; Contact</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm text-white/90">
+                    <div>
+                        <span class="text-white/60 block text-xs">Official Body:</span>
+                        <strong class="text-white font-bold">Think4U Charity Organization</strong>
+                        <p class="text-white/80 mt-1">Flat No. 203, Surabhi Residency, Gangastan, Dullapally, Hyderabad, Telangana – 500014, India.</p>
+                    </div>
+                    <div class="space-y-1.5">
+                        <p><strong>General Support:</strong> <a href="mailto:info@think4u.org" class="text-amber-400 hover:underline">info@think4u.org</a></p>
+                        <p><strong>Administrative &amp; CEO:</strong> <a href="mailto:ceo@think4u.org" class="text-amber-400 hover:underline">ceo@think4u.org</a></p>
+                        <p><strong>Helpline:</strong> <a href="tel:+919959128946" class="text-amber-400 hover:underline">+91 99591 28946</a></p>
+                    </div>
+                </div>
+                <div class="pt-2 flex flex-wrap gap-3">
+                    <a href="{{ url_for('grievance_feedback') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Submit Online Grievance</span>
+                    </a>
+                    <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition border border-white/20">
+                        <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                        <span>General Inquiry Form</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Types of Complaints -->
+    <div class="space-y-4">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="clipboard-list" class="w-5 h-5 text-amber-700"></i>
+            Types of Matters Handled
+        </h3>
+        <p class="text-sm text-slate-700">
+            You may register a grievance concerning any of the following matters:
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <strong class="text-slate-900 block mb-1">Donations &amp; Payments:</strong>
+                <p class="text-slate-600">Duplicate payments, payment deductions without receipt, transaction status confirmation, or refund inquiries.</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <strong class="text-slate-900 block mb-1">User Accounts &amp; Privacy:</strong>
+                <p class="text-slate-600">Login issues, account deletion, profile updates, data privacy rights, or unauthorized activity reports.</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <strong class="text-slate-900 block mb-1">Volunteer &amp; Coordination:</strong>
+                <p class="text-slate-600">Volunteer onboarding status, certificate issuance, program scheduling, or event feedback.</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <strong class="text-slate-900 block mb-1">Safeguarding &amp; Content:</strong>
+                <p class="text-slate-600">Beneficiary privacy concerns, photograph/video takedown requests, ethics, or general conduct.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information to Include -->
+    <div class="space-y-4 pt-4 border-t border-amber-900/10">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="info" class="w-5 h-5 text-amber-700"></i>
+            Information to Include in Your Grievance
+        </h3>
+        <p class="text-sm text-slate-700">
+            To expedite resolution, please provide:
+        </p>
+        <ul class="list-disc list-inside text-sm text-slate-700 space-y-1.5 ml-2">
+            <li>Your Full Name and Registered Email / Mobile Number.</li>
+            <li>Transaction / Reference ID (for donation or payment-related matters).</li>
+            <li>Date of occurrence and clear, factual description of the issue.</li>
+            <li>Any supporting documents or screenshots.</li>
+        </ul>
+        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs sm:text-sm text-rose-900 font-semibold flex items-center gap-3">
+            <i data-lucide="shield-alert" class="w-5 h-5 text-rose-700 flex-shrink-0"></i>
+            <span>Security Warning: Do NOT send passwords, complete card numbers, CVVs, or OTPs in any email or communication.</span>
+        </div>
+    </div>
+
+    <!-- Investigation and Resolution Workflow -->
+    <div class="space-y-4 pt-4 border-t border-amber-900/10">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 text-amber-700"></i>
+            Investigation &amp; Resolution Workflow
+        </h3>
+        <div class="space-y-3 text-sm text-slate-700">
+            <div class="flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">1</span>
+                <div>
+                    <strong>Acknowledgment:</strong> Grievances are acknowledged within 24 to 48 business hours with an acknowledgment reference.
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">2</span>
+                <div>
+                    <strong>Verification:</strong> Think4U may request additional records reasonably necessary to verify identity or transaction logs with Cashfree/banks.
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">3</span>
+                <div>
+                    <strong>Resolution:</strong> Think4U strives to resolve all grievances expeditiously, ordinarily within 7 to 15 working days. Privacy grievances are handled strictly in compliance with applicable data protection norms.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

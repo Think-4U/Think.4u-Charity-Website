@@ -126,9 +126,30 @@
         </div>
         {% endif %}
 
+        <!-- Section 10 Mandatory Legal Checkbox & Disclosures -->
+        <div class="mb-5 p-4 rounded-2xl border-2 border-amber-300 bg-amber-50/80 space-y-3">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input id="donation_legal_consent" type="checkbox" required
+              class="mt-1 w-4 h-4 text-amber-800 rounded border-amber-400 focus:ring-amber-700 flex-shrink-0 cursor-pointer">
+            <span class="text-xs sm:text-sm text-slate-800 leading-relaxed select-none">
+              I confirm that I am making a voluntary domestic donation from India. I have read and agree to Think4U’s 
+              <a href="{{ url_for('terms_of_service') }}" target="_blank" class="font-bold text-amber-900 underline hover:text-amber-700">Terms of Service</a>, 
+              <a href="{{ url_for('privacy_policy') }}" target="_blank" class="font-bold text-amber-900 underline hover:text-amber-700">Privacy Policy</a>, and 
+              <a href="{{ url_for('refund_policy') }}" target="_blank" class="font-bold text-amber-900 underline hover:text-amber-700">Donation, Cancellation &amp; Refund Policy</a>. 
+              I understand that donations are generally non-refundable and that Think4U’s 
+              <a href="{{ url_for('tax_notice') }}" target="_blank" class="font-bold text-amber-900 underline hover:text-amber-700">80G approval/status is currently under process</a> 
+              and therefore I should not assume that my donation currently qualifies for an 80G deduction.
+            </span>
+          </label>
+          <div class="pt-2.5 border-t border-amber-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-950 font-semibold">
+            <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-700"></i> Domestic donations only</span>
+            <span class="flex items-center gap-1.5"><i data-lucide="globe" class="w-3.5 h-3.5 text-amber-700"></i> Foreign contributions not accepted (<a href="{{ url_for('fcra_notice') }}" target="_blank" class="underline">FCRA Notice</a>)</span>
+          </div>
+        </div>
+
         <button id="payBtn"
           class="w-full bg-amber-800 hover:bg-amber-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-lg transition">
-          <span id="btnText">{% if current_user.is_authenticated %}Donate Now{% else %}Verify &amp; Proceed to Donate{% endif %}</span>
+          <span id="btnText">{% if current_user.is_authenticated %}Proceed to Payment{% else %}Verify &amp; Proceed to Payment{% endif %}</span>
         </button>
       </div>
 
@@ -228,6 +249,10 @@
       if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return "Please enter a valid email address.";
     }
     if (!Number.isFinite(data.amount) || data.amount < 1000) return "Minimum donation is Rs 10.";
+    const consentBox = document.getElementById("donation_legal_consent");
+    if (consentBox && !consentBox.checked) {
+      return "Please read and confirm agreement to our Terms, Privacy Policy, and 80G/FCRA donation disclosures.";
+    }
     return "";
   }
 

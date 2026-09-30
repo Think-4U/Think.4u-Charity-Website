@@ -5721,8 +5721,76 @@ def coreteam():
 
 
 @app.route("/policy-terms")
+@app.route("/legal")
 def policy_terms():
-    return render_template("policy_terms.html")
+    return render_template("legal/legal_hub.html", active_policy="hub")
+
+
+@app.route("/terms")
+@app.route("/terms-of-service")
+def terms_of_service():
+    return render_template("legal/terms_of_service.html", active_policy="terms")
+
+
+@app.route("/privacy")
+@app.route("/privacy-policy")
+def privacy_policy():
+    return render_template("legal/privacy_policy.html", active_policy="privacy")
+
+
+@app.route("/refund-policy")
+@app.route("/donation-refund-policy")
+@app.route("/donation-cancellation-refund-policy")
+def refund_policy():
+    return render_template("legal/refund_policy.html", active_policy="refund")
+
+
+@app.route("/tax-notice")
+@app.route("/80g-tax-notice")
+@app.route("/80g-notice")
+def tax_notice():
+    return render_template("legal/tax_notice.html", active_policy="tax")
+
+
+@app.route("/fcra-notice")
+@app.route("/india-fcra-notice")
+@app.route("/india-only-notice")
+def fcra_notice():
+    return render_template("legal/fcra_notice.html", active_policy="fcra")
+
+
+@app.route("/disclaimer")
+@app.route("/website-disclaimer")
+def disclaimer():
+    return render_template("legal/disclaimer.html", active_policy="disclaimer")
+
+
+@app.route("/grievance-policy")
+@app.route("/grievance-redressal")
+def grievance_policy():
+    return render_template("legal/grievance_policy.html", active_policy="grievance")
+
+
+@app.route("/cookie-policy")
+@app.route("/cookies")
+def cookie_policy():
+    return render_template("legal/cookie_policy.html", active_policy="cookie")
+
+
+@app.route("/security-policy")
+@app.route("/security-disclosure")
+@app.route("/security-vulnerability-disclosure")
+@app.route("/bug-bounty-policy")
+def security_policy():
+    return render_template("legal/security_policy.html", active_policy="security")
+
+
+@app.route("/governance-policies")
+@app.route("/compliance-policies")
+@app.route("/legal-compliance-policies")
+def governance_policies():
+    return render_template("legal/governance_policies.html", active_policy="governance")
+
 
 
 @app.route("/contact", methods=["GET", "POST"])

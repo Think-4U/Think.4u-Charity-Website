@@ -1512,6 +1512,12 @@ def verify_csrf_token():
         or request.headers.get("X-CSRF-Token")
         or request.headers.get("X-CSRFToken")
     )
+    if not provided and request.is_json:
+        try:
+            body = request.get_json(silent=True) or {}
+            provided = body.get("csrf_token") or body.get("_csrf_token")
+        except Exception:
+            pass
     expected = session.get("_csrf_token")
     return bool(expected and provided and secrets.compare_digest(provided, expected))
 
@@ -8756,11 +8762,10 @@ def admin_settings():
                 flash('Contact information updated successfully!', 'success')
             
             elif form_type == 'payment':
-                # Save payment settings
+                # Save payment settings safely: UPI ID and Razorpay public Key ID
                 payment_data = {
-                    'razorpay_key': request.form.get('razorpay_key'),
-                    'razorpay_secret': request.form.get('razorpay_secret'),
-                    'upi_id': request.form.get('upi_id')
+                    'razorpay_key': clean_text(request.form.get('razorpay_key'), 80),
+                    'upi_id': clean_text(request.form.get('upi_id'), 120)
                 }
                 
                 for key, value in payment_data.items():
@@ -8769,8 +8774,15 @@ def admin_settings():
                             'key': key,
                             'value': value
                         }).execute()
-                
-                flash('Payment settings updated successfully!', 'success')
+
+                secret_input = request.form.get('razorpay_secret', '').strip()
+                if secret_input and not set(secret_input) <= {'•', '*'}:
+                    flash(
+                        'Public payment settings saved. Note: Sensitive API secrets (Razorpay Secret, Cashfree Secret Key) are managed securely via server environment variables (RAZOR_KEY_SECRET, CASHFREE_SECRET_KEY) to prevent exposure.',
+                        'warning'
+                    )
+                else:
+                    flash('Payment settings updated successfully!', 'success')
             
             elif form_type == 'social':
                 # Save social media links
@@ -8860,9 +8872,9 @@ def admin_settings():
         }
         
         payment_settings = {
-            'razorpay_key': settings_dict.get('razorpay_key', ''),
-            'razorpay_secret': settings_dict.get('razorpay_secret', ''),
-            'upi_id': settings_dict.get('upi_id', '')
+            'razorpay_key': settings_dict.get('razorpay_key', '') or os.getenv('RAZOR_KEY_ID', ''),
+            'razorpay_secret': '••••••••••••••••' if (os.getenv('RAZOR_KEY_SECRET') or settings_dict.get('razorpay_secret')) else '',
+            'upi_id': settings_dict.get('upi_id', '') or os.getenv('UPI_VPA', '')
         }
         
         social_settings = {

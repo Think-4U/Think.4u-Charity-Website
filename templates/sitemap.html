@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block title %}Sitemap - Think.4U Charitable Trust{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sitemap-hero {
+        background: linear-gradient(135deg, #24120b 0%, #3e1e12 60%, #582b1a 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .sitemap-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.2), transparent 50%);
+        pointer-events: none;
+    }
+    .sitemap-card {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.12);
+        border-radius: 1.25rem;
+        box-shadow: 0 4px 20px rgba(53, 28, 18, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .sitemap-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(53, 28, 18, 0.1);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+    .sitemap-link {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.625rem;
+        color: #334155;
+        font-weight: 500;
+        font-size: 0.925rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    .sitemap-link:hover {
+        background: #fff8f1;
+        color: #b45309;
+        transform: translateX(3px);
+    }
+    .sitemap-link i {
+        color: #d58d4b;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b] pb-20">
+
+    <!-- HERO HEADER -->
+    <section class="sitemap-hero py-14 sm:py-16 px-4 text-center">
+        <div class="max-w-4xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="map" class="w-4 h-4"></i> Complete Site Directory
+            </span>
+            <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white mb-3">
+                Think.4U <span class="text-[#d58d4b]">Sitemap</span>
+            </h1>
+            <p class="max-w-2xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed mb-6">
+                Navigate all public initiatives, charity programs, donation portals, leadership profiles, and statutory compliance documentation.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="{{ url_for('sitemap_xml') }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 border border-amber-400/30 text-xs font-semibold backdrop-blur-sm transition">
+                    <i data-lucide="file-code" class="w-4 h-4"></i> View XML Sitemap (sitemap.xml)
+                </a>
+                <a href="{{ url_for('index') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white text-xs font-bold transition">
+                    <i data-lucide="home" class="w-4 h-4"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN SITEMAP CONTENT GRID -->
+    <main class="max-w-6xl mx-auto px-4 -mt-8 relative z-20">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <!-- 1. Organization & Leadership -->
+            <div class="sitemap-card p-6">
+                <div class="flex items-center gap-3 pb-4 mb-4 border-b border-amber-900/10">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-[#d58d4b]">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 leading-tight">About &amp; Leadership</h2>
+                        <p class="text-xs text-slate-500">Mission, governance, and teams</p>
+                    </div>
+                </div>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="{{ url_for('index') }}" class="sitemap-link">
+                            <i data-lucide="home" class="w-4 h-4"></i>
+                            <span>Home Page</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('about') }}" class="sitemap-link">
+                            <i data-lucide="heart" class="w-4 h-4"></i>
+                            <span>About Think.4U</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('governingbody') }}" class="sitemap-link">
+                            <i data-lucide="award" class="w-4 h-4"></i>
+                            <span>Governing Body</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('managingteam') }}" class="sitemap-link">
+                            <i data-lucide="briefcase" class="w-4 h-4"></i>
+                            <span>Managing Team</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('coreteam') }}" class="sitemap-link">
+                            <i data-lucide="user-check" class="w-4 h-4"></i>
+                            <span>Core Team</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 2. Programs, Events & Causes -->
+            <div class="sitemap-card p-6">
+                <div class="flex items-center gap-3 pb-4 mb-4 border-b border-amber-900/10">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-[#d58d4b]">
+                        <i data-lucide="calendar" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 leading-tight">Programs &amp; Events</h2>
+                        <p class="text-xs text-slate-500">Community outreach and activities</p>
+                    </div>
+                </div>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="{{ url_for('index') }}#programs" class="sitemap-link">
+                            <i data-lucide="layers" class="w-4 h-4"></i>
+                            <span>All Charity Programs</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('events_page') }}" class="sitemap-link">
+                            <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                            <span>Upcoming Volunteer Events</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('fundraising') }}" class="sitemap-link">
+                            <i data-lucide="target" class="w-4 h-4"></i>
+                            <span>Fundraising Campaigns</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('index') }}#impact" class="sitemap-link">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            <span>Impact &amp; Stories</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 3. Get Involved & Support -->
+            <div class="sitemap-card p-6">
+                <div class="flex items-center gap-3 pb-4 mb-4 border-b border-amber-900/10">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-[#d58d4b]">
+                        <i data-lucide="hand-heart" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 leading-tight">Support &amp; Donate</h2>
+                        <p class="text-xs text-slate-500">Ways to contribute and participate</p>
+                    </div>
+                </div>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="{{ url_for('donate') }}" class="sitemap-link">
+                            <i data-lucide="credit-card" class="w-4 h-4"></i>
+                            <span>Donate Online (Gateway)</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('donate_upi') }}" class="sitemap-link">
+                            <i data-lucide="qr-code" class="w-4 h-4"></i>
+                            <span>Donate via UPI &amp; QR Code</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('volunteer') }}" class="sitemap-link">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                            <span>Volunteer Registration</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('contact') }}" class="sitemap-link">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>Contact Support</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('grievance_feedback') }}" class="sitemap-link">
+                            <i data-lucide="message-square" class="w-4 h-4"></i>
+                            <span>Submit Grievance / Feedback</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 4. Legal Policies & Disclosures -->
+            <div class="sitemap-card p-6 md:col-span-2">
+                <div class="flex items-center gap-3 pb-4 mb-4 border-b border-amber-900/10">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-[#d58d4b]">
+                        <i data-lucide="shield" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 leading-tight">Statutory &amp; Legal Policies</h2>
+                        <p class="text-xs text-slate-500">Compliance, data protection, and statutory notices</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <a href="{{ url_for('terms_of_service') }}" class="sitemap-link">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <span>Terms of Service</span>
+                    </a>
+                    <a href="{{ url_for('privacy_policy') }}" class="sitemap-link">
+                        <i data-lucide="lock" class="w-4 h-4"></i>
+                        <span>Privacy Policy</span>
+                    </a>
+                    <a href="{{ url_for('refund_policy') }}" class="sitemap-link">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        <span>Donation &amp; Refund Policy</span>
+                    </a>
+                    <a href="{{ url_for('cookie_policy') }}" class="sitemap-link">
+                        <i data-lucide="cookie" class="w-4 h-4"></i>
+                        <span>Cookie Policy</span>
+                    </a>
+                    <a href="{{ url_for('disclaimer') }}" class="sitemap-link">
+                        <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                        <span>Website Disclaimer</span>
+                    </a>
+                    <a href="{{ url_for('tax_notice') }}" class="sitemap-link">
+                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                        <span>Section 80G &amp; Tax Notice</span>
+                    </a>
+                    <a href="{{ url_for('fcra_notice') }}" class="sitemap-link">
+                        <i data-lucide="flag" class="w-4 h-4"></i>
+                        <span>India-Only / FCRA Notice</span>
+                    </a>
+                    <a href="{{ url_for('grievance_policy') }}" class="sitemap-link">
+                        <i data-lucide="scale" class="w-4 h-4"></i>
+                        <span>Grievance Redressal Policy</span>
+                    </a>
+                    <a href="{{ url_for('security_policy') }}" class="sitemap-link">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        <span>Security &amp; Bug Bounty</span>
+                    </a>
+                    <a href="{{ url_for('governance_policies') }}" class="sitemap-link">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>Governance &amp; Risk Policy</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 5. User Account & Portals -->
+            <div class="sitemap-card p-6">
+                <div class="flex items-center gap-3 pb-4 mb-4 border-b border-amber-900/10">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-[#d58d4b]">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 leading-tight">Account &amp; Services</h2>
+                        <p class="text-xs text-slate-500">Access your donor or volunteer portal</p>
+                    </div>
+                </div>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="{{ url_for('login') }}" class="sitemap-link">
+                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <span>Sign In (Email &amp; Password)</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('login_phone') }}" class="sitemap-link">
+                            <i data-lucide="smartphone" class="w-4 h-4"></i>
+                            <span>Login with Mobile OTP</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('signup') }}" class="sitemap-link">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                            <span>Create an Account</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('dashboard') }}" class="sitemap-link">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                            <span>User Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('certificates_page') }}" class="sitemap-link">
+                            <i data-lucide="award" class="w-4 h-4"></i>
+                            <span>Volunteer Certificates</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+
+        <!-- SEARCH ENGINE ROBOTS & CRAWLER DISCLOSURE -->
+        <div class="mt-8 p-6 rounded-2xl bg-white/70 border border-amber-900/10 shadow-sm text-sm text-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="space-y-1 text-center sm:text-left">
+                <p class="font-bold text-slate-900 flex items-center gap-2 justify-center sm:justify-start">
+                    <i data-lucide="rss" class="w-4 h-4 text-[#d58d4b]"></i> Search Engines &amp; Automated Crawlers
+                </p>
+                <p class="text-xs text-slate-500">
+                    For Google, Bing, and other web spiders, please refer to our machine-readable indices:
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ url_for('robots_txt') }}" target="_blank" class="px-3.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition border border-stone-200">
+                    robots.txt
+                </a>
+                <a href="{{ url_for('sitemap_xml') }}" target="_blank" class="px-3.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold transition border border-amber-200">
+                    sitemap.xml
+                </a>
+            </div>
+        </div>
+
+    </main>
+</div>
+{% endblock %}

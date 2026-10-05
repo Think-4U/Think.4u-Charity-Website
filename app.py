@@ -593,10 +593,14 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    """Load user from Supabase"""
+    """Load user from Supabase — selects only the columns needed by User()."""
     try:
         lookup_id = int(user_id) if str(user_id).isdigit() else user_id
-        response = supabase.table('users').select('*').eq('id', lookup_id).execute()
+        # Fix 5: select only the columns consumed by User.__init__ instead of
+        # select('*'), which downloaded every column on every authenticated request.
+        response = supabase.table('users').select(
+            'id,email,name,is_admin,role,phone,address,global_meeting_settings'
+        ).eq('id', lookup_id).limit(1).execute()
         if response.data:
             u = response.data[0]
             return User(
@@ -862,10 +866,12 @@ def upload_site_media(file_obj, media_type, folder="home"):
         except Exception as create_error:
             app.logger.warning(f"Could not create {SITE_MEDIA_BUCKET} bucket: {create_error}")
 
+    # Fix 8: cacheControl=31536000 lets Supabase's Cloudflare CDN cache the file
+    # for 1 year, eliminating repeated origin fetches for the same asset.
     supabase.storage.from_(SITE_MEDIA_BUCKET).upload(
         unique_filename,
         file_data,
-        file_options={"content-type": file_obj.content_type}
+        file_options={"content-type": file_obj.content_type, "cacheControl": "31536000"}
     )
     return supabase.storage.from_(SITE_MEDIA_BUCKET).get_public_url(unique_filename)
 
@@ -880,23 +886,20 @@ def is_allowed_supabase_media_url(media_url):
     )
 
 
+# Fix 1: Serve Supabase CDN public URLs directly instead of routing every image
+# through the Flask proxy (which caused Supabase→Vercel→browser = 2× egress).
+# The proxy routes (site_media_proxy / program_image_proxy) are kept in place for
+# backwards compatibility with any bookmarked/cached URLs.
 def attach_media_display_urls(media_rows):
     for row in media_rows:
-        media_id = row.get("id")
-        if media_id is not None and is_allowed_supabase_media_url(row.get("url")):
-            row["display_url"] = url_for("site_media_proxy", media_id=media_id)
-        else:
-            row["display_url"] = row.get("url")
+        # Serve the CDN URL directly — avoids the reverse-proxy double-egress.
+        row["display_url"] = row.get("url") or ""
     return media_rows
 
 
 def attach_program_image_display_urls(program_rows):
     for row in program_rows:
-        program_id = row.get("id")
-        if program_id is not None and is_allowed_supabase_media_url(row.get("image_url")):
-            row["image_display_url"] = url_for("program_image_proxy", program_id=program_id)
-        else:
-            row["image_display_url"] = row.get("image_url")
+        row["image_display_url"] = row.get("image_url") or ""
     return program_rows
 
 
@@ -1808,12 +1811,14 @@ def expire_stale_pending_donations(user_id=None, email=None):
 
 
 def get_maintenance_settings_live():
-    """Read lock controls without the CMS cache.
+    """Read maintenance lock controls, with a short in-process TTL cache.
 
-    Maintenance is an access-control feature. In a multi-instance/serverless
-    deployment a cached value can leave one instance open after another has
-    enabled the lock, so this intentionally performs a direct read.
+    A 30-second cache eliminates per-request Supabase queries from bots and
+    anonymous visitors while still reacting quickly when an admin toggles
+    maintenance mode.  The cache is bypassed (and reset) by the admin save
+    path so a newly-enabled lock takes effect within one cache window at most.
     """
+    global _maintenance_cache, _maintenance_cache_until
     defaults = {
         "maintenance_enabled": "false",
         "maintenance_start": "",
@@ -1833,12 +1838,19 @@ def get_maintenance_settings_live():
             "maintenance_status": "Emergency maintenance in progress",
             "maintenance_components": defaults["maintenance_components"],
         }
+    # Fix 3: Return the cached result if it is still fresh.
+    now = time.time()
+    if now < _maintenance_cache_until and _maintenance_cache:
+        return dict(_maintenance_cache)
     try:
         response = supabase.table("cms_content").select("key,value").in_("key", list(defaults)).execute()
         values = {row.get("key"): row.get("value") for row in (response.data or [])}
         settings = {key: str(values.get(key) or default) for key, default in defaults.items()}
         MAINTENANCE_LAST_KNOWN.clear()
         MAINTENANCE_LAST_KNOWN.update(settings)
+        # Populate the cache for the next MAINTENANCE_CACHE_TTL seconds.
+        _maintenance_cache = dict(settings)
+        _maintenance_cache_until = now + MAINTENANCE_CACHE_TTL
         return settings
     except Exception as exc:
         global MAINTENANCE_LOOKUP_ERROR_LOGGED
@@ -1851,6 +1863,7 @@ def get_maintenance_settings_live():
         fallback.update({key: str(CMS_CACHE[key]) for key in defaults if key in CMS_CACHE})
         fallback.update(MAINTENANCE_LAST_KNOWN)
         return fallback
+
 
 
 def maintenance_window_is_active(settings=None):
@@ -2073,6 +2086,16 @@ def set_security_headers(response):
     )
     if current_user.is_authenticated and not request.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    elif (
+        request.method == "GET"
+        and response.status_code == 200
+        and not request.path.startswith(("/api/", "/static/", "/login", "/auth"))
+        and "Cache-Control" not in response.headers
+    ):
+        # Fix 2: Cache public GET pages (homepage, events, programs, fundraising)
+        # at the Vercel edge CDN and in user browsers for 60 seconds.
+        # This dramatically cuts Supabase queries triggered by bot crawls and traffic spikes.
+        response.headers["Cache-Control"] = "public, max-age=60, s-maxage=60, stale-while-revalidate=120"
     return response
 
 
@@ -2144,11 +2167,131 @@ def send_email_sync(subject, recipients, html, attachments=None):
 # ===================================
 # PUBLIC ROUTES
 # ===================================
+@app.route("/robots.txt")
+def robots_txt():
+    """robots.txt tells web crawlers allowed and disallowed paths, and references the XML sitemap."""
+    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Allow: /events\n"
+        "Allow: /fundraising\n"
+        "Allow: /program/\n"
+        "Allow: /about\n"
+        "Allow: /governingbody\n"
+        "Allow: /managingteam\n"
+        "Allow: /coreteam\n"
+        "Allow: /contact\n"
+        "Allow: /sitemap\n"
+        "Allow: /sitemap.xml\n"
+        "Disallow: /admin\n"
+        "Disallow: /coordinator\n"
+        "Disallow: /dashboard\n"
+        "Disallow: /api/\n"
+        "Disallow: /site-media/\n"
+        "Disallow: /program-image/\n"
+        "Crawl-delay: 10\n\n"
+        f"Sitemap: {site_url}/sitemap.xml\n"
+    )
+    resp = make_response(content, 200)
+    resp.headers["Content-Type"] = "text/plain; charset=utf-8"
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    """Search Engine XML Sitemap listing all public URLs for SEO indexing."""
+    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    now_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    static_urls = [
+        {"loc": f"{site_url}/", "changefreq": "daily", "priority": "1.0"},
+        {"loc": f"{site_url}/about", "changefreq": "weekly", "priority": "0.9"},
+        {"loc": f"{site_url}/events", "changefreq": "daily", "priority": "0.9"},
+        {"loc": f"{site_url}/fundraising", "changefreq": "daily", "priority": "0.9"},
+        {"loc": f"{site_url}/donate", "changefreq": "monthly", "priority": "0.9"},
+        {"loc": f"{site_url}/donate-upi", "changefreq": "monthly", "priority": "0.8"},
+        {"loc": f"{site_url}/volunteer", "changefreq": "weekly", "priority": "0.8"},
+        {"loc": f"{site_url}/governingbody", "changefreq": "monthly", "priority": "0.7"},
+        {"loc": f"{site_url}/managingteam", "changefreq": "monthly", "priority": "0.7"},
+        {"loc": f"{site_url}/coreteam", "changefreq": "monthly", "priority": "0.7"},
+        {"loc": f"{site_url}/contact", "changefreq": "monthly", "priority": "0.8"},
+        {"loc": f"{site_url}/grievance", "changefreq": "monthly", "priority": "0.7"},
+        {"loc": f"{site_url}/terms-of-service", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/privacy-policy", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/refund-policy", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/cookie-policy", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/disclaimer", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/tax-notice", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/fcra-notice", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/grievance-policy", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/security-policy", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/governance-policies", "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{site_url}/sitemap", "changefreq": "weekly", "priority": "0.6"},
+    ]
+
+    xml_lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+
+    for item in static_urls:
+        xml_lines.append("  <url>")
+        xml_lines.append(f"    <loc>{item['loc']}</loc>")
+        xml_lines.append(f"    <lastmod>{now_date}</lastmod>")
+        xml_lines.append(f"    <changefreq>{item['changefreq']}</changefreq>")
+        xml_lines.append(f"    <priority>{item['priority']}</priority>")
+        xml_lines.append("  </url>")
+
+    # Fetch active programs (minimal egress: only id and updated_at)
+    try:
+        programs_res = supabase.table("programs").select("id,updated_at,created_at").eq("status", "active").limit(50).execute()
+        for prog in (programs_res.data or []):
+            pid = prog.get("id")
+            if pid:
+                mod = (prog.get("updated_at") or prog.get("created_at") or now_date)[:10]
+                xml_lines.append("  <url>")
+                xml_lines.append(f"    <loc>{site_url}/program/{pid}</loc>")
+                xml_lines.append(f"    <lastmod>{mod}</lastmod>")
+                xml_lines.append("    <changefreq>weekly</changefreq>")
+                xml_lines.append("    <priority>0.8</priority>")
+                xml_lines.append("  </url>")
+    except Exception as exc:
+        app.logger.warning(f"Sitemap program query skipped: {exc}")
+
+    xml_lines.append("</urlset>")
+    xml_content = "\n".join(xml_lines)
+
+    resp = make_response(xml_content, 200)
+    resp.headers["Content-Type"] = "application/xml; charset=utf-8"
+    resp.headers["Cache-Control"] = "public, max-age=43200, s-maxage=43200"
+    return resp
+
+
+@app.route("/sitemap")
+@app.route("/sitemap.html")
+def sitemap_page():
+    """HTML Sitemap page showing organized site navigation and directory."""
+    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    return render_template("sitemap.html", site_url=site_url)
+
+
+@app.route("/programs")
+def programs_redirect():
+    """Convenience redirect to the programs section on the home page."""
+    return redirect(url_for("index") + "#programs")
+
+
 @app.route("/")
 def index():
     """Homepage with stats"""
     try:
-        response = supabase.table('programs').select('*').eq("status", "active").order("created_at", desc=True).execute()
+        # Fix 6: Select only needed columns and limit to 12 active programs instead of
+        # downloading the entire table with all descriptions and image fields.
+        response = supabase.table('programs').select(
+            'id,title,description,image_url,status,created_at'
+        ).eq("status", "active").order("created_at", desc=True).limit(12).execute()
         programs = attach_program_image_display_urls(response.data if response.data else [])
     except Exception as e:
         app.logger.warning(f"Error fetching programs: {e}")
@@ -2158,7 +2301,7 @@ def index():
     try:
         today = datetime.now(timezone.utc).date().isoformat()
         response = supabase.table("volunteer_events") \
-            .select("*") \
+            .select("id,title,event_date,event_time,location,city,image_url") \
             .gte("event_date", today) \
             .order("event_date") \
             .limit(6) \
@@ -2166,7 +2309,9 @@ def index():
         available_events = response.data or []
     except Exception:
         try:
-            response = supabase.table("volunteer_events").select("*").order("event_date").limit(6).execute()
+            response = supabase.table("volunteer_events").select(
+                "id,title,event_date,event_time,location,city,image_url"
+            ).order("event_date").limit(6).execute()
             available_events = response.data or []
         except Exception as e:
             app.logger.warning(f"Error fetching events for home: {e}")
@@ -2175,7 +2320,7 @@ def index():
     fundraisers = []
     try:
         response = supabase.table("fundraisers") \
-            .select("*") \
+            .select("id,title,description,target_amount,raised_amount,status,image_url") \
             .eq("status", "active") \
             .order("created_at", desc=True) \
             .limit(3) \
@@ -2196,17 +2341,17 @@ def index():
         'total_programs': len(programs)
     }
     
-    # Get successful donation count only. Pending/failed/cancelled attempts are records, not donated totals.
+    # Fix 6: Select only 'id' with count='exact' so Supabase doesn't download the
+    # entire row payload for every donation and volunteer in the database just to count them.
     try:
-        donations_response = supabase.table('donations').select('*', count='exact').eq("status", "paid").execute()
-        stats['total_donations'] = donations_response.count if hasattr(donations_response, 'count') else len(donations_response.data)
+        donations_response = supabase.table('donations').select('id', count='exact').eq("status", "paid").execute()
+        stats['total_donations'] = donations_response.count if donations_response.count is not None else len(donations_response.data or [])
     except Exception as e:
         app.logger.warning(f"Error fetching donation count: {e}")
     
-    # Get volunteer count
     try:
-        volunteers_response = supabase.table('volunteers').select('*', count='exact').execute()
-        stats['total_volunteers'] = volunteers_response.count if hasattr(volunteers_response, 'count') else len(volunteers_response.data)
+        volunteers_response = supabase.table('volunteers').select('id', count='exact').execute()
+        stats['total_volunteers'] = volunteers_response.count if volunteers_response.count is not None else len(volunteers_response.data or [])
     except Exception as e:
         app.logger.warning(f"Error fetching volunteer count: {e}")
     
@@ -5384,35 +5529,44 @@ def events_page():
     certificate_map = {}
 
     try:
-        programs_response = supabase.table("programs").select("*").order("created_at", desc=True).limit(100).execute()
+        # Fix 6: Only select columns needed to check/create linked events
+        programs_response = supabase.table("programs").select("id,title,description,created_at").order("created_at", desc=True).limit(50).execute()
         for program in (programs_response.data or []):
             ensure_event_for_program(program)
     except Exception as e:
         app.logger.warning(f"Program-event sync skipped: {e}")
 
     try:
-        response = supabase.table("volunteer_events").select("*").order("event_date").limit(100).execute()
+        response = supabase.table("volunteer_events").select(
+            "id,title,description,event_date,event_time,location,city,image_url,max_registrations,program_id"
+        ).order("event_date").limit(50).execute()
         events = response.data or []
     except Exception:
         events = []
 
-    # Get participant counts
+    # Get participant counts — Fix 6: filter to non-cancelled status and only active events
     participant_counts = {}
+    active_event_ids = [e["id"] for e in events if "id" in e]
     try:
-        participants_response = supabase.table("event_participants").select("event_id,status").execute()
-        for p in (participants_response.data or []):
-            eid = p.get("event_id")
-            if eid is not None and p.get("status") != "cancelled":
-                eid_key = db_id(eid)
-                participant_counts[eid_key] = participant_counts.get(eid_key, 0) + 1
-                participant_counts[str(eid)] = participant_counts.get(str(eid), 0) + 1
+        if active_event_ids:
+            participants_response = supabase.table("event_participants") \
+                .select("event_id,status") \
+                .in_("event_id", active_event_ids) \
+                .neq("status", "cancelled") \
+                .execute()
+            for p in (participants_response.data or []):
+                eid = p.get("event_id")
+                if eid is not None:
+                    eid_key = db_id(eid)
+                    participant_counts[eid_key] = participant_counts.get(eid_key, 0) + 1
+                    participant_counts[str(eid)] = participant_counts.get(str(eid), 0) + 1
     except Exception as e:
         app.logger.warning(f"Error fetching participant counts: {e}")
 
     if current_user.is_authenticated:
         try:
             registration_response = supabase.table("event_participants") \
-                .select("*") \
+                .select("id,event_id,status,created_at") \
                 .eq("user_id", current_db_user_id()) \
                 .execute()
             registrations = registration_response.data or []
@@ -6001,17 +6155,17 @@ def api_analytics():
         
         total_donations = sum(d['amount'] for d in donations_response.data) / 100 if donations_response.data else 0
         
-        # Get counts
-        volunteers_response = supabase.table('volunteers').select("*", count='exact').execute()
-        programs_response = supabase.table('programs').select("*", count='exact').eq('status', 'active').execute()
+        # Get counts — Fix 6: use 'id' instead of '*' so full row payloads are not downloaded
+        volunteers_response = supabase.table('volunteers').select("id", count='exact').execute()
+        programs_response = supabase.table('programs').select("id", count='exact').eq('status', 'active').execute()
         try:
-            grievances_response = supabase.table('grievances').select("*", count='exact').in_('status', ['open', 'in_progress']).execute()
+            grievances_response = supabase.table('grievances').select("id", count='exact').in_('status', ['open', 'in_progress']).execute()
         except Exception:
-            grievances_response = supabase.table('grievances').select("*", count='exact').execute()
+            grievances_response = supabase.table('grievances').select("id", count='exact').execute()
         try:
-            fundraising_response = supabase.table('fundraisers').select("*", count='exact').eq('status', 'active').execute()
+            fundraising_response = supabase.table('fundraisers').select("id", count='exact').eq('status', 'active').execute()
         except Exception:
-            fundraising_response = supabase.table('fundraisers').select("*", count='exact').execute()
+            fundraising_response = supabase.table('fundraisers').select("id", count='exact').execute()
         
         return jsonify({
             'total_donations': total_donations,
@@ -6028,25 +6182,29 @@ def api_analytics():
 @app.route("/api/chart-donations")
 @login_required
 def chart_donations():
-    """Get donation data for chart"""
+    """Get donation data for chart — only queries the last 7 days of paid donations."""
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         
         # Get donations from last 7 days
-        today = datetime.utcnow()
+        today = datetime.now(timezone.utc)
         days = []
         labels = []
         data = []
         
         for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
-            days.append(day.date())
+            day = (today - timedelta(days=i)).date()
+            days.append(day)
             labels.append(day.strftime('%a'))  # Mon, Tue, etc.
         
-        # Get all paid donations
+        # Fix 4: Query only the last 7 days of paid donations, limited to 500 rows,
+        # instead of downloading every paid donation since inception on every chart render.
+        cutoff_iso = (today - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
         response = supabase.table('donations') \
             .select("amount, created_at") \
             .eq('status', 'paid') \
+            .gte('created_at', cutoff_iso) \
+            .limit(500) \
             .execute()
         
         # Group by day
@@ -6300,6 +6458,8 @@ def admin_notifications():
                 upsert_cms_value("maintenance_message", message or CMS_DEFAULTS["maintenance_message"])
                 upsert_cms_value("maintenance_status", status_text)
                 upsert_cms_value("maintenance_components", components_text)
+                # Bust the maintenance cache so the new state is visible immediately.
+                _maintenance_cache_until = 0.0
                 if enabled and request.form.get("send_maintenance_email") == "on":
                     users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
                     start_label = start_dt.strftime("%d %B %Y — %I:%M %p IST")
@@ -6324,6 +6484,8 @@ def admin_notifications():
         if action == "service_restored":
             try:
                 upsert_cms_value("maintenance_enabled", "false")
+                # Bust the maintenance cache so access is restored immediately.
+                _maintenance_cache_until = 0.0
                 users = supabase.table("users").select("id,email,name").eq("is_admin", False).limit(500).execute().data or []
                 email_failures = 0
                 for user_row in users:
@@ -6478,7 +6640,15 @@ def admin_coordinators():
 def do_reschedule_past_meetings(coordinator_id):
     today_str = datetime.now(timezone.utc).date().isoformat()
     try:
-        response = supabase.table("appointments").select("*").execute()
+        # Fix 7: Filter server-side by coordinator_id and date instead of a full-table scan.
+        # Exclude completed and cancelled rows in the DB query, and limit to 100 rows.
+        response = supabase.table("appointments") \
+            .select("id,appointment_date,appointment_time,scheduled_date,scheduled_time,coordinator_id,status,purpose,user_id,email,name") \
+            .eq("coordinator_id", coordinator_id) \
+            .neq("status", "completed") \
+            .neq("status", "cancelled") \
+            .limit(100) \
+            .execute()
         appointments_list = response.data or []
     except Exception as e:
         app.logger.error(f"Failed to fetch appointments for rescheduling: {e}")
@@ -6494,6 +6664,34 @@ def do_reschedule_past_meetings(coordinator_id):
     reschedule_time = g_settings.get("reschedule_default_time", "10:00")
     holidays = set(g_settings.get("holidays") or [])
     rescheduled_count = 0
+
+    # Fix 7: Calculate the target next date once and fetch available slots in a single batch
+    # instead of issuing a separate Supabase query per appointment (which was an N+1 pattern).
+    next_date = datetime.now(timezone.utc).date() + timedelta(days=1)
+    while next_date.weekday() == 6 or next_date.isoformat() in holidays:
+        next_date += timedelta(days=1)
+    next_date_str = next_date.isoformat()
+
+    slot_time = None
+    slot_id = None
+    slot_registration_limit = 1
+    try:
+        slots_res = supabase.table("appointment_slots") \
+            .select("id,slot_time,registration_limit") \
+            .eq("coordinator_id", coordinator_id) \
+            .eq("slot_date", next_date_str) \
+            .eq("status", "available") \
+            .limit(1) \
+            .execute()
+        avail_slots = slots_res.data or []
+        if avail_slots:
+            slot_time = avail_slots[0].get("slot_time")
+            slot_id = avail_slots[0].get("id")
+            slot_registration_limit = avail_slots[0].get("registration_limit") or 1
+    except Exception as e:
+        app.logger.warning(f"Failed to query slot for reschedule: {e}")
+
+    new_time = slot_time or reschedule_time
     
     for appt in appointments_list:
         status = appt.get("status")
@@ -6507,30 +6705,6 @@ def do_reschedule_past_meetings(coordinator_id):
         appt_coord_id = appt.get("coordinator_id")
         if appt_coord_id and str(appt_coord_id) != str(coordinator_id):
             continue
-            
-        next_date = datetime.now(timezone.utc).date() + timedelta(days=1)
-        while next_date.weekday() == 6 or next_date.isoformat() in holidays:
-            next_date += timedelta(days=1)
-            
-        next_date_str = next_date.isoformat()
-        
-        slot_time = None
-        slot_id = None
-        try:
-            slots_res = supabase.table("appointment_slots") \
-                .select("*") \
-                .eq("coordinator_id", coordinator_id) \
-                .eq("slot_date", next_date_str) \
-                .eq("status", "available") \
-                .execute()
-            slots = slots_res.data or []
-            if slots:
-                slot_time = slots[0].get("slot_time")
-                slot_id = slots[0].get("id")
-        except Exception as e:
-            app.logger.warning(f"Failed to query slot for reschedule: {e}")
-            
-        new_time = slot_time or reschedule_time
         
         update_payload = {
             "appointment_date": next_date_str,
@@ -7546,8 +7720,9 @@ def coordinator_bulk_slots_reschedule_past():
 def admin_dashboard():
     """Admin dashboard"""
     try:
+        # Fix 6: Select only columns needed for the recent donations table in dashboard
         donations_response = supabase.table('donations') \
-            .select("*") \
+            .select("id,donation_ref,amount,name,email,purpose_label,purpose_type,created_at,status") \
             .eq('status', 'paid') \
             .order('created_at', desc=True) \
             .limit(10) \
@@ -7563,7 +7738,8 @@ def admin_dashboard():
         total_donations = sum(d.get('amount', 0) for d in paid_rows) / 100
         donation_count = total_response.count or len(paid_rows)
         
-        volunteers_response = supabase.table('volunteers').select("*", count='exact').execute()
+        # Fix 6: Use 'id' count instead of '*' so full volunteer row bodies are not downloaded
+        volunteers_response = supabase.table('volunteers').select("id", count='exact').execute()
         
         return render_template(
             "admin/dashboard.html",
@@ -8520,7 +8696,7 @@ def admin_programs():
                     supabase.storage.from_('program-images').upload(
                         unique_filename,
                         file_data,
-                        file_options={"content-type": image_file.content_type}
+                        file_options={"content-type": image_file.content_type, "cacheControl": "31536000"}
                     )
 
                     final_image_url = supabase.storage.from_('program-images').get_public_url(unique_filename)

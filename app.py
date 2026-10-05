@@ -1912,7 +1912,22 @@ def apply_security_controls():
     # use the application. Login/static/error paths stay reachable so an admin
     # can authenticate and end maintenance early. This protects web and API
     # requests equally instead of relying on client-side hiding.
-    maintenance_exempt_endpoints = {"static", "login", "logout", "favicon", "health"}
+    maintenance_exempt_endpoints = {
+        "static",
+        "login",
+        "verify_login",
+        "login_phone",
+        "resend_otp",
+        "api_sms_send_otp",
+        "api_sms_verify_otp",
+        "auth_google",
+        "auth_google_callback",
+        "auth_google_credential",
+        "logout",
+        "favicon",
+        "health",
+        "healthz",
+    }
     maintenance_settings = get_maintenance_settings_live()
     if (
         endpoint not in maintenance_exempt_endpoints

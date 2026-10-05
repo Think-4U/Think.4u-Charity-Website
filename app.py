@@ -322,6 +322,12 @@ MAINTENANCE_LOOKUP_ERROR_LOGGED = False
 CMS_CACHE_TTL_SECONDS = int(os.getenv("CMS_CACHE_TTL_SECONDS", "300"))
 CMS_FAILURE_BACKOFF_SECONDS = int(os.getenv("CMS_FAILURE_BACKOFF_SECONDS", "30"))
 SUPABASE_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_TIMEOUT_SECONDS", "4"))
+# Short TTL cache for maintenance check — avoids a Supabase query on every request.
+# 30 s is short enough to react quickly to an admin enabling the lock, but
+# eliminates the per-request DB hit that bots and unauthenticated visits cause.
+MAINTENANCE_CACHE_TTL = int(os.getenv("MAINTENANCE_CACHE_TTL", "30"))
+_maintenance_cache: dict = {}
+_maintenance_cache_until: float = 0.0
 
 # ------------------------------
 # Flask-Login Setup
@@ -1701,7 +1707,7 @@ def ensure_event_for_program(program_row):
     if not program_row or not program_row.get("id"):
         return None
 
-    program_id = int(program_row["id"])
+    program_id = db_id(program_row["id"])
     existing_event = None
 
     try:
@@ -2929,9 +2935,10 @@ def upi_qr():
         return send_file(img_io, mimetype='image/png')
 
 
-@app.route("/donation-receipt/<int:donation_id>")
+@app.route("/donation-receipt/<donation_id>")
 @login_required
 def donation_receipt(donation_id):
+    donation_id = db_id(donation_id)
     try:
         response = supabase.table("donations").select("*").eq("id", donation_id).execute()
 
@@ -2978,10 +2985,11 @@ def donation_receipt(donation_id):
         return redirect(url_for("donate"))
 
 
-@app.route("/donation-receipt/<int:donation_id>/download")
+@app.route("/donation-receipt/<donation_id>/download")
 @login_required
 def download_donation_receipt_pdf(donation_id):
     """Return the signed-in donor's official PDF receipt."""
+    donation_id = db_id(donation_id)
     try:
         response = supabase.table("donations").select("*").eq("id", donation_id).execute()
         if not response.data:
@@ -4561,9 +4569,10 @@ def appointments():
 
 
 
-@app.route("/appointments/slot/<int:slot_id>/book", methods=["POST"])
+@app.route("/appointments/slot/<slot_id>/book", methods=["POST"])
 @login_required
 def book_appointment_slot(slot_id):
+    slot_id = db_id(slot_id)
     purpose = clean_text(request.form.get("purpose"), 120) or "Coordinator meeting"
     notes = clean_text(request.form.get("notes"), 1000, keep_new_lines=True)
 
@@ -5394,8 +5403,9 @@ def events_page():
         for p in (participants_response.data or []):
             eid = p.get("event_id")
             if eid is not None and p.get("status") != "cancelled":
-                eid = int(eid)
-                participant_counts[eid] = participant_counts.get(eid, 0) + 1
+                eid_key = db_id(eid)
+                participant_counts[eid_key] = participant_counts.get(eid_key, 0) + 1
+                participant_counts[str(eid)] = participant_counts.get(str(eid), 0) + 1
     except Exception as e:
         app.logger.warning(f"Error fetching participant counts: {e}")
 
@@ -5415,7 +5425,8 @@ def events_page():
             for item in registrations:
                 event_id = item.get("event_id")
                 if event_id is not None:
-                    registration_map[int(event_id)] = item
+                    registration_map[db_id(event_id)] = item
+                    registration_map[str(event_id)] = item
         except Exception:
             registration_map = {}
 
@@ -5427,7 +5438,8 @@ def events_page():
             for item in (certificate_response.data or []):
                 event_id = item.get("event_id")
                 if event_id is not None:
-                    certificate_map[int(event_id)] = item
+                    certificate_map[db_id(event_id)] = item
+                    certificate_map[str(event_id)] = item
         except Exception:
             certificate_map = {}
 
@@ -5440,9 +5452,10 @@ def events_page():
     )
 
 
-@app.route("/events/register/<int:event_id>", methods=["POST"])
+@app.route("/events/register/<event_id>", methods=["POST"])
 @login_required
 def register_for_event(event_id):
+    event_id = db_id(event_id)
     conn = None
     try:
         conn = get_db_connection()
@@ -5578,10 +5591,10 @@ def certificates_page():
         participation_rows = []
 
     event_ids = sorted({
-        int(item.get("event_id"))
+        db_id(item.get("event_id"))
         for item in participation_rows
         if item.get("event_id") is not None
-    })
+    }, key=str)
 
     if event_ids:
         try:
@@ -5589,7 +5602,8 @@ def certificates_page():
                 .select("*") \
                 .in_("id", event_ids) \
                 .execute()
-            event_map = {int(evt["id"]): evt for evt in (events_response.data or [])}
+            event_map = {db_id(evt["id"]): evt for evt in (events_response.data or [])}
+            event_map.update({str(evt["id"]): evt for evt in (events_response.data or [])})
         except Exception:
             event_map = {}
 
@@ -5601,10 +5615,15 @@ def certificates_page():
                 .execute()
             certificate_rows = cert_response.data or []
             certificate_map = {
-                int(item["event_id"]): item
+                db_id(item["event_id"]): item
                 for item in certificate_rows
                 if item.get("event_id") is not None
             }
+            certificate_map.update({
+                str(item["event_id"]): item
+                for item in certificate_rows
+                if item.get("event_id") is not None
+            })
         except Exception:
             certificate_rows = []
             certificate_map = {}
@@ -5613,9 +5632,9 @@ def certificates_page():
         event_id = item.get("event_id")
         if event_id is None:
             continue
-        event_id = int(event_id)
-        event_row = event_map.get(event_id, {})
-        cert_row = certificate_map.get(event_id, {})
+        event_id = db_id(event_id)
+        event_row = event_map.get(event_id) or event_map.get(str(event_id), {})
+        cert_row = certificate_map.get(event_id) or certificate_map.get(str(event_id), {})
         rows.append({
             "event_id": event_id,
             "event_title": event_row.get("title", "Event"),
@@ -6145,9 +6164,10 @@ def admin_media():
     )
 
 
-@app.route("/admin/media/<int:media_id>/toggle", methods=["POST"])
+@app.route("/admin/media/<media_id>/toggle", methods=["POST"])
 @login_required
 def admin_media_toggle(media_id):
+    media_id = db_id(media_id)
     is_published = request.form.get("is_published") == "on"
     try:
         supabase.table("media_assets").update({
@@ -6161,9 +6181,10 @@ def admin_media_toggle(media_id):
     return redirect(url_for("admin_media"))
 
 
-@app.route("/admin/media/<int:media_id>/delete", methods=["POST"])
+@app.route("/admin/media/<media_id>/delete", methods=["POST"])
 @login_required
 def admin_media_delete(media_id):
+    media_id = db_id(media_id)
     try:
         res = supabase.table("media_assets").select("storage_path").eq("id", media_id).execute()
         if res.data:
@@ -6226,8 +6247,9 @@ def admin_events():
         for p in (participants_response.data or []):
             eid = p.get("event_id")
             if eid is not None and p.get("status") != "cancelled":
-                eid = int(eid)
-                participant_counts[eid] = participant_counts.get(eid, 0) + 1
+                eid_key = db_id(eid)
+                participant_counts[eid_key] = participant_counts.get(eid_key, 0) + 1
+                participant_counts[str(eid)] = participant_counts.get(str(eid), 0) + 1
     except Exception as e:
         app.logger.warning(f"Admin events load failed: {e}")
     return render_template("admin/events.html", events=events, participant_counts=participant_counts)
@@ -6628,7 +6650,7 @@ def coordinator_portal():
         for b in (bookings_response.data or []):
             sid = b.get("slot_id")
             if sid:
-                slot_bookings[int(sid)] = slot_bookings.get(int(sid), 0) + 1
+                slot_bookings[str(sid)] = slot_bookings.get(str(sid), 0) + 1
     except Exception as e:
         app.logger.warning(f"Failed to count slot bookings: {e}")
 
@@ -6643,7 +6665,8 @@ def coordinator_portal():
                 if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
             ]
         for slot in slots:
-            slot["bookings_count"] = slot_bookings.get(int(slot["id"]), 0)
+            slot_id_str = str(slot.get("id"))
+            slot["bookings_count"] = slot_bookings.get(slot_id_str, 0)
             slot["registration_limit"] = slot.get("registration_limit") or 1
             slot["meeting_settings"] = ensure_meeting_settings_defaults(slot.get("meeting_settings"))
     except Exception as e:
@@ -6659,8 +6682,9 @@ def coordinator_portal():
         for p in (participants_response.data or []):
             eid = p.get("event_id")
             if eid is not None and p.get("status") != "cancelled":
-                eid = int(eid)
-                participant_counts[eid] = participant_counts.get(eid, 0) + 1
+                eid_key = db_id(eid)
+                participant_counts[eid_key] = participant_counts.get(eid_key, 0) + 1
+                participant_counts[str(eid)] = participant_counts.get(str(eid), 0) + 1
     except Exception as e:
         app.logger.warning(f"Coordinator events load failed: {e}")
 
@@ -6742,9 +6766,10 @@ def coordinator_create_slot():
     return redirect(url_for("coordinator_portal"))
 
 
-@app.route("/coordinator/slot/<int:slot_id>/delete", methods=["POST"])
+@app.route("/coordinator/slot/<slot_id>/delete", methods=["POST"])
 @coordinator_required
 def coordinator_slot_delete(slot_id):
+    slot_id = db_id(slot_id)
     try:
         slot_res = supabase.table("appointment_slots").select("id,coordinator_id").eq("id", slot_id).limit(1).execute()
         slot = (slot_res.data or [None])[0]
@@ -6760,9 +6785,10 @@ def coordinator_slot_delete(slot_id):
     return redirect(request.referrer or url_for("coordinator_portal"))
 
 
-@app.route("/coordinator/slot/<int:slot_id>/merge", methods=["POST"])
+@app.route("/coordinator/slot/<slot_id>/merge", methods=["POST"])
 @coordinator_required
 def coordinator_slot_merge(slot_id):
+    slot_id = db_id(slot_id)
     target_slot_id = request.form.get("target_slot_id")
     if not target_slot_id:
         flash("Target slot must be selected to merge.", "error")
@@ -6799,9 +6825,10 @@ def coordinator_slot_merge(slot_id):
     return redirect(request.referrer or url_for("coordinator_portal"))
 
 
-@app.route("/coordinator/meeting/<int:appointment_id>/add_participant", methods=["POST"])
+@app.route("/coordinator/meeting/<appointment_id>/add_participant", methods=["POST"])
 @coordinator_required
 def coordinator_add_participant(appointment_id):
+    appointment_id = db_id(appointment_id)
     email = normalize_email(request.form.get("email"))
     if not email:
         flash("Participant email is required.", "error")
@@ -6876,9 +6903,10 @@ def coordinator_add_participant(appointment_id):
     return redirect(url_for("coordinator_portal"))
 
 
-@app.route("/coordinator/meeting/<int:appointment_id>/update_settings", methods=["POST"])
+@app.route("/coordinator/meeting/<appointment_id>/update_settings", methods=["POST"])
 @coordinator_required
 def coordinator_update_meeting_settings(appointment_id):
+    appointment_id = db_id(appointment_id)
     show_chat = request.form.get("show_chat") == "on"
     show_screen_share = request.form.get("show_screen_share") == "on"
     show_raise_hand = request.form.get("show_raise_hand") == "on"
@@ -7035,7 +7063,7 @@ def coordinator_history():
         for b in (bookings_response.data or []):
             sid = b.get("slot_id")
             if sid:
-                slot_bookings[int(sid)] = slot_bookings.get(int(sid), 0) + 1
+                slot_bookings[str(sid)] = slot_bookings.get(str(sid), 0) + 1
     except Exception as e:
         app.logger.warning(f"Failed to count slot bookings: {e}")
 
@@ -7050,7 +7078,8 @@ def coordinator_history():
                 if row.get("coordinator_id") in {None, coordinator_id, str(coordinator_id)}
             ]
         for slot in slots:
-            slot["bookings_count"] = slot_bookings.get(int(slot["id"]), 0)
+            slot_id_str = str(slot.get("id"))
+            slot["bookings_count"] = slot_bookings.get(slot_id_str, 0)
             slot["registration_limit"] = slot.get("registration_limit") or 1
     except Exception as e:
         app.logger.warning(f"Coordinator slots load failed: {e}")
@@ -7058,9 +7087,10 @@ def coordinator_history():
     return render_template("coordinator/history.html", meetings=meetings, slots=slots, all_slots=slots)
 
 
-@app.route("/coordinator/meeting/<int:appointment_id>", methods=["GET", "POST"])
+@app.route("/coordinator/meeting/<appointment_id>", methods=["GET", "POST"])
 @coordinator_required
 def coordinator_meeting_detail(appointment_id):
+    appointment_id = db_id(appointment_id)
     try:
         response = supabase.table("appointments").select("*").eq("id", appointment_id).limit(1).execute()
         appointment = (response.data or [None])[0]
@@ -7151,9 +7181,10 @@ def coordinator_create_event():
     return redirect(url_for("coordinator_portal"))
 
 
-@app.route("/coordinator/appointment/<int:appointment_id>/schedule", methods=["POST"])
+@app.route("/coordinator/appointment/<appointment_id>/schedule", methods=["POST"])
 @coordinator_required
 def coordinator_schedule_appointment(appointment_id):
+    appointment_id = db_id(appointment_id)
     scheduled_date = clean_text(request.form.get("scheduled_date"), 20)
     scheduled_time = normalize_meeting_time(request.form.get("scheduled_time"))
     meet_url = normalize_url(request.form.get("meet_url"))
@@ -7653,9 +7684,10 @@ def export_donations():
         return redirect('/admin/donations')
 
 
-@app.route("/admin/donation/<int:donation_id>/status", methods=["POST"])
+@app.route("/admin/donation/<donation_id>/status", methods=["POST"])
 @login_required
 def admin_donation_status(donation_id):
+    donation_id = db_id(donation_id)
     new_status = clean_text(request.form.get("status"), 30).lower()
     if new_status not in {"paid", "pending", "failed", "cancelled"}:
         flash("Invalid donation status.", "error")
@@ -7760,10 +7792,11 @@ def export_volunteers():
         flash(f"Export failed: {str(e)}", "error")
         return redirect('/admin/volunteers')
 
-@app.route("/admin/volunteer/<int:vid>/action", methods=["POST"])
+@app.route("/admin/volunteer/<vid>/action", methods=["POST"])
 @login_required
 def volunteer_action(vid):
     """Update volunteer status"""
+    vid = db_id(vid)
     action = clean_text(request.form.get("action"), 20)
     
     try:
@@ -7811,10 +7844,11 @@ def volunteer_action(vid):
 # ===================================
 # VOLUNTEER INFO ROUTE
 # ===================================
-@app.route("/admin/volunteer/<int:vid>/info")
+@app.route("/admin/volunteer/<vid>/info")
 @login_required
 def volunteer_info(vid):
     """Get volunteer information as JSON"""
+    vid = db_id(vid)
     try:
         response = supabase.table('volunteers').select('*').eq('id', vid).execute()
         
@@ -7830,10 +7864,11 @@ def volunteer_info(vid):
 # ===================================
 # VOLUNTEER DONATIONS ROUTE
 # ===================================
-@app.route("/admin/volunteer/<int:vid>/donations")
+@app.route("/admin/volunteer/<vid>/donations")
 @login_required
 def volunteer_donations(vid):
     """View donations made by a volunteer"""
+    vid = db_id(vid)
     try:
         # Get volunteer info
         volunteer_response = supabase.table('volunteers').select('*').eq('id', vid).execute()
@@ -7871,10 +7906,11 @@ def volunteer_donations(vid):
 # ===================================
 # DELETE VOLUNTEER ROUTE
 # ===================================
-@app.route("/admin/volunteer/<int:vid>/delete", methods=["DELETE"])
+@app.route("/admin/volunteer/<vid>/delete", methods=["DELETE"])
 @login_required
 def delete_volunteer(vid):
     """Delete a volunteer"""
+    vid = db_id(vid)
     try:
         # Check if volunteer exists
         check_response = supabase.table('volunteers').select('id').eq('id', vid).execute()
@@ -7916,15 +7952,15 @@ def admin_certificates():
         participation_rows = []
 
     event_ids = sorted({
-        int(item.get("event_id"))
+        db_id(item.get("event_id"))
         for item in participation_rows
         if item.get("event_id") is not None
-    })
+    }, key=str)
     user_ids = sorted({
-        int(item.get("user_id"))
+        db_id(item.get("user_id"))
         for item in participation_rows
         if item.get("user_id") is not None
-    })
+    }, key=str)
 
     if event_ids:
         try:
@@ -7932,7 +7968,8 @@ def admin_certificates():
                 .select("*") \
                 .in_("id", event_ids) \
                 .execute()
-            event_map = {int(item["id"]): item for item in (events_response.data or [])}
+            event_map = {db_id(item["id"]): item for item in (events_response.data or [])}
+            event_map.update({str(item["id"]): item for item in (events_response.data or [])})
         except Exception as e:
             app.logger.warning(f"Admin certificate events lookup failed: {e}")
             event_map = {}
@@ -7943,7 +7980,8 @@ def admin_certificates():
                 .select("id,email,name") \
                 .in_("id", user_ids) \
                 .execute()
-            user_map = {int(item["id"]): item for item in (users_response.data or [])}
+            user_map = {db_id(item["id"]): item for item in (users_response.data or [])}
+            user_map.update({str(item["id"]): item for item in (users_response.data or [])})
         except Exception as e:
             app.logger.warning(f"Admin certificate users lookup failed: {e}")
             user_map = {}
@@ -7951,7 +7989,7 @@ def admin_certificates():
     try:
         cert_response = supabase.table("event_certificates").select("*").execute()
         cert_map = {
-            f"{int(item.get('event_id'))}:{int(item.get('user_id'))}": item
+            f"{item.get('event_id')}:{item.get('user_id')}": item
             for item in (cert_response.data or [])
             if item.get("event_id") is not None and item.get("user_id") is not None
         }
@@ -7964,13 +8002,13 @@ def admin_certificates():
         user_id = item.get("user_id")
         if event_id is None or user_id is None:
             continue
-        event_id = int(event_id)
-        user_id = int(user_id)
+        event_id = db_id(event_id)
+        user_id = db_id(user_id)
 
         cert_key = f"{event_id}:{user_id}"
         cert_row = cert_map.get(cert_key, {})
-        event_row = event_map.get(event_id, {})
-        user_row = user_map.get(user_id, {})
+        event_row = event_map.get(event_id) or event_map.get(str(event_id), {})
+        user_row = user_map.get(user_id) or user_map.get(str(user_id), {})
 
         rows.append({
             "event_id": event_id,
@@ -7996,14 +8034,10 @@ def admin_certificate_action():
     certificate_url = clean_text(request.form.get("certificate_url"), 500)
     review_note = clean_text(request.form.get("review_note"), 500, keep_new_lines=True)
 
-    try:
-        event_id = int(request.form.get("event_id", "0"))
-        user_id = int(request.form.get("user_id", "0"))
-    except (TypeError, ValueError):
-        flash("Invalid certificate action payload.", "error")
-        return redirect(url_for("admin_certificates"))
+    event_id = db_id(request.form.get("event_id"))
+    user_id = db_id(request.form.get("user_id"))
 
-    if event_id <= 0 or user_id <= 0 or action not in {"approve", "reject"}:
+    if not event_id or not user_id or action not in {"approve", "reject"}:
         flash("Invalid certificate action request.", "error")
         return redirect(url_for("admin_certificates"))
 
@@ -8077,9 +8111,11 @@ def admin_certificate_action():
     return redirect(url_for("admin_certificates"))
 
 
-@app.route("/admin/certificates/preview/<int:event_id>/<int:user_id>")
+@app.route("/admin/certificates/preview/<event_id>/<user_id>")
 @login_required
 def admin_certificate_preview(event_id, user_id):
+    event_id = db_id(event_id)
+    user_id = db_id(user_id)
     try:
         event_response = supabase.table("volunteer_events").select("*").eq("id", event_id).limit(1).execute()
         user_response = supabase.table("users").select("id,email,name").eq("id", user_id).limit(1).execute()
@@ -8146,9 +8182,10 @@ def admin_grievances():
         return redirect(url_for("admin_dashboard"))
 
 
-@app.route("/admin/grievance/<int:gid>/action", methods=["POST"])
+@app.route("/admin/grievance/<gid>/action", methods=["POST"])
 @login_required
 def admin_grievance_action(gid):
+    gid = db_id(gid)
     new_status = clean_text(request.form.get("status"), 30).lower()
     admin_note = clean_text(request.form.get("admin_note"), 1000, keep_new_lines=True)
     if new_status not in {"open", "in_progress", "resolved", "closed"}:
@@ -8170,7 +8207,7 @@ def admin_grievance_action(gid):
             user_id = grievance.get("user_id")
             if user_id:
                 create_notification_for_user(
-                    int(user_id),
+                    db_id(user_id),
                     "Support request updated",
                     f"Your grievance status is now {new_status.replace('_', ' ')}."
                 )
@@ -8240,9 +8277,10 @@ def admin_fundraising():
     return render_template("admin/fundraising.html", campaigns=campaigns)
 
 
-@app.route("/admin/fundraising/<int:fid>/update", methods=["POST"])
+@app.route("/admin/fundraising/<fid>/update", methods=["POST"])
 @login_required
 def admin_fundraising_update(fid):
+    fid = db_id(fid)
     title = clean_text(request.form.get("title"), 200)
     description = clean_text(request.form.get("description"), 2000, keep_new_lines=True)
     status = clean_text(request.form.get("status"), 20).lower()
@@ -8284,9 +8322,10 @@ def admin_fundraising_update(fid):
     return redirect(url_for("admin_fundraising"))
 
 
-@app.route("/admin/fundraising/<int:fid>/delete", methods=["POST"])
+@app.route("/admin/fundraising/<fid>/delete", methods=["POST"])
 @login_required
 def admin_fundraising_delete(fid):
+    fid = db_id(fid)
     try:
         supabase.table("fundraisers").delete().eq("id", fid).execute()
         flash("Fundraising campaign deleted.", "success")
@@ -8300,9 +8339,10 @@ def admin_fundraising_delete(fid):
 # PROGRAMS ROUTES (Supabase)
 # ===================================
 
-@app.route("/program/<int:program_id>")
+@app.route("/program/<program_id>")
 def program_detail(program_id):
     """Display program details from Supabase"""
+    program_id = db_id(program_id)
     registration = None
     certificate = None
     linked_event = None
@@ -8318,7 +8358,7 @@ def program_detail(program_id):
         linked_event = ensure_event_for_program(program)
 
         if current_user.is_authenticated and linked_event and linked_event.get("id") is not None:
-            event_id = int(linked_event["id"])
+            event_id = db_id(linked_event["id"])
             try:
                 reg_response = supabase.table("event_participants") \
                     .select("*") \
@@ -8362,9 +8402,10 @@ def program_detail(program_id):
         return redirect(url_for('index'))
 
 
-@app.route("/program/<int:program_id>/register", methods=["POST"])
+@app.route("/program/<program_id>/register", methods=["POST"])
 @login_required
 def register_for_program(program_id):
+    program_id = db_id(program_id)
     try:
         program_response = supabase.table("programs").select("*").eq("id", program_id).limit(1).execute()
         program_row = (program_response.data or [None])[0]
@@ -8377,7 +8418,7 @@ def register_for_program(program_id):
             flash("Unable to prepare event registration for this program.", "error")
             return redirect(url_for("program_detail", program_id=program_id))
 
-        event_id = int(linked_event["id"])
+        event_id = db_id(linked_event["id"])
 
         existing_response = supabase.table("event_participants") \
             .select("id") \
@@ -8537,10 +8578,11 @@ def admin_programs():
 
 
 
-@app.route("/admin/programs/edit/<int:pid>", methods=["GET", "POST"])
+@app.route("/admin/programs/edit/<pid>", methods=["GET", "POST"])
 @login_required
 def admin_program_edit(pid):
     """Edit program in Supabase"""
+    pid = db_id(pid)
     if not current_user.is_admin:
         return redirect(url_for('index'))
 
@@ -8583,7 +8625,7 @@ def admin_program_edit(pid):
                     supabase.table("volunteer_events").update({
                         "title": clean_text(title, 200),
                         "description": clean_text(description, 2000, keep_new_lines=True),
-                        "program_id": int(pid)
+                        "program_id": pid
                     }).eq("id", linked_event["id"]).execute()
                 except Exception:
                     supabase.table("volunteer_events").update({
@@ -8600,10 +8642,11 @@ def admin_program_edit(pid):
     return render_template("admin/program_edit.html", program=program)
 
 
-@app.route("/admin/program/<int:pid>/delete", methods=["POST", "DELETE"])
+@app.route("/admin/program/<pid>/delete", methods=["POST", "DELETE"])
 @login_required
 def admin_program_delete(pid):
     """Delete program from Supabase"""
+    pid = db_id(pid)
 
     
     try:
@@ -8646,7 +8689,7 @@ def admin_cms():
                 "key": key,
                 "value": value,
                 "updated_at": datetime.now(timezone.utc).isoformat()
-                }).eq('id', int(content_id)).execute()
+                }).eq('id', db_id(content_id)).execute()
                 flash("Content updated successfully!", "success")
             else:  # Create new
                 response = supabase.table('cms_content').upsert({
@@ -8676,11 +8719,11 @@ def admin_cms():
     return render_template("admin/cms.html", content_items=content_items)
 
 
-@app.route("/admin/cms/delete/<int:content_id>", methods=["DELETE"])
+@app.route("/admin/cms/delete/<content_id>", methods=["DELETE"])
 @login_required
 def admin_cms_delete(content_id):
     """Delete CMS content"""
-    
+    content_id = db_id(content_id)
     try:
         supabase.table('cms_content').delete().eq('id', content_id).execute()
         return jsonify({"success": True})

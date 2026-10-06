@@ -2178,14 +2178,6 @@ def send_email_sync(subject, recipients, html, attachments=None):
 @app.route("/robots.txt")
 def robots_txt():
     """robots.txt tells web crawlers allowed and disallowed paths, and references the XML sitemap."""
-    canonical_url = "https://think4u.org"
-    sitemap_lines = [f"Sitemap: {canonical_url}/sitemap.xml"]
-    
-    # If accessed directly via vercel.app or another host, also declare that sitemap URL
-    host = (request.host or "").lower()
-    if "vercel.app" in host and f"{host}/sitemap.xml" not in sitemap_lines[0]:
-        sitemap_lines.append(f"Sitemap: https://{host}/sitemap.xml")
-
     content = (
         "User-agent: *\n"
         "Allow: /\n"
@@ -2206,11 +2198,11 @@ def robots_txt():
         "Disallow: /site-media/\n"
         "Disallow: /program-image/\n"
         "Crawl-delay: 10\n\n"
-        + "\n".join(sitemap_lines) + "\n"
+        "Sitemap: https://think-4u-charity-website.vercel.app/sitemap.xml\n"
     )
     resp = make_response(content, 200)
     resp.headers["Content-Type"] = "text/plain; charset=utf-8"
-    resp.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600, must-revalidate"
+    resp.headers["Cache-Control"] = "public, max-age=60, s-maxage=60"
     return resp
 
 

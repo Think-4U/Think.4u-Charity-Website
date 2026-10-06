@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Allow: /events
+Allow: /fundraising
+Allow: /program/
+Allow: /about
+Allow: /governingbody
+Allow: /managingteam
+Allow: /coreteam
+Allow: /contact
+Allow: /sitemap
+Allow: /sitemap.xml
+Disallow: /admin
+Disallow: /coordinator
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /site-media/
+Disallow: /program-image/
+Crawl-delay: 10
+
+Sitemap: https://think-4u-charity-website.vercel.app/sitemap.xml

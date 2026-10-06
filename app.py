@@ -178,6 +178,14 @@ GEO_BLOCK_ENABLED = os.getenv("GEO_BLOCK_ENABLED", "true").lower() == "true"
 _raw_allowed = os.getenv("ALLOWED_COUNTRIES", "IN")
 ALLOWED_COUNTRIES: set = {c.strip().upper() for c in _raw_allowed.split(",") if c.strip()}
 PAYMENT_PENDING_TIMEOUT_MINUTES = int(os.getenv("PAYMENT_PENDING_TIMEOUT_MINUTES", "15"))
+
+def get_public_site_url():
+    """Return the canonical public website URL, defaulting to the original think4u.org domain."""
+    url = os.getenv("PUBLIC_APP_URL", "").strip()
+    if not url or "vercel.app" in url:
+        return "https://think4u.org"
+    return url.rstrip("/")
+
 JITSI_MEET_DOMAIN = os.getenv("JITSI_MEET_DOMAIN", "meet.domain.com").strip()
 JITSI_API_SCRIPT_URL = os.getenv("JITSI_API_SCRIPT_URL", "").strip()
 JITSI_ROOM_PREFIX = os.getenv("JITSI_ROOM_PREFIX", "Think4U").strip() or "Think4U"
@@ -1620,7 +1628,7 @@ def validate_pending_otp(flow, otp_code):
 
 def send_otp_email(email, otp_code, flow_label):
     subject = f"Think.4U {flow_label} OTP"
-    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    site_url = get_public_site_url()
     html_content = render_template(
         "emails/otp_email.html",
         otp=otp_code,
@@ -2104,7 +2112,7 @@ def set_security_headers(response):
 # ===================================
 def build_branded_email(title, body_html, preheader=""):
     """Render the reusable branded transactional-email layout."""
-    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    site_url = get_public_site_url()
     logo_url = f"{site_url}/static/images/updated_main_logo.jpeg"
     return render_template(
         "emails/base_email.html",
@@ -2170,7 +2178,7 @@ def send_email_sync(subject, recipients, html, attachments=None):
 @app.route("/robots.txt")
 def robots_txt():
     """robots.txt tells web crawlers allowed and disallowed paths, and references the XML sitemap."""
-    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    site_url = get_public_site_url()
     content = (
         "User-agent: *\n"
         "Allow: /\n"
@@ -2202,7 +2210,7 @@ def robots_txt():
 @app.route("/sitemap.xml")
 def sitemap_xml():
     """Search Engine XML Sitemap listing all public URLs for SEO indexing."""
-    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    site_url = get_public_site_url()
     now_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     static_urls = [
@@ -2273,7 +2281,7 @@ def sitemap_xml():
 @app.route("/sitemap.html")
 def sitemap_page():
     """HTML Sitemap page showing organized site navigation and directory."""
-    site_url = os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app").rstrip("/")
+    site_url = get_public_site_url()
     return render_template("sitemap.html", site_url=site_url)
 
 
@@ -6536,7 +6544,7 @@ def admin_notifications():
             for user_row in recipients:
                 create_notification_for_user(user_row["id"], title, body)
                 if send_mail and user_row.get("email"):
-                    message_body = render_template("emails/announcement_email.html", recipient_name=user_row.get("name") or "there", message=body, action_url=os.getenv("PUBLIC_APP_URL", "https://think-4u-charity-website.vercel.app"))
+                    message_body = render_template("emails/announcement_email.html", recipient_name=user_row.get("name") or "there", message=body, action_url=get_public_site_url())
                     delivered = send_email_async(
                         subject=f"Think.4U: {title}",
                         recipients=[user_row["email"]],

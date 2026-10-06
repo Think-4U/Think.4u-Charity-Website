@@ -191,7 +191,7 @@ cellpadding="10">
 <td align="center">
 
 <a
-href="https://think-4u-charity-website.vercel.app/"
+href="https://think4u.org/"
 style="
 display:inline-block;
 background:{PRIMARY};

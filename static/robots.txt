@@ -18,4 +18,4 @@ Disallow: /site-media/
 Disallow: /program-image/
 Crawl-delay: 10
 
-Sitemap: https://think-4u-charity-website.vercel.app/sitemap.xml
+Sitemap: https://think4u.org/sitemap.xml

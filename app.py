@@ -2178,7 +2178,14 @@ def send_email_sync(subject, recipients, html, attachments=None):
 @app.route("/robots.txt")
 def robots_txt():
     """robots.txt tells web crawlers allowed and disallowed paths, and references the XML sitemap."""
-    site_url = get_public_site_url()
+    canonical_url = "https://think4u.org"
+    sitemap_lines = [f"Sitemap: {canonical_url}/sitemap.xml"]
+    
+    # If accessed directly via vercel.app or another host, also declare that sitemap URL
+    host = (request.host or "").lower()
+    if "vercel.app" in host and f"{host}/sitemap.xml" not in sitemap_lines[0]:
+        sitemap_lines.append(f"Sitemap: https://{host}/sitemap.xml")
+
     content = (
         "User-agent: *\n"
         "Allow: /\n"
@@ -2199,11 +2206,11 @@ def robots_txt():
         "Disallow: /site-media/\n"
         "Disallow: /program-image/\n"
         "Crawl-delay: 10\n\n"
-        f"Sitemap: {site_url}/sitemap.xml\n"
+        + "\n".join(sitemap_lines) + "\n"
     )
     resp = make_response(content, 200)
     resp.headers["Content-Type"] = "text/plain; charset=utf-8"
-    resp.headers["Cache-Control"] = "public, max-age=86400"
+    resp.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600, must-revalidate"
     return resp
 
 
@@ -2273,7 +2280,7 @@ def sitemap_xml():
 
     resp = make_response(xml_content, 200)
     resp.headers["Content-Type"] = "application/xml; charset=utf-8"
-    resp.headers["Cache-Control"] = "public, max-age=43200, s-maxage=43200"
+    resp.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
     return resp
 
 

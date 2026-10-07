@@ -917,23 +917,40 @@ def is_allowed_media_url(media_url):
 is_allowed_supabase_media_url = is_allowed_media_url
 
 
-# Media is now served from local static/ (Neon mode) or directly from CDN (Supabase mode).
-# The proxy routes below are kept for backwards compatibility with bookmarked/cached URLs.
+# ---------------------------------------------------------------------------
+# MEDIA PROXY LAYER
+# ---------------------------------------------------------------------------
+# Public pages NEVER expose media.think4u.org URLs directly.
+# Every media asset is served through /m/<uuid>, which looks up the real R2
+# URL in the DB and proxies or redirects the request server-side.
+# The media.think4u.org domain is an internal implementation detail only.
+# ---------------------------------------------------------------------------
+
 def attach_media_display_urls(media_rows):
+    """Replace raw R2 URLs with the internal proxy URL /m/<uuid> so that
+    media.think4u.org is never exposed to the browser."""
     for row in media_rows:
-        # Serve the CDN URL directly — avoids the reverse-proxy double-egress.
-        row["display_url"] = row.get("url") or ""
+        uid = row.get("uuid")
+        if uid:
+            row["display_url"] = url_for("media_proxy", media_uuid=str(uid), _external=False)
+        else:
+            # Fallback: still hide the origin; serve via legacy /site-media/<id>
+            row["display_url"] = url_for("site_media_proxy", media_id=row["id"], _external=False)
     return media_rows
 
 
 def attach_program_image_display_urls(program_rows):
     for row in program_rows:
-        row["image_display_url"] = row.get("image_url") or ""
+        img_url = row.get("image_url") or ""
+        if img_url and ("media.think4u.org" in img_url or is_r2_media_url(img_url)):
+            row["image_display_url"] = url_for("program_image_proxy", program_id=row.get("id"), _external=False)
+        else:
+            row["image_display_url"] = img_url
     return program_rows
 
 
 def stream_remote_media(media_url, fallback_mime="application/octet-stream"):
-    if not is_allowed_supabase_media_url(media_url):
+    if not is_allowed_media_url(media_url):
         abort(404)
 
     client = httpx.Client(
@@ -964,7 +981,8 @@ def stream_remote_media(media_url, fallback_mime="application/octet-stream"):
         if value:
             response_headers[header_name] = value
     response_headers.setdefault("Content-Type", fallback_mime)
-    response_headers["Cache-Control"] = "public, max-age=3600"
+    # Long cache on the proxy — R2 file content is immutable once written
+    response_headers["Cache-Control"] = "public, max-age=86400, s-maxage=604800"
 
     def generate():
         try:
@@ -983,8 +1001,41 @@ def stream_remote_media(media_url, fallback_mime="application/octet-stream"):
     )
 
 
+@app.route("/m/<media_uuid>")
+@app.route("/<media_uuid>")
+def media_proxy(media_uuid):
+    """Public media proxy: /m/<uuid> or /<uuid> -> looks up real R2 URL in DB -> streams.
+    The media.think4u.org origin is never revealed to the client."""
+    # Validate UUID format to prevent injection / route conflicts
+    try:
+        import uuid as _uuid_mod
+        parsed_uuid = str(_uuid_mod.UUID(str(media_uuid).strip()))
+    except (ValueError, AttributeError):
+        abort(404)
+
+    try:
+        response = supabase.table("media_assets").select("uuid,url,media_type,is_published") \
+            .eq("uuid", parsed_uuid).limit(1).execute()
+        media = (response.data or [None])[0]
+    except Exception as exc:
+        app.logger.warning("Media proxy lookup failed: %s", exc)
+        abort(404)
+
+    if not media:
+        abort(404)
+    # Unpublished assets are only accessible to admins
+    if not media.get("is_published") and not (
+        current_user.is_authenticated and getattr(current_user, "is_admin", False)
+    ):
+        abort(404)
+
+    fallback_mime = "video/mp4" if media.get("media_type") == "video" else "image/jpeg"
+    return stream_remote_media(media.get("url"), fallback_mime=fallback_mime)
+
+
 @app.route("/site-media/<media_id>")
 def site_media_proxy(media_id):
+    """Legacy route kept for backwards compatibility with old bookmarked URLs."""
     try:
         response = supabase.table("media_assets").select("*").eq("id", db_id(media_id)).limit(1).execute()
         media = (response.data or [None])[0]
@@ -997,8 +1048,13 @@ def site_media_proxy(media_id):
     if not media.get("is_published") and not (current_user.is_authenticated and getattr(current_user, "is_admin", False)):
         abort(404)
 
+    # Redirect to the canonical UUID URL if available
+    if media.get("uuid"):
+        return redirect(url_for("media_proxy", media_uuid=str(media["uuid"])), 301)
+
     fallback_mime = "video/mp4" if media.get("media_type") == "video" else "image/jpeg"
     return stream_remote_media(media.get("url"), fallback_mime=fallback_mime)
+
 
 
 @app.route("/program-image/<program_id>")
@@ -6834,6 +6890,7 @@ def admin_media():
                 "placement": placement,
                 "title": title or placement.replace("_", " ").title(),
                 "url": final_url,
+                "uuid": str(uuid.uuid4()),
                 "is_published": is_published,
                 "sort_order": sort_order,
                 "created_by_user_id": current_db_user_id(),
@@ -6884,6 +6941,7 @@ def admin_media_fetch_url():
         flash(f"Failed to fetch media from URL: {err}", "error")
         return redirect(url_for("admin_media"))
 
+    asset_uuid = str(uuid.uuid4())
     if save_to_assets:
         try:
             supabase.table("media_assets").insert({
@@ -6891,6 +6949,7 @@ def admin_media_fetch_url():
                 "placement": placement,
                 "title": title or placement.replace("_", " ").title(),
                 "url": r2_url,
+                "uuid": asset_uuid,
                 "is_published": True,
                 "sort_order": 100,
                 "created_by_user_id": current_db_user_id(),
@@ -6899,28 +6958,20 @@ def admin_media_fetch_url():
         except Exception as e:
             app.logger.warning(f"Could not auto-insert into media_assets: {e}")
 
+    # Return the proxy URL, not the raw R2 URL
+    proxy_url = url_for("media_proxy", media_uuid=asset_uuid, _external=True)
+
     if request.is_json:
         return jsonify({
             "ok": True,
-            "url": r2_url,
-            "message": f"Successfully fetched and uploaded to Cloudflare R2: {r2_url}"
+            "url": proxy_url,
+            "r2_url": r2_url,  # Admin-only: show R2 URL in admin panel for reference
+            "uuid": asset_uuid,
+            "message": f"Successfully fetched and stored. Public proxy link: {proxy_url}"
         }), 200
 
-    flash(f"Media fetched successfully! R2 link: {r2_url}", "success")
+    flash(f"Media fetched successfully! Proxy link: {proxy_url}", "success")
     return redirect(url_for("admin_media"))
-
-    media_items = []
-    try:
-        response = supabase.table("media_assets").select("*").order("placement").order("sort_order").execute()
-        media_items = attach_media_display_urls(response.data or [])
-    except Exception as e:
-        app.logger.warning(f"Media list failed: {e}")
-    return render_template(
-        "admin/media.html",
-        media_items=media_items,
-        max_image_upload_mb=MAX_IMAGE_UPLOAD_MB,
-        max_video_upload_mb=MAX_VIDEO_UPLOAD_MB,
-    )
 
 
 @app.route("/admin/media/<media_id>/toggle", methods=["POST"])

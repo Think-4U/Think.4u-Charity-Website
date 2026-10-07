@@ -188,7 +188,10 @@ CREATE TABLE IF NOT EXISTS public.volunteer_events (
     title TEXT NOT NULL,
     description TEXT,
     location TEXT,
+    city TEXT,
     event_date TEXT,
+    event_time TEXT,
+    image_url TEXT,
     max_registrations INTEGER,
     status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -234,6 +237,7 @@ CREATE TABLE IF NOT EXISTS public.fundraisers (
     description TEXT,
     target_amount NUMERIC NOT NULL DEFAULT 0,
     raised_amount NUMERIC NOT NULL DEFAULT 0,
+    image_url TEXT,
     status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -521,6 +525,28 @@ FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_contact_messages_updated_at ON public.contact_messages;
 CREATE TRIGGER trg_contact_messages_updated_at BEFORE UPDATE ON public.contact_messages
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- 2.21 Management Members (Governing Body, Core Team, Managing Team)
+CREATE TABLE IF NOT EXISTS public.management_members (
+    id BIGSERIAL PRIMARY KEY,
+    category TEXT NOT NULL CHECK (category IN ('governing_body', 'core_team', 'managing_team')),
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    image_url TEXT,
+    tags TEXT,
+    description TEXT,
+    social_links JSONB DEFAULT '{}'::jsonb,
+    sort_order INT NOT NULL DEFAULT 100,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mgmt_category_sort ON public.management_members (category, is_active, sort_order);
+
+DROP TRIGGER IF EXISTS trg_management_members_updated_at ON public.management_members;
+CREATE TRIGGER trg_management_members_updated_at BEFORE UPDATE ON public.management_members
 FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 COMMIT;

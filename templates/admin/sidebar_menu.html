@@ -108,6 +108,15 @@
                 </a>
             </li>
 
+            <!-- Management (Governing Body, Core Team, Managing Team) -->
+            <li>
+                <a href="/admin/management" 
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if '/admin/management' in request.path %}bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-lg{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    <span>Management</span>
+                </a>
+            </li>
+
             <!-- CMS -->
             <li>
                 <a href="/admin/cms" 

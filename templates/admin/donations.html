@@ -93,7 +93,7 @@
                             <td class="px-5 py-4 text-sm font-black text-green-600">Rs {{ "{:,.2f}".format(donation.amount / 100) }}</td>
                             <td class="px-5 py-4 text-sm text-slate-700">{{ donation.purpose_label or 'Self donation' }}</td>
                             <td class="px-5 py-4 text-xs font-mono text-slate-600">{{ donation.razorpay_payment_id[:24] if donation.razorpay_payment_id else '-' }}</td>
-                            <td class="px-5 py-4 text-sm text-slate-600">{{ donation.created_at[:19] if donation.created_at else 'N/A' }}</td>
+                            <td class="px-5 py-4 text-sm text-slate-600">{{ (donation.created_at|string)[:19] if donation.created_at else 'N/A' }}</td>
                             <td class="px-5 py-4">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {% if donation.status == 'paid' %}bg-green-100 text-green-700{% elif donation.status == 'pending' %}bg-orange-100 text-orange-700{% else %}bg-red-100 text-red-700{% endif %}">
                                     {{ donation.status|title if donation.status else 'Unknown' }}

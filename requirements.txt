@@ -7,10 +7,8 @@ psycopg2-binary>=2.9.9
 python-dotenv==1.2.2
 qrcode==7.4.2
 Pillow==12.2.0
-supabase==2.4.0
 Werkzeug==3.1.6
 gunicorn==23.0.0
-gotrue==2.4.2
 httpx==0.25.2
 bcrypt==5.0.0
 setuptools
@@ -20,3 +18,4 @@ reportlab==4.0.8
 PyJWT==2.13.0
 cryptography==46.0.6
 tzdata>=2024.1
+boto3>=1.34.0

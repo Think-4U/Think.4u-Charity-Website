@@ -183,6 +183,12 @@ CREATE POLICY think4u_meeting_attendance_app
     ON public.meeting_attendance FOR ALL TO neondb_owner
     USING (true) WITH CHECK (true);
 
+-- management_members
+ALTER TABLE public.management_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY think4u_management_members_app
+    ON public.management_members FOR ALL TO neondb_owner
+    USING (true) WITH CHECK (true);
+
 -- ================================================================
 -- VERIFY: list enabled policies (for confirmation)
 -- ================================================================

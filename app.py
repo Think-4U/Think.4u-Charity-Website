@@ -70,6 +70,16 @@ from auth_social import (
     exchange_code_for_google_user,
     verify_google_credential_token
 )
+from r2_storage import (
+    is_r2_configured,
+    upload_to_r2,
+    fetch_and_store_to_r2,
+    is_r2_media_url,
+    format_r2_url,
+    delete_from_r2,
+    extract_r2_key_from_url,
+    check_r2_status
+)
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
@@ -105,14 +115,23 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+# Extract database password for redaction
+_db_password = None
+try:
+    _parsed_db = urlparse(os.getenv("DATABASE_URL") or "")
+    if _parsed_db.password:
+        _db_password = _parsed_db.password
+except Exception:
+    pass
+
 # Apply redacting filter to root logger — keeps secrets out of log output
 redact_patterns = [
+    _db_password,
     os.getenv("DATABASE_URL"),
-    os.getenv("SUPABASE_KEY"),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
     os.getenv("SECRET_KEY"),
     os.getenv("RAZOR_KEY_SECRET"),
     os.getenv("RAZORPAY_WEBHOOK_SECRET"),
+    os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
     os.getenv("JITSI_JWT_PRIVATE_KEY"),
     os.getenv("JITSI_JWT_SECRET"),
     os.getenv("MAIL_PASSWORD"),
@@ -359,59 +378,36 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.session_protection = "strong"
 
-# ---------------------------------------------------------------
-# Database Backend Configuration
-# Priority: Neon DB (DATABASE_URL) > Supabase (SUPABASE_URL) > No-Op
-# ---------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Database Configuration - Neon Serverless PostgreSQL (DATABASE_URL)
+# -----------------------------------------------------------------------------
 DATABASE_URL = os.getenv('DATABASE_URL')
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_KEY')
-SUPABASE_HOST = urlparse(SUPABASE_URL or "").hostname or ""
-
+DB_HOST = urlparse(DATABASE_URL or "").hostname or ""
 DB_BACKEND = "none"
+DB_ENABLED = False
+db = None
 
 if DATABASE_URL:
     try:
         from neon_db import NeonClient
         db = NeonClient(DATABASE_URL)
         if db.is_connected:
-            supabase = db
-            SUPABASE_ENABLED = True
+            DB_ENABLED = True
             DB_BACKEND = "neon"
-            app.logger.info("Database backend: Neon Serverless PostgreSQL (RLS enforced)")
+            app.logger.info("Connected to Neon DB successfully (%s)", DB_HOST)
         else:
-            raise RuntimeError("Neon DB pool failed to connect.")
+            app.logger.error("Failed to connect to Neon DB pool. Check DATABASE_URL.")
+            db = _NoOpDB()
     except Exception as neon_init_error:
         app.logger.error(f"Neon DB initialization failed: {neon_init_error}")
-        supabase = _NoOpDB()
-        SUPABASE_ENABLED = False
-elif SUPABASE_URL and SUPABASE_KEY:
-    try:
-        from supabase import create_client
-        from supabase.lib.client_options import ClientOptions
-        _supa_timeout = float(os.getenv("SUPABASE_TIMEOUT_SECONDS", "4"))
-        supabase = create_client(
-            SUPABASE_URL,
-            SUPABASE_KEY,
-            options=ClientOptions(
-                postgrest_client_timeout=_supa_timeout,
-                storage_client_timeout=_supa_timeout,
-            ),
-        )
-        SUPABASE_ENABLED = True
-        DB_BACKEND = "supabase"
-        app.logger.info("Database backend: Supabase (PostgREST)")
-    except Exception as supabase_init_error:
-        app.logger.error(f"Supabase initialization failed: {supabase_init_error}")
-        supabase = _NoOpDB()
-        SUPABASE_ENABLED = False
+        db = _NoOpDB()
 else:
-    app.logger.warning(
-        "No database configured. Set DATABASE_URL (Neon DB) or SUPABASE_URL. "
-        "Running in limited no-op mode."
-    )
-    supabase = _NoOpDB()
-    SUPABASE_ENABLED = False
+    app.logger.warning("DATABASE_URL environment variable is missing. Running in limited no-op mode.")
+    db = _NoOpDB()
+
+# Primary database client & compatibility alias
+supabase = db
+SUPABASE_ENABLED = DB_ENABLED
 
 
 
@@ -886,36 +882,33 @@ def upload_site_media(file_obj, media_type, folder="home"):
     file_obj.stream.seek(0)
     file_data = file_obj.read()
 
-    try:
-        supabase.storage.from_(SITE_MEDIA_BUCKET).list()
-    except Exception:
-        try:
-            supabase.storage.create_bucket(SITE_MEDIA_BUCKET, options={"public": True})
-        except Exception as create_error:
-            app.logger.warning(f"Could not create {SITE_MEDIA_BUCKET} bucket: {create_error}")
+    # Priority 1: Cloudflare R2 (https://media.think4u.org/...)
+    if is_r2_configured():
+        ok, r2_url, r2_err = upload_to_r2(file_data, unique_filename, content_type=file_obj.content_type)
+        if ok and r2_url:
+            return r2_url
+        app.logger.warning(f"R2 upload failed, falling back: {r2_err}")
 
-    supabase.storage.from_(SITE_MEDIA_BUCKET).upload(
-        unique_filename,
-        file_data,
-        file_options={"content-type": file_obj.content_type, "cacheControl": "31536000"}
-    )
-    return supabase.storage.from_(SITE_MEDIA_BUCKET).get_public_url(unique_filename)
+    # Priority 2: Local uploads fallback with media.think4u.org URL formatting
+    clean_folder = folder.strip("/").strip()
+    uploads_dir = os.path.join(os.getcwd(), "static", "uploads", clean_folder, media_type)
+    os.makedirs(uploads_dir, exist_ok=True)
+    local_filename = f"{name}_{uuid.uuid4().hex[:12]}{ext.lower()}"
+    local_path = os.path.join(uploads_dir, local_filename)
+    with open(local_path, "wb") as f:
+        f.write(file_data)
+    return format_r2_url(f"{clean_folder}/{media_type}/{local_filename}")
 
 
 def is_allowed_media_url(media_url):
-    """Validate a media URL is from an accepted source (local static uploads or Supabase CDN)."""
+    """Validate a media URL is from an accepted source (Cloudflare R2 or local uploads)."""
     url_str = (media_url or "").strip()
     if not url_str:
         return False
-    # Local uploads served by Flask (Neon DB mode)
-    if url_str.startswith("/static/uploads/"):
+    # Cloudflare R2 media domain (starts with media.think4u.org)
+    if is_r2_media_url(url_str) or "media.think4u.org" in url_str:
         return True
-    # External CDN: must be HTTPS and from an allowed host
-    parsed = urlparse(url_str)
-    if parsed.scheme.lower() != "https":
-        return False
-    # Supabase storage CDN
-    if SUPABASE_HOST and parsed.hostname == SUPABASE_HOST and "/storage/v1/object/" in parsed.path:
+    if url_str.startswith("/static/uploads/"):
         return True
     return False
 
@@ -2105,8 +2098,8 @@ def set_security_headers(response):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "frame-ancestors 'none'; "
-        "img-src 'self' data: blob: https:; "
-        "media-src 'self' blob: data:; "
+        "img-src 'self' data: blob: https: https://media.think4u.org; "
+        "media-src 'self' blob: data: https: https://media.think4u.org; "
         "worker-src 'self' blob: https://challenges.cloudflare.com; "
         "child-src 'self' blob: https://challenges.cloudflare.com; "
         f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://sdk.cashfree.com https://*.cashfree.com https://accounts.google.com {challenge_src} {jitsi_src}; "
@@ -2409,17 +2402,26 @@ def favicon():
 
 
 @app.route("/healthz")
+@app.route("/api/health")
 def healthz():
     active_gw = get_active_payment_gateway()
+    db_health = {"healthy": False, "status": "unconfigured"}
+    if hasattr(db, "get_health_status"):
+        db_health = db.get_health_status()
+    elif DB_ENABLED:
+        db_health = {"healthy": True, "status": "connected"}
+
+    overall_healthy = db_health.get("healthy", False) or not DATABASE_URL
     return jsonify({
-        "status": "ok",
+        "status": "ok" if overall_healthy else "degraded",
         "version": APP_VERSION,
-        "supabase_enabled": SUPABASE_ENABLED,
+        "database": db_health,
+        "storage": check_r2_status(),
         "active_gateway": active_gw.gateway_id,
         "active_gateway_name": active_gw.gateway_name,
         "payment_enabled": active_gw.is_configured(),
         "gateways": payment_manager.list_gateways(),
-    }), 200
+    }), 200 if overall_healthy else 503
 
 
 
@@ -3129,8 +3131,12 @@ def donation_receipt(donation_id):
         donation = response.data[0]
 
         owner_id = donation.get("user_id")
-        owner_email = donation.get("email")
-        is_owner = (owner_id is not None and str(owner_id) == str(current_user.id)) or (owner_email == current_user.email)
+        owner_email = (donation.get("email") or "").strip().lower()
+        cur_email = (getattr(current_user, "email", "") or "").strip().lower()
+        is_owner = (
+            (owner_id is not None and str(owner_id) == str(current_user.id))
+            or (bool(owner_email) and bool(cur_email) and owner_email == cur_email)
+        )
 
         if not current_user.is_admin and not is_owner:
             flash("You can only view your own donation receipts.", "error")
@@ -3176,9 +3182,12 @@ def download_donation_receipt_pdf(donation_id):
             abort(404)
 
         donation = response.data[0]
+        owner_id = donation.get("user_id")
+        owner_email = (donation.get("email") or "").strip().lower()
+        cur_email = (getattr(current_user, "email", "") or "").strip().lower()
         is_owner = (
-            (donation.get("user_id") is not None and str(donation.get("user_id")) == str(current_user.id))
-            or donation.get("email") == current_user.email
+            (owner_id is not None and str(owner_id) == str(current_user.id))
+            or (bool(owner_email) and bool(cur_email) and owner_email == cur_email)
         )
         if not current_user.is_admin and not is_owner:
             abort(403)
@@ -3941,10 +3950,7 @@ def api_sms_verify_otp():
 
 @app.route("/login-phone", methods=["GET", "POST"])
 def login_phone():
-    """Direct mobile login with SMS OTP."""
-    if current_user.is_authenticated:
-        return redirect(url_for("admin_dashboard" if current_user.is_admin else "dashboard"))
-
+    """Direct mobile login with SMS OTP, or phone verification / linking for logged-in user."""
     if request.method == "POST":
         phone_raw = request.form.get("phone", "")
         otp_code = request.form.get("otp", "")
@@ -3961,12 +3967,28 @@ def login_phone():
 
         norm_phone = normalize_mobile_phone(phone_raw)
         try:
-            # Check if user exists with this phone number
+            # Case 1: If current user is logged in, link this verified phone to their account
+            if current_user.is_authenticated:
+                check_conflict = supabase.table("users").select("id").eq("phone", norm_phone).limit(1).execute()
+                conflict_row = (check_conflict.data or [None])[0]
+                if conflict_row and str(conflict_row.get("id")) != str(current_user.id):
+                    flash("This phone number is already linked to another account.", "error")
+                    return render_template("login_phone.html", phone=phone_raw)
+
+                supabase.table("users").update({
+                    "phone": norm_phone,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).eq("id", current_db_user_id()).execute()
+                current_user.phone = norm_phone
+                flash("Phone number successfully verified and linked to your account!", "success")
+                return redirect(url_for("profile"))
+
+            # Case 2: Not logged in. Check if user exists with this phone number
             existing = supabase.table("users").select("*").eq("phone", norm_phone).limit(1).execute()
             user_row = (existing.data or [None])[0]
 
             if not user_row:
-                # Auto-create user account
+                # Check synthetic email
                 synthetic_email = f"user_{norm_phone}@think4u.local"
                 email_check = supabase.table("users").select("*").eq("email", synthetic_email).limit(1).execute()
                 if email_check.data:
@@ -4011,6 +4033,11 @@ def login_phone():
             flash("Error during mobile login. Please try again.", "error")
             return render_template("login_phone.html")
 
+    # GET request
+    if current_user.is_authenticated and getattr(current_user, "phone", ""):
+        flash(f"Your account is already linked with phone number {current_user.phone}", "info")
+        return redirect(url_for("profile"))
+
     return render_template("login_phone.html")
 
 
@@ -4019,19 +4046,20 @@ def login_phone():
 # ==============================================================================
 @app.route("/auth/google")
 def auth_google():
-    """Initiate Google OAuth 2.0 login/signup."""
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard"))
-
+    """Initiate Google OAuth 2.0 login/signup or account linking."""
     if not is_google_auth_configured():
         flash("Google sign-in is not configured yet. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET or use email/mobile login.", "info")
         return redirect(url_for("login"))
 
     state = secrets.token_urlsafe(32)
     session["_google_oauth_state"] = state
-    next_url = request.args.get("next")
-    if next_url and is_safe_redirect_url(next_url):
-        session["_google_next_url"] = next_url
+    if current_user.is_authenticated:
+        session["_link_google_user_id"] = str(current_user.id)
+    else:
+        session.pop("_link_google_user_id", None)
+        next_url = request.args.get("next")
+        if next_url and is_safe_redirect_url(next_url):
+            session["_google_next_url"] = next_url
 
     redirect_uri = url_for("auth_google_callback", _external=True)
     google_url = get_google_auth_url(redirect_uri, state)
@@ -4041,44 +4069,75 @@ def auth_google():
 @app.route("/auth/google/callback")
 def auth_google_callback():
     """Handle Google OAuth 2.0 callback."""
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard"))
-
     state = request.args.get("state")
     code = request.args.get("code")
     error = request.args.get("error")
 
     expected_state = session.pop("_google_oauth_state", None)
+    linking_user_id = session.pop("_link_google_user_id", None)
     next_url = session.pop("_google_next_url", None)
 
     if error:
         flash(f"Google sign-in was cancelled or encountered an error: {error}", "error")
-        return redirect(url_for("login"))
+        return redirect(url_for("profile" if current_user.is_authenticated else "login"))
 
     if not state or not expected_state or not secrets.compare_digest(state, expected_state):
         flash("Security validation failed during Google sign-in. Please try again.", "error")
-        return redirect(url_for("login"))
+        return redirect(url_for("profile" if current_user.is_authenticated else "login"))
 
     if not code:
         flash("No authorization code returned from Google.", "error")
-        return redirect(url_for("login"))
+        return redirect(url_for("profile" if current_user.is_authenticated else "login"))
 
     redirect_uri = url_for("auth_google_callback", _external=True)
     ok, google_user, err_msg = exchange_code_for_google_user(code, redirect_uri)
     if not ok:
         flash(f"Could not complete Google sign-in: {err_msg}", "error")
-        return redirect(url_for("login"))
+        return redirect(url_for("profile" if current_user.is_authenticated else "login"))
 
     email = google_user["email"]
     name = google_user.get("name") or email.split("@")[0]
 
     try:
-        # Check if user already exists
+        # 1. Linking mode or user currently authenticated
+        target_user_id = linking_user_id or (current_user.id if current_user.is_authenticated else None)
+        if target_user_id:
+            conflict_res = supabase.table("users").select("id").eq("email", email).limit(1).execute()
+            conflict_row = (conflict_res.data or [None])[0]
+            if conflict_row and str(conflict_row.get("id")) != str(target_user_id):
+                switch_res = supabase.table("users").select("*").eq("id", conflict_row["id"]).limit(1).execute()
+                sw_row = switch_res.data[0]
+                user = User(
+                    id=sw_row["id"],
+                    email=sw_row["email"],
+                    name=sw_row.get("name", name),
+                    is_admin=sw_row.get("is_admin", False),
+                    role=sw_row.get("role", "donor"),
+                    phone=sw_row.get("phone")
+                )
+                login_user(user)
+                flash(f"Switched to your existing account for {email}!", "success")
+                return redirect(url_for("dashboard"))
+            else:
+                update_data = {
+                    "email": email,
+                    "email_verified": True,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                if not getattr(current_user, "name", None) or current_user.name.startswith("User"):
+                    update_data["name"] = clean_text(name, 120)
+                supabase.table("users").update(update_data).eq("id", db_id(target_user_id)).execute()
+                current_user.email = email
+                if update_data.get("name"):
+                    current_user.name = update_data["name"]
+                flash("Google account successfully linked!", "success")
+                return redirect(url_for("profile"))
+
+        # 2. Not authenticated: find existing account by email to link
         existing = supabase.table("users").select("*").eq("email", email).limit(1).execute()
         user_row = (existing.data or [None])[0]
 
         if not user_row:
-            # Create user account
             insert_payload = {
                 "email": email,
                 "name": clean_text(name, 120),
@@ -4094,6 +4153,9 @@ def auth_google_callback():
         if not user_row:
             flash("Unable to create or load your account.", "error")
             return redirect(url_for("login"))
+
+        if not user_row.get("email_verified"):
+            supabase.table("users").update({"email_verified": True}).eq("id", user_row["id"]).execute()
 
         user = User(
             id=user_row["id"],
@@ -4118,7 +4180,7 @@ def auth_google_callback():
 
 @app.route("/auth/google/credential", methods=["POST"])
 def auth_google_credential():
-    """Verify Google One Tap / Sign-In credential token via JSON POST."""
+    """Verify Google One Tap / Sign-In credential token via JSON POST with account linking."""
     data = request.get_json(silent=True) or {}
     token = data.get("credential")
     if not token:
@@ -4132,6 +4194,37 @@ def auth_google_credential():
     name = google_user.get("name") or email.split("@")[0]
 
     try:
+        if current_user.is_authenticated:
+            conflict_res = supabase.table("users").select("id").eq("email", email).limit(1).execute()
+            conflict_row = (conflict_res.data or [None])[0]
+            if conflict_row and str(conflict_row.get("id")) != str(current_user.id):
+                switch_res = supabase.table("users").select("*").eq("id", conflict_row["id"]).limit(1).execute()
+                sw_row = switch_res.data[0]
+                user = User(
+                    id=sw_row["id"],
+                    email=sw_row["email"],
+                    name=sw_row.get("name", name),
+                    is_admin=sw_row.get("is_admin", False),
+                    role=sw_row.get("role", "donor"),
+                    phone=sw_row.get("phone")
+                )
+                login_user(user)
+                target_url = url_for("admin_dashboard" if user.is_admin else "dashboard")
+                return jsonify({"ok": True, "redirect": target_url, "linked": True}), 200
+            else:
+                update_data = {
+                    "email": email,
+                    "email_verified": True,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                if not getattr(current_user, "name", None) or current_user.name.startswith("User"):
+                    update_data["name"] = clean_text(name, 120)
+                supabase.table("users").update(update_data).eq("id", current_db_user_id()).execute()
+                current_user.email = email
+                if update_data.get("name"):
+                    current_user.name = update_data["name"]
+                return jsonify({"ok": True, "redirect": url_for("profile"), "linked": True}), 200
+
         existing = supabase.table("users").select("*").eq("email", email).limit(1).execute()
         user_row = (existing.data or [None])[0]
 
@@ -4150,6 +4243,9 @@ def auth_google_credential():
 
         if not user_row:
             return jsonify({"error": "Unable to initialize account"}), 500
+
+        if not user_row.get("email_verified"):
+            supabase.table("users").update({"email_verified": True}).eq("id", user_row["id"]).execute()
 
         user = User(
             id=user_row["id"],
@@ -5515,9 +5611,11 @@ def meeting_slot_room(slot_uuid):
         session["next"] = request.url
         return redirect(url_for("login"))
         
-    if not current_user.is_admin and slot.get("coordinator_id") not in {None, "", current_db_user_id(), str(current_db_user_id())}:
-        flash("You do not have access to this meeting slot.", "error")
-        return redirect(url_for("coordinator_portal"))
+    assigned_coord = slot.get("coordinator_id")
+    if not current_user.is_admin:
+        if not assigned_coord or str(assigned_coord) != str(current_db_user_id()):
+            flash("You do not have access to this meeting slot.", "error")
+            return redirect(url_for("coordinator_portal"))
 
     seed_text = f"slot-{slot.get('uuid')}"
     return render_jitsi_room(
@@ -5931,22 +6029,419 @@ def about():
     return render_template("about.html")
 
 
+# ==============================================================================
+# Management Module: Governing Body, Core Team & Managing Team
+# Cloudflare R2 images starting with https://media.think4u.org/...
+# ==============================================================================
+
+DEFAULT_MANAGEMENT_MEMBERS = [
+    {
+        "id": "seed-1",
+        "category": "governing_body",
+        "name": "Ms. Madurakola Malavika",
+        "role": "Founder & Chairperson",
+        "image_url": "https://media.think4u.org/team/malavika.jpg",
+        "tags": "Founder, Chairperson, Innovation Strategist",
+        "description": "Accomplished academician, startup mentor, researcher, innovation strategist, and social entrepreneur, currently serving as Head Innovations & Entrepreneurship at Vignan Group, Hyderabad. Dedicated to nurturing innovation, research, and inclusive societal welfare.",
+        "sort_order": 1,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": "info@think4u.org"}
+    },
+    {
+        "id": "seed-2",
+        "category": "governing_body",
+        "name": "Mr. Rajesh Reddy",
+        "role": "Trustee",
+        "image_url": "https://media.think4u.org/team/rajesh_reddy.png",
+        "tags": "Trustee, Community Builder, Social Entrepreneur",
+        "description": "Dedicated trustee and community builder committed to advancing educational equity, youth skill programs, and grassroots empowerment.",
+        "sort_order": 2,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": ""}
+    },
+    {
+        "id": "seed-3",
+        "category": "core_team",
+        "name": "Mr. Abdul Muqeeth",
+        "role": "CEO – Chief Executive Officer",
+        "image_url": "https://media.think4u.org/team/abdul_muqeeth.jpg",
+        "tags": "CEO, Entrepreneurship, Brand Strategist",
+        "description": "Entrepreneur, brand strategist, and community builder with proven experience across marketing, entrepreneurship, technology, business development, and student initiatives across 30+ colleges and institutions.",
+        "sort_order": 1,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": ""}
+    },
+    {
+        "id": "seed-4",
+        "category": "core_team",
+        "name": "Ms. K. Sankirthana",
+        "role": "Director - Communication & Public Relations",
+        "image_url": "https://media.think4u.org/team/sankirthana.jpg",
+        "tags": "Public Relations, Communication, Media Strategy",
+        "description": "Leading communications, media relations, and stakeholder engagement to amplify Think.4U's societal footprint.",
+        "sort_order": 2,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": ""}
+    },
+    {
+        "id": "seed-5",
+        "category": "core_team",
+        "name": "Ms. Sharmila Devi",
+        "role": "Director - Communication & Public Relations",
+        "image_url": "https://media.think4u.org/team/sharmila_devi.png",
+        "tags": "PR, Corporate Relations, Media Outreach",
+        "description": "Driving communication strategy, institutional partnerships, and public relation campaigns.",
+        "sort_order": 3,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": ""}
+    },
+    {
+        "id": "seed-6",
+        "category": "managing_team",
+        "name": "Ms. Madurakola Malavika",
+        "role": "Managing Trustee",
+        "image_url": "https://media.think4u.org/team/malavika.jpg",
+        "tags": "Managing Trustee, Executive Leadership",
+        "description": "Heading strategic governance, program formulation, and institutional development for the trust.",
+        "sort_order": 1,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": ""}
+    },
+    {
+        "id": "seed-7",
+        "category": "managing_team",
+        "name": "Mr. Abdul Muqeeth",
+        "role": "Chief Executive Officer",
+        "image_url": "https://media.think4u.org/team/abdul_muqeeth.jpg",
+        "tags": "CEO, Operations, Strategic Execution",
+        "description": "Overseeing operational delivery, strategic collaborations, and project execution across initiatives.",
+        "sort_order": 2,
+        "is_active": True,
+        "social_links": {"linkedin": "", "email": ""}
+    }
+]
+
+
+def get_management_members(category=None, active_only=False):
+    """
+    Fetch management members from Supabase management_members table.
+    Falls back gracefully to CMS JSON storage or pre-seeded default records if table does not exist.
+    """
+    try:
+        query = supabase.table("management_members").select("*")
+        if category:
+            query = query.eq("category", category)
+        if active_only:
+            query = query.eq("is_active", True)
+        res = query.order("sort_order").order("created_at").execute()
+        if res.data:
+            return res.data
+    except Exception as e:
+        app.logger.warning(f"Could not load from management_members table: {e}")
+
+    # Fallback to CMS content store
+    try:
+        cms_val = get_cms_content("management_members_json", "")
+        if cms_val:
+            items = pyjson.loads(cms_val)
+            if category:
+                items = [m for m in items if m.get("category") == category]
+            if active_only:
+                items = [m for m in items if (m.get("is_active") is True or str(m.get("is_active")).lower() == "true")]
+            items.sort(key=lambda x: int(x.get("sort_order") or 100))
+            return items
+    except Exception as e:
+        app.logger.warning(f"Could not parse CMS management_members_json: {e}")
+
+    # Fallback to pre-seeded records for admin management panel
+    if not active_only:
+        items = [dict(m) for m in DEFAULT_MANAGEMENT_MEMBERS]
+        if category:
+            items = [m for m in items if m.get("category") == category]
+        items.sort(key=lambda x: int(x.get("sort_order") or 100))
+        return items
+
+    return []
+
+
+def save_management_member(member_data, member_id=None):
+    """
+    Save or update a management member. Handles Supabase table or CMS JSON fallback.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    member_data["updated_at"] = now_iso
+
+    # Try saving to management_members table
+    try:
+        if member_id and not str(member_id).startswith("seed-"):
+            clean_payload = {k: v for k, v in member_data.items() if k != "id"}
+            res = supabase.table("management_members").update(clean_payload).eq("id", db_id(member_id)).execute()
+            if res.data:
+                return res.data[0]
+        else:
+            clean_payload = {k: v for k, v in member_data.items() if k != "id"}
+            clean_payload["created_at"] = now_iso
+            res = supabase.table("management_members").insert(clean_payload).execute()
+            if res.data:
+                return res.data[0]
+    except Exception as e:
+        app.logger.warning(f"Failed to save directly to management_members table: {e}. Saving to CMS backup.")
+
+    # Fallback: Save to CMS JSON
+    existing_items = get_management_members(active_only=False)
+    if member_id:
+        found = False
+        for idx, it in enumerate(existing_items):
+            if str(it.get("id")) == str(member_id):
+                existing_items[idx] = {**it, **member_data, "id": str(member_id)}
+                found = True
+                break
+        if not found:
+            member_data["id"] = str(uuid.uuid4().hex[:8])
+            existing_items.append(member_data)
+    else:
+        member_data["id"] = str(uuid.uuid4().hex[:8])
+        existing_items.append(member_data)
+
+    try:
+        cms_json = pyjson.dumps(existing_items)
+        existing_cms = supabase.table("cms_content").select("id").eq("key", "management_members_json").limit(1).execute()
+        if existing_cms.data:
+            supabase.table("cms_content").update({"value": cms_json, "updated_at": now_iso}).eq("id", existing_cms.data[0]["id"]).execute()
+        else:
+            supabase.table("cms_content").insert({"key": "management_members_json", "value": cms_json, "created_at": now_iso, "updated_at": now_iso}).execute()
+        CMS_CACHE["management_members_json"] = cms_json
+        CMS_CACHE_EXPIRY["management_members_json"] = int(datetime.now(timezone.utc).timestamp()) + CMS_CACHE_TTL_SECONDS
+    except Exception as exc:
+        app.logger.error(f"Failed to update CMS backup: {exc}")
+
+    return member_data
+
+
+def delete_management_member(member_id):
+    """Delete member from table or CMS JSON fallback."""
+    try:
+        if not str(member_id).startswith("seed-"):
+            supabase.table("management_members").delete().eq("id", db_id(member_id)).execute()
+    except Exception as e:
+        app.logger.warning(f"Failed to delete from management_members table: {e}")
+
+    # Also update CMS JSON if present
+    try:
+        items = get_management_members(active_only=False)
+        items = [it for it in items if str(it.get("id")) != str(member_id)]
+        cms_json = pyjson.dumps(items)
+        existing_cms = supabase.table("cms_content").select("id").eq("key", "management_members_json").limit(1).execute()
+        if existing_cms.data:
+            supabase.table("cms_content").update({"value": cms_json}).eq("id", existing_cms.data[0]["id"]).execute()
+        CMS_CACHE["management_members_json"] = cms_json
+    except Exception as exc:
+        app.logger.warning(f"Failed to update CMS during delete: {exc}")
+
+
 @app.route("/governingbody")
 @app.route("/governing-body")
 def governingbody():
-    return render_template("governingbody.html")
+    members = get_management_members(category="governing_body", active_only=True)
+    return render_template("governingbody.html", members=members)
 
 
 @app.route("/managingteam")
 @app.route("/managing-team")
 def managingteam():
-    return render_template("managingteam.html")
+    members = get_management_members(category="managing_team", active_only=True)
+    return render_template("managingteam.html", members=members)
 
 
 @app.route("/coreteam")
 @app.route("/core-team")
 def coreteam():
-    return render_template("coreteam.html")
+    members = get_management_members(category="core_team", active_only=True)
+    return render_template("coreteam.html", members=members)
+
+
+# ------------------------------------------------------------------------------
+# Admin Management Routes (/admin/management)
+# ------------------------------------------------------------------------------
+@app.route("/admin/management", methods=["GET"])
+@login_required
+def admin_management():
+    category = clean_text(request.args.get("category", ""), 40).lower()
+    if category not in {"governing_body", "core_team", "managing_team"}:
+        category = ""
+    members = get_management_members(category=category if category else None, active_only=False)
+    return render_template(
+        "admin/management.html",
+        members=members,
+        current_category=category
+    )
+
+
+@app.route("/admin/management/add", methods=["POST"])
+@login_required
+def admin_management_add():
+    category = clean_text(request.form.get("category"), 40).lower()
+    name = clean_text(request.form.get("name"), 140)
+    role = clean_text(request.form.get("role"), 160)
+    tags = clean_text(request.form.get("tags"), 240)
+    description = clean_text(request.form.get("description"), 4000, keep_new_lines=True)
+    sort_order_raw = request.form.get("sort_order", "100")
+    try:
+        sort_order = int(sort_order_raw)
+    except ValueError:
+        sort_order = 100
+    is_active = request.form.get("is_active") == "on"
+
+    if category not in {"governing_body", "core_team", "managing_team"}:
+        flash("Please select a valid management category.", "error")
+        return redirect(url_for("admin_management"))
+
+    if not name or not role:
+        flash("Name and Role are required.", "error")
+        return redirect(url_for("admin_management"))
+
+    image_url = ""
+    image_file = request.files.get("image_file")
+    fetch_url = clean_text(request.form.get("fetch_image_url"), 1000)
+    direct_url = clean_text(request.form.get("image_url"), 1000)
+
+    if image_file and image_file.filename:
+        try:
+            image_url = upload_site_media(image_file, "image", folder="team")
+        except Exception as e:
+            flash(f"Image upload failed: {e}", "error")
+            return redirect(url_for("admin_management"))
+    elif fetch_url:
+        ok, r2_fetched, err = fetch_and_store_to_r2(fetch_url, folder="team")
+        if ok and r2_fetched:
+            image_url = r2_fetched
+        else:
+            flash(f"Could not fetch image from URL: {err}", "warning")
+            image_url = fetch_url
+    elif direct_url:
+        image_url = direct_url
+
+    member_payload = {
+        "category": category,
+        "name": name,
+        "role": role,
+        "image_url": image_url,
+        "tags": tags,
+        "description": description,
+        "sort_order": sort_order,
+        "is_active": is_active,
+        "social_links": {
+            "linkedin": clean_text(request.form.get("linkedin"), 300),
+            "email": clean_text(request.form.get("email"), 120),
+        }
+    }
+
+    try:
+        save_management_member(member_payload)
+        flash(f"Member '{name}' added successfully to {category.replace('_', ' ').title()}.", "success")
+    except Exception as e:
+        app.logger.error(f"Error adding management member: {e}")
+        flash(f"Could not save member: {e}", "error")
+
+    return redirect(url_for("admin_management", category=category))
+
+
+@app.route("/admin/management/<member_id>/edit", methods=["GET", "POST"])
+@login_required
+def admin_management_edit(member_id):
+    members = get_management_members(active_only=False)
+    member = next((m for m in members if str(m.get("id")) == str(member_id)), None)
+    if not member:
+        flash("Management member not found.", "error")
+        return redirect(url_for("admin_management"))
+
+    if request.method == "POST":
+        category = clean_text(request.form.get("category"), 40).lower()
+        name = clean_text(request.form.get("name"), 140)
+        role = clean_text(request.form.get("role"), 160)
+        tags = clean_text(request.form.get("tags"), 240)
+        description = clean_text(request.form.get("description"), 4000, keep_new_lines=True)
+        try:
+            sort_order = int(request.form.get("sort_order", "100"))
+        except ValueError:
+            sort_order = 100
+        is_active = request.form.get("is_active") == "on"
+
+        if category not in {"governing_body", "core_team", "managing_team"}:
+            category = member.get("category", "governing_body")
+
+        image_url = member.get("image_url", "")
+        image_file = request.files.get("image_file")
+        fetch_url = clean_text(request.form.get("fetch_image_url"), 1000)
+        direct_url = clean_text(request.form.get("image_url"), 1000)
+
+        if image_file and image_file.filename:
+            try:
+                image_url = upload_site_media(image_file, "image", folder="team")
+            except Exception as e:
+                flash(f"Image upload failed: {e}", "error")
+        elif fetch_url:
+            ok, r2_fetched, err = fetch_and_store_to_r2(fetch_url, folder="team")
+            if ok and r2_fetched:
+                image_url = r2_fetched
+            else:
+                flash(f"Could not fetch image: {err}", "warning")
+        elif direct_url:
+            image_url = direct_url
+
+        updated_payload = {
+            "category": category,
+            "name": name or member.get("name"),
+            "role": role or member.get("role"),
+            "image_url": image_url,
+            "tags": tags,
+            "description": description,
+            "sort_order": sort_order,
+            "is_active": is_active,
+            "social_links": {
+                "linkedin": clean_text(request.form.get("linkedin"), 300),
+                "email": clean_text(request.form.get("email"), 120),
+            }
+        }
+
+        try:
+            save_management_member(updated_payload, member_id=member_id)
+            flash(f"Member '{name}' updated successfully.", "success")
+            return redirect(url_for("admin_management", category=category))
+        except Exception as e:
+            app.logger.error(f"Error updating member: {e}")
+            flash(f"Update failed: {e}", "error")
+
+    return render_template("admin/management_edit.html", member=member)
+
+
+@app.route("/admin/management/<member_id>/delete", methods=["POST"])
+@login_required
+def admin_management_delete(member_id):
+    try:
+        delete_management_member(member_id)
+        flash("Management member deleted.", "success")
+    except Exception as e:
+        app.logger.error(f"Error deleting member: {e}")
+        flash(f"Delete failed: {e}", "error")
+    return redirect(url_for("admin_management"))
+
+
+@app.route("/admin/management/<member_id>/toggle", methods=["POST"])
+@login_required
+def admin_management_toggle(member_id):
+    try:
+        members = get_management_members(active_only=False)
+        member = next((m for m in members if str(m.get("id")) == str(member_id)), None)
+        if member:
+            new_status = not bool(member.get("is_active", True))
+            save_management_member({"is_active": new_status}, member_id=member_id)
+            status_text = "published" if new_status else "hidden"
+            flash(f"Member visibility updated to {status_text}.", "success")
+    except Exception as e:
+        app.logger.error(f"Error toggling member status: {e}")
+        flash("Failed to update status.", "error")
+    return redirect(url_for("admin_management"))
 
 
 @app.route("/policy-terms")
@@ -6320,11 +6815,18 @@ def admin_media():
             return redirect(url_for("admin_media"))
 
         try:
-            final_url = media_url
+            final_url = ""
             if media_file and media_file.filename:
                 final_url = upload_site_media(media_file, media_type, folder=placement)
+            elif media_url:
+                if is_r2_configured() and not is_r2_media_url(media_url):
+                    ok, r2_url, _ = fetch_and_store_to_r2(media_url, folder=placement)
+                    final_url = r2_url if (ok and r2_url) else media_url
+                else:
+                    final_url = media_url
+
             if not final_url:
-                flash("Upload a file or enter a secure media URL.", "error")
+                flash("Upload a file or enter a valid media URL to fetch/save.", "error")
                 return redirect(url_for("admin_media"))
 
             supabase.table("media_assets").insert({
@@ -6340,8 +6842,72 @@ def admin_media():
             flash("Media asset saved.", "success")
         except Exception as e:
             app.logger.error(f"Media save failed: {e}")
-            flash("Unable to save media asset.", "error")
         return redirect(url_for("admin_media"))
+
+    try:
+        res = supabase.table("media_assets").select("*").order("created_at", desc=True).limit(200).execute()
+        media_items = attach_media_display_urls(res.data or [])
+    except Exception as e:
+        app.logger.warning(f"Error fetching media assets: {e}")
+        media_items = []
+
+    return render_template(
+        "admin/media.html",
+        media_items=media_items,
+        max_image_upload_mb=int(os.getenv("MAX_IMAGE_UPLOAD_MB", "15")),
+        max_video_upload_mb=int(os.getenv("MAX_VIDEO_UPLOAD_MB", "150")),
+    )
+
+
+@app.route("/admin/media/fetch-url", methods=["POST"])
+@login_required
+def admin_media_fetch_url():
+    """Admin option to fetch remote image or video from an external link and store in Cloudflare R2."""
+    data = request.get_json(silent=True) or request.form or {}
+    url = clean_text(data.get("url"), 1000)
+    folder = clean_text(data.get("folder") or "home", 50)
+    media_type = clean_text(data.get("media_type") or "image", 20).lower()
+    placement = clean_text(data.get("placement") or "home_gallery", 40)
+    title = clean_text(data.get("title") or "", 160)
+    save_to_assets = data.get("save_to_assets") in {True, "true", "on", "1"}
+
+    if not url:
+        if request.is_json:
+            return jsonify({"ok": False, "error": "URL is required"}), 400
+        flash("URL is required to fetch media.", "error")
+        return redirect(url_for("admin_media"))
+
+    ok, r2_url, err = fetch_and_store_to_r2(url, folder=folder)
+    if not ok:
+        if request.is_json:
+            return jsonify({"ok": False, "error": err}), 400
+        flash(f"Failed to fetch media from URL: {err}", "error")
+        return redirect(url_for("admin_media"))
+
+    if save_to_assets:
+        try:
+            supabase.table("media_assets").insert({
+                "media_type": media_type,
+                "placement": placement,
+                "title": title or placement.replace("_", " ").title(),
+                "url": r2_url,
+                "is_published": True,
+                "sort_order": 100,
+                "created_by_user_id": current_db_user_id(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+        except Exception as e:
+            app.logger.warning(f"Could not auto-insert into media_assets: {e}")
+
+    if request.is_json:
+        return jsonify({
+            "ok": True,
+            "url": r2_url,
+            "message": f"Successfully fetched and uploaded to Cloudflare R2: {r2_url}"
+        }), 200
+
+    flash(f"Media fetched successfully! R2 link: {r2_url}", "success")
+    return redirect(url_for("admin_media"))
 
     media_items = []
     try:
@@ -7314,9 +7880,11 @@ def coordinator_meeting_detail(appointment_id):
     appointment["meeting_settings"] = ensure_meeting_settings_defaults(appointment.get("meeting_settings"))
 
     coordinator_id = current_db_user_id()
-    if not current_user.is_admin and appointment.get("coordinator_id") not in {None, "", coordinator_id, str(coordinator_id)}:
-        flash("Unauthorized access to this meeting's details.", "error")
-        return redirect(url_for("coordinator_history"))
+    assigned_coord = appointment.get("coordinator_id")
+    if not current_user.is_admin:
+        if not assigned_coord or str(assigned_coord) != str(coordinator_id):
+            flash("Unauthorized access to this meeting's details.", "error")
+            return redirect(url_for("coordinator_history"))
 
     if request.method == "POST":
         action = request.form.get("action")

@@ -7,8 +7,71 @@
     <meta name="user-authenticated" content="{{ 'true' if current_user.is_authenticated else 'false' }}">
     <meta name="inactivity-timeout" content="{{ inactivity_timeout_minutes|int }}">
     <title>{% block title %}{{ get_cms('site_title', 'Think.4U - Community Charity Foundation') }}{% endblock %}</title>
-    <meta name="description" content="{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through compassion and action.') }}">
-    <meta name="keywords" content="charity, donation, volunteer, community, help, support">
+    <meta name="description" content="{% block meta_description %}{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through compassion, education, and social empowerment.') }}{% endblock %}">
+    <meta name="keywords" content="charity, donation, NGO, non-profit, volunteer, community, education, empowerment, Think4U, help, support">
+    <meta name="author" content="{{ get_cms('org_name', 'Think.4U Foundation') }}">
+    <meta name="robots" content="{% block meta_robots %}index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1{% endblock %}">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{% block canonical_url %}{{ canonical_url }}{% endblock %}">
+
+    <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="{{ get_cms('site_title', 'Think.4U') }}">
+    <meta property="og:title" content="{% block og_title %}{{ get_cms('site_title', 'Think.4U - Community Charity Foundation') }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through compassion and action.') }}{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}{{ canonical_url }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ site_url }}{{ url_for('static', filename='images/logo.png') }}{% endblock %}">
+    <meta property="og:image:alt" content="{{ get_cms('site_title', 'Think.4U') }}">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ get_cms('site_title', 'Think.4U - Community Charity Foundation') }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through compassion and action.') }}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ site_url }}{{ url_for('static', filename='images/logo.png') }}{% endblock %}">
+
+    <!-- Page Specific Meta Extension Hook -->
+    {% block meta_tags %}{% endblock %}
+
+    <!-- Structured Data (JSON-LD) for Search Engines (Google, Bing, Yahoo) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "NGO",
+          "@id": "{{ site_url }}/#organization",
+          "name": "{{ get_cms('org_name', 'Think.4U Trust') }}",
+          "url": "{{ site_url }}",
+          "logo": "{{ site_url }}{{ url_for('static', filename='images/logo.png') }}",
+          "image": "{{ site_url }}{{ url_for('static', filename='images/logo.png') }}",
+          "description": "{{ get_cms('meta_description', 'Think.4U is a community charity foundation dedicated to making a positive impact through education, empowerment, health, and community support.') }}",
+          "sameAs": [
+            "https://twitter.com/think4u",
+            "https://facebook.com/think4u",
+            "https://instagram.com/think4u"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "Customer Support",
+            "email": "{{ get_cms('contact_email', 'info@think4u.org') }}"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "{{ site_url }}/#website",
+          "url": "{{ site_url }}",
+          "name": "{{ get_cms('site_title', 'Think.4U') }}",
+          "publisher": {
+            "@id": "{{ site_url }}/#organization"
+          },
+          "inLanguage": "en-US"
+        }
+      ]
+    }
+    </script>
+
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">

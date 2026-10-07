@@ -20,8 +20,6 @@ from functools import wraps
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, Response, make_response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -107,8 +105,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-# Apply redacting filter to root logger
+# Apply redacting filter to root logger — keeps secrets out of log output
 redact_patterns = [
+    os.getenv("DATABASE_URL"),
     os.getenv("SUPABASE_KEY"),
     os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
     os.getenv("SECRET_KEY"),
@@ -122,12 +121,14 @@ logging.getLogger().addFilter(RedactingFilter(redact_patterns))
 
 
 class _NoOpResponse:
+    """Returned by the no-op DB stub when no database is configured."""
     def __init__(self):
         self.data = []
         self.count = 0
 
 
 class _NoOpQuery:
+    """Silently absorbs any chained call and returns an empty response."""
     def __getattr__(self, _name):
         return lambda *args, **kwargs: self
 
@@ -135,9 +136,24 @@ class _NoOpQuery:
         return _NoOpResponse()
 
 
-class _NoOpSupabase:
+class _NoOpDB:
+    """No-op database stub used when no DB backend is available."""
     def table(self, _table_name):
         return _NoOpQuery()
+
+    class storage:
+        @staticmethod
+        def from_(_bucket):
+            return _NoOpQuery()
+
+        @staticmethod
+        def create_bucket(_name, options=None):
+            return None
+
+    @property
+    def is_connected(self):
+        return False
+
 
 # ------------------------------
 # Flask App Configuration
@@ -329,10 +345,8 @@ MAINTENANCE_LAST_KNOWN = {}
 MAINTENANCE_LOOKUP_ERROR_LOGGED = False
 CMS_CACHE_TTL_SECONDS = int(os.getenv("CMS_CACHE_TTL_SECONDS", "300"))
 CMS_FAILURE_BACKOFF_SECONDS = int(os.getenv("CMS_FAILURE_BACKOFF_SECONDS", "30"))
-SUPABASE_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_TIMEOUT_SECONDS", "4"))
-# Short TTL cache for maintenance check — avoids a Supabase query on every request.
-# 30 s is short enough to react quickly to an admin enabling the lock, but
-# eliminates the per-request DB hit that bots and unauthenticated visits cause.
+# Short TTL cache for maintenance check — avoids a DB query on every request.
+# 30 s is short enough to react quickly to an admin enabling the lock.
 MAINTENANCE_CACHE_TTL = int(os.getenv("MAINTENANCE_CACHE_TTL", "30"))
 _maintenance_cache: dict = {}
 _maintenance_cache_until: float = 0.0
@@ -345,54 +359,60 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.session_protection = "strong"
 
-# ------------------------------
-# Supabase Configuration
-# ------------------------------
+# ---------------------------------------------------------------
+# Database Backend Configuration
+# Priority: Neon DB (DATABASE_URL) > Supabase (SUPABASE_URL) > No-Op
+# ---------------------------------------------------------------
+DATABASE_URL = os.getenv('DATABASE_URL')
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_PUBLIC_KEY = os.getenv('SUPABASE_KEY')
-# The service-role key is backend-only and bypasses Supabase RLS. It must never
-# be exposed to JavaScript, committed, or placed in any public environment.
-SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_PUBLIC_KEY
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_KEY')
 SUPABASE_HOST = urlparse(SUPABASE_URL or "").hostname or ""
 
-SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_KEY)
-if SUPABASE_ENABLED:
+DB_BACKEND = "none"
+
+if DATABASE_URL:
     try:
+        from neon_db import NeonClient
+        db = NeonClient(DATABASE_URL)
+        if db.is_connected:
+            supabase = db
+            SUPABASE_ENABLED = True
+            DB_BACKEND = "neon"
+            app.logger.info("Database backend: Neon Serverless PostgreSQL (RLS enforced)")
+        else:
+            raise RuntimeError("Neon DB pool failed to connect.")
+    except Exception as neon_init_error:
+        app.logger.error(f"Neon DB initialization failed: {neon_init_error}")
+        supabase = _NoOpDB()
+        SUPABASE_ENABLED = False
+elif SUPABASE_URL and SUPABASE_KEY:
+    try:
+        from supabase import create_client
+        from supabase.lib.client_options import ClientOptions
+        _supa_timeout = float(os.getenv("SUPABASE_TIMEOUT_SECONDS", "4"))
         supabase = create_client(
             SUPABASE_URL,
             SUPABASE_KEY,
             options=ClientOptions(
-                postgrest_client_timeout=SUPABASE_TIMEOUT_SECONDS,
-                storage_client_timeout=SUPABASE_TIMEOUT_SECONDS,
+                postgrest_client_timeout=_supa_timeout,
+                storage_client_timeout=_supa_timeout,
             ),
         )
+        SUPABASE_ENABLED = True
+        DB_BACKEND = "supabase"
+        app.logger.info("Database backend: Supabase (PostgREST)")
     except Exception as supabase_init_error:
         app.logger.error(f"Supabase initialization failed: {supabase_init_error}")
-        supabase = _NoOpSupabase()
+        supabase = _NoOpDB()
         SUPABASE_ENABLED = False
 else:
-    app.logger.warning("Supabase env vars missing. Running in limited mode.")
-    supabase = _NoOpSupabase()
-
-
-def get_supabase_key_role(key):
-    try:
-        payload = key.split(".")[1]
-        payload += "=" * (-len(payload) % 4)
-        decoded = base64.urlsafe_b64decode(payload.encode()).decode()
-        claims = pyjson.loads(decoded)
-        return claims.get("role")
-    except Exception:
-        return None
-
-
-supabase_key_role = get_supabase_key_role(SUPABASE_KEY or "")
-if SUPABASE_ENABLED and supabase_key_role != "service_role":
-    app.logger.error(
-        "Supabase backend key role is '%s'. Set SUPABASE_SERVICE_ROLE_KEY for backend writes protected by RLS.",
-        supabase_key_role or "unknown"
+    app.logger.warning(
+        "No database configured. Set DATABASE_URL (Neon DB) or SUPABASE_URL. "
+        "Running in limited no-op mode."
     )
+    supabase = _NoOpDB()
+    SUPABASE_ENABLED = False
+
 
 
 # ------------------------------
@@ -874,8 +894,6 @@ def upload_site_media(file_obj, media_type, folder="home"):
         except Exception as create_error:
             app.logger.warning(f"Could not create {SITE_MEDIA_BUCKET} bucket: {create_error}")
 
-    # Fix 8: cacheControl=31536000 lets Supabase's Cloudflare CDN cache the file
-    # for 1 year, eliminating repeated origin fetches for the same asset.
     supabase.storage.from_(SITE_MEDIA_BUCKET).upload(
         unique_filename,
         file_data,
@@ -884,20 +902,30 @@ def upload_site_media(file_obj, media_type, folder="home"):
     return supabase.storage.from_(SITE_MEDIA_BUCKET).get_public_url(unique_filename)
 
 
-def is_allowed_supabase_media_url(media_url):
-    parsed = urlparse((media_url or "").strip())
-    return (
-        bool(SUPABASE_HOST)
-        and parsed.scheme.lower() == "https"
-        and parsed.hostname == SUPABASE_HOST
-        and "/storage/v1/object/" in parsed.path
-    )
+def is_allowed_media_url(media_url):
+    """Validate a media URL is from an accepted source (local static uploads or Supabase CDN)."""
+    url_str = (media_url or "").strip()
+    if not url_str:
+        return False
+    # Local uploads served by Flask (Neon DB mode)
+    if url_str.startswith("/static/uploads/"):
+        return True
+    # External CDN: must be HTTPS and from an allowed host
+    parsed = urlparse(url_str)
+    if parsed.scheme.lower() != "https":
+        return False
+    # Supabase storage CDN
+    if SUPABASE_HOST and parsed.hostname == SUPABASE_HOST and "/storage/v1/object/" in parsed.path:
+        return True
+    return False
 
 
-# Fix 1: Serve Supabase CDN public URLs directly instead of routing every image
-# through the Flask proxy (which caused Supabase→Vercel→browser = 2× egress).
-# The proxy routes (site_media_proxy / program_image_proxy) are kept in place for
-# backwards compatibility with any bookmarked/cached URLs.
+# Backward-compatible alias kept for any code still referencing the old name.
+is_allowed_supabase_media_url = is_allowed_media_url
+
+
+# Media is now served from local static/ (Neon mode) or directly from CDN (Supabase mode).
+# The proxy routes below are kept for backwards compatibility with bookmarked/cached URLs.
 def attach_media_display_urls(media_rows):
     for row in media_rows:
         # Serve the CDN URL directly — avoids the reverse-proxy double-egress.
@@ -2178,6 +2206,7 @@ def send_email_sync(subject, recipients, html, attachments=None):
 @app.route("/robots.txt")
 def robots_txt():
     """robots.txt tells web crawlers allowed and disallowed paths, and references the XML sitemap."""
+    site_url = get_public_site_url()
     content = (
         "User-agent: *\n"
         "Allow: /\n"
@@ -2196,9 +2225,8 @@ def robots_txt():
         "Disallow: /dashboard\n"
         "Disallow: /api/\n"
         "Disallow: /site-media/\n"
-        "Disallow: /program-image/\n"
-        "Crawl-delay: 10\n\n"
-        "Sitemap: https://think-4u-charity-website.vercel.app/sitemap.xml\n"
+        "Disallow: /program-image/\n\n"
+        f"Sitemap: {site_url}/sitemap.xml\n"
     )
     resp = make_response(content, 200)
     resp.headers["Content-Type"] = "text/plain; charset=utf-8"
@@ -8949,12 +8977,19 @@ def get_cms_content(key, default=""):
 @app.context_processor
 def inject_cms():
     """Inject CMS helper and other utilities into templates"""
+    base_site_url = get_public_site_url()
+    try:
+        path = request.path
+    except Exception:
+        path = "/"
     return dict(
         get_cms=get_cms_content,
         csrf_token=generate_csrf_token,
         current_year=datetime.now(timezone.utc).year,
         inactivity_timeout_minutes=max(1, INACTIVITY_TIMEOUT_SECONDS // 60),
         app_version=APP_VERSION,
+        site_url=base_site_url,
+        canonical_url=f"{base_site_url}{path}",
     )
 
 

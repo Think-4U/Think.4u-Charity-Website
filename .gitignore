@@ -18,6 +18,7 @@ node_modules/
 # Uploads / runtime
 static/uploads/
 tmp/
+scratch/
 
 # Do NOT ignore compiled Tailwind CSS (static/css/tailwind.css) — it's required in production
 .env

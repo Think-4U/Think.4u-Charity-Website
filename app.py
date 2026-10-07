@@ -1030,7 +1030,20 @@ def media_proxy(media_uuid):
         abort(404)
 
     fallback_mime = "video/mp4" if media.get("media_type") == "video" else "image/jpeg"
-    return stream_remote_media(media.get("url"), fallback_mime=fallback_mime)
+    target_url = media.get("url")
+    if not target_url:
+        abort(404)
+
+    # For external / CDN hosted media (like Cloudflare R2), redirect via 307 Temporary Redirect.
+    # This keeps think4u.org/m/<uuid> as the canonical link in DB and templates while
+    # allowing the browser to stream directly from Cloudflare R2's global edge without
+    # hitting serverless payload limits (4.5MB on Vercel) or execution timeouts.
+    if is_allowed_media_url(target_url) and target_url.startswith("http"):
+        resp = redirect(target_url, code=307)
+        resp.headers["Cache-Control"] = "public, max-age=86400, s-maxage=604800"
+        return resp
+
+    return stream_remote_media(target_url, fallback_mime=fallback_mime)
 
 
 @app.route("/site-media/<media_id>")

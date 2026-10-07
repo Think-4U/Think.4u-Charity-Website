@@ -503,7 +503,10 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-6xl mx-auto">
                 {% for video in gallery_videos %}
                 <div class="content-card p-3">
-                    <video controls preload="metadata" src="{{ video.display_url or video.url }}"></video>
+                    <video controls preload="metadata" playsinline class="w-full rounded-lg bg-[#24120b] aspect-video">
+                        <source src="{{ video.display_url or video.url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
                     {% if video.title %}<p class="font-bold text-slate-800 mt-3">{{ video.title }}</p>{% endif %}
                 </div>
                 {% endfor %}

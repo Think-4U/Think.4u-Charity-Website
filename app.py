@@ -932,7 +932,7 @@ def attach_media_display_urls(media_rows):
     for row in media_rows:
         uid = row.get("uuid")
         if uid:
-            row["display_url"] = url_for("media_proxy", media_uuid=str(uid), _external=False)
+            row["display_url"] = f"/m/{str(uid)}"
         else:
             # Fallback: still hide the origin; serve via legacy /site-media/<id>
             row["display_url"] = url_for("site_media_proxy", media_id=row["id"], _external=False)

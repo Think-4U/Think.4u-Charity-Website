@@ -18,30 +18,30 @@
         pointer-events: none;
     }
     .card-surface {
-        background: #ffffff;
-        border: 1px solid rgba(75, 38, 24, 0.1);
+        background: #fdf8f0;
+        border: 1.5px solid rgba(180, 115, 60, 0.22);
         border-radius: 1.25rem;
-        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.05);
+        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.06);
         transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
     }
     .card-surface:hover {
         transform: translateY(-4px);
-        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.1);
-        border-color: rgba(213, 141, 75, 0.4);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.12);
+        border-color: rgba(213, 141, 75, 0.55);
     }
     .events-subnav-sticky {
         position: sticky;
         top: 78px;
         z-index: 40;
         backdrop-filter: blur(12px);
-        background: rgba(253, 250, 246, 0.94);
-        border-bottom: 1px solid rgba(75, 38, 24, 0.1);
+        background: rgba(246, 240, 230, 0.96);
+        border-bottom: 1px solid rgba(75, 38, 24, 0.12);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="bg-[#fdfaf6] min-h-screen text-slate-800">
+<div class="min-h-screen text-slate-800" style="background-color: #f6f0e6;">
 
     <!-- HERO HEADER -->
     <section class="events-hero py-16 sm:py-20 px-4">
@@ -104,7 +104,7 @@
     <div class="max-w-5xl mx-auto px-4 py-12 space-y-16">
 
         <!-- 1. FEATURED MILESTONE: OFFICIAL WEBSITE LAUNCH (OCTOBER 4, 2026) -->
-        <section id="featured-milestone" class="card-surface overflow-hidden p-0 border-2 border-amber-900/15">
+        <section id="featured-milestone" class="card-surface overflow-hidden p-0 border-2" style="background-color: #fcf6ee; border-color: rgba(180, 115, 60, 0.3);">
             <div class="bg-gradient-to-r from-[#24120b] to-[#3a160b] text-white p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <span class="px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider">
@@ -127,7 +127,7 @@
             </div>
 
             <!-- Media Row: Video Player + Official Poster Image -->
-            <div class="p-6 sm:p-8 space-y-6">
+            <div class="p-6 sm:p-8 space-y-6" style="background-color: #faf2e4;">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
                     <!-- Launch Video Player -->
                     <div class="space-y-2">
@@ -169,7 +169,7 @@
                 </div>
 
                 <!-- Descriptive Statement -->
-                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-amber-200/80 space-y-3">
+                <div class="p-6 rounded-2xl border space-y-3" style="background-color: #f5e9d4; border-color: #dfc294;">
                     <h3 class="text-lg font-black text-slate-900">
                         A Digital Bridge for Community Welfare
                     </h3>
@@ -202,7 +202,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- 1. RELIEF DRIVE: HELP US BRING A SMILE! -->
-                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                <div class="card-surface overflow-hidden flex flex-col justify-between" style="background-color: #fff2ed; border: 1.5px solid #fdcfc0;">
                     <div>
                         <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
                             <img src="{{ url_for('static', filename='images/initiatives/page_7_6.png') }}" alt="Help Us Bring a Smile Distribution Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
@@ -217,17 +217,17 @@
                             <p class="text-sm font-semibold text-rose-800">
                                 Essential distribution of warm clothes, blankets, food kits, medicines, and toys to children in underserved slum clusters.
                             </p>
-                            <p class="text-xs text-slate-600 leading-relaxed">
+                            <p class="text-xs text-stone-700 leading-relaxed">
                                 Our relief volunteers identified vulnerable slum communities and shelter homes facing severe seasonal weather. Through organized collection drives and doorstep distributions, warm winter wear, dry ration groceries, hygiene kits, and educational toys were handed directly to children and elderly residents, restoring hope and dignity.
                             </p>
-                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Warm Clothes &amp; Blankets</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Nutrition Kits</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Toys &amp; Books</span>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-rose-950">
+                                <span class="px-2.5 py-1 rounded-md bg-[#fce1d9] border border-rose-300/80">&bull; Warm Clothes &amp; Blankets</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#fce1d9] border border-rose-300/80">&bull; Nutrition Kits</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#fce1d9] border border-rose-300/80">&bull; Toys &amp; Books</span>
                             </div>
                         </div>
                     </div>
-                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                    <div class="p-6 sm:p-7 pt-4 border-t border-rose-200/80 mt-4 flex items-center justify-between" style="background-color: #fde6df;">
                         <a href="{{ url_for('donate') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow transition">
                             <span>Sponsor Essentials</span>
                             <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
@@ -237,7 +237,7 @@
                 </div>
 
                 <!-- 2. EDUCATION: RURAL SCHOOL RENOVATION -->
-                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                <div class="card-surface overflow-hidden flex flex-col justify-between" style="background-color: #f0f6ff; border: 1.5px solid #c9defe;">
                     <div>
                         <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
                             <img src="{{ url_for('static', filename='images/initiatives/page_4_3.png') }}" alt="Rural School Renovation Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
@@ -252,17 +252,17 @@
                             <p class="text-sm font-semibold text-blue-800">
                                 Upgrading dilapidated classrooms, providing school kits, library books, and safe drinking water for rural students.
                             </p>
-                            <p class="text-xs text-slate-600 leading-relaxed">
+                            <p class="text-xs text-stone-700 leading-relaxed">
                                 Many government primary schools in peripheral villages struggle with damaged blackboards, lack of clean water filters, and missing benches. Our renovation program coordinates with local village heads and teachers to repaint walls with educational art, repair washroom sanitations, supply clean RO water, and stock library corners with inspiring regional and English books.
                             </p>
-                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Classroom Repairs</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Safe Drinking Water</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Library &amp; Desks</span>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-blue-950">
+                                <span class="px-2.5 py-1 rounded-md bg-[#dce9fc] border border-blue-300/80">&bull; Classroom Repairs</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#dce9fc] border border-blue-300/80">&bull; Safe Drinking Water</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#dce9fc] border border-blue-300/80">&bull; Library &amp; Desks</span>
                             </div>
                         </div>
                     </div>
-                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                    <div class="p-6 sm:p-7 pt-4 border-t border-blue-200/80 mt-4 flex items-center justify-between" style="background-color: #e5effd;">
                         <a href="{{ url_for('donate') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow transition">
                             <span>Support a School</span>
                             <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
@@ -272,7 +272,7 @@
                 </div>
 
                 <!-- 3. WELLNESS: SWASTHYA (स्वास्थ्य) -->
-                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                <div class="card-surface overflow-hidden flex flex-col justify-between" style="background-color: #faf2ff; border: 1.5px solid #ebd2ff;">
                     <div>
                         <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
                             <img src="{{ url_for('static', filename='images/initiatives/page_6_5.png') }}" alt="Swasthya Free Healing Therapy for Women" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
@@ -287,17 +287,17 @@
                             <p class="text-sm font-semibold text-purple-800">
                                 Free healing therapy initiative for women launching on 5th July 2026. Nourish soul, balance mind, and heal body with compassion.
                             </p>
-                            <p class="text-xs text-slate-600 leading-relaxed">
+                            <p class="text-xs text-stone-700 leading-relaxed">
                                 Women bear enormous physical and emotional strain within underprivileged households, frequently without access to healthcare or therapeutic support. The Swasthya initiative provides a peaceful sanctuary offering trauma-informed psychological guidance, stress alleviation therapies, herbal health awareness, and personalized nutrition consultations led by voluntary medical practitioners.
                             </p>
-                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Mental Health Healing</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Body &amp; Soul Balance</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Women Hygiene Counseling</span>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-purple-950">
+                                <span class="px-2.5 py-1 rounded-md bg-[#ebd7fc] border border-purple-300/80">&bull; Mental Health Healing</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#ebd7fc] border border-purple-300/80">&bull; Body &amp; Soul Balance</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#ebd7fc] border border-purple-300/80">&bull; Women Hygiene Counseling</span>
                             </div>
                         </div>
                     </div>
-                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                    <div class="p-6 sm:p-7 pt-4 border-t border-purple-200/80 mt-4 flex items-center justify-between" style="background-color: #f3e6fd;">
                         <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow transition">
                             <span>Learn More</span>
                             <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
@@ -307,7 +307,7 @@
                 </div>
 
                 <!-- 4. LEGAL AID: LEGAL ADVISORY SESSIONS -->
-                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                <div class="card-surface overflow-hidden flex flex-col justify-between" style="background-color: #f2f4ff; border: 1.5px solid #d5daf9;">
                     <div>
                         <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
                             <img src="{{ url_for('static', filename='images/initiatives/page_5_4.png') }}" alt="Legal Advisory Sessions for Women" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
@@ -322,17 +322,17 @@
                             <p class="text-sm font-semibold text-indigo-800">
                                 Free legal guidance, domestic support, and constitutional rights counseling by our dedicated pool of experienced advocates.
                             </p>
-                            <p class="text-xs text-slate-600 leading-relaxed">
+                            <p class="text-xs text-stone-700 leading-relaxed">
                                 Injustice thrives when marginalized women cannot afford legal representation. Our legal advisory camps connect women facing domestic violence, property disenfranchisement, or employment exploitation with seasoned legal practitioners. We organize regular legal awareness workshops ensuring every citizen understands their constitutional protections and remedies.
                             </p>
-                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Pro-Bono Legal Counsel</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Constitutional Rights</span>
-                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Domestic Support Pool</span>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-indigo-950">
+                                <span class="px-2.5 py-1 rounded-md bg-[#e0e5fc] border border-indigo-300/80">&bull; Pro-Bono Legal Counsel</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#e0e5fc] border border-indigo-300/80">&bull; Constitutional Rights</span>
+                                <span class="px-2.5 py-1 rounded-md bg-[#e0e5fc] border border-indigo-300/80">&bull; Domestic Support Pool</span>
                             </div>
                         </div>
                     </div>
-                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                    <div class="p-6 sm:p-7 pt-4 border-t border-indigo-200/80 mt-4 flex items-center justify-between" style="background-color: #e8ecfc;">
                         <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow transition">
                             <span>Request Support</span>
                             <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
@@ -358,40 +358,40 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div class="card-surface overflow-hidden group">
+                <div class="card-surface overflow-hidden group" style="background-color: #fdf8ee; border: 1.5px solid rgba(180, 115, 60, 0.25);">
                     <div class="h-60 overflow-hidden bg-stone-100">
                         <img src="{{ url_for('static', filename='images/initiatives/page_1_0.png') }}" alt="Think.4U Community Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                     </div>
-                    <div class="p-4">
+                    <div class="p-4" style="background-color: #faf3e4;">
                         <h4 class="font-bold text-slate-900 text-sm">Youth &amp; Student Mobilization</h4>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Engaging college leaders in community action.</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">Engaging college leaders in community action.</p>
                     </div>
                 </div>
 
-                <div class="card-surface overflow-hidden group">
+                <div class="card-surface overflow-hidden group" style="background-color: #fdf8ee; border: 1.5px solid rgba(180, 115, 60, 0.25);">
                     <div class="h-60 overflow-hidden bg-stone-100">
                         <img src="{{ url_for('static', filename='images/initiatives/page_2_1.png') }}" alt="Think.4U Youth Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                     </div>
-                    <div class="p-4">
+                    <div class="p-4" style="background-color: #faf3e4;">
                         <h4 class="font-bold text-slate-900 text-sm">Volunteering &amp; Grassroots Care</h4>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Direct distribution drives with high accountability.</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">Direct distribution drives with high accountability.</p>
                     </div>
                 </div>
 
-                <div class="card-surface overflow-hidden group">
+                <div class="card-surface overflow-hidden group" style="background-color: #fdf8ee; border: 1.5px solid rgba(180, 115, 60, 0.25);">
                     <div class="h-60 overflow-hidden bg-stone-100">
                         <img src="{{ url_for('static', filename='images/initiatives/page_3_2.png') }}" alt="Entrepreneurship Awareness Camp" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                     </div>
-                    <div class="p-4">
+                    <div class="p-4" style="background-color: #faf3e4;">
                         <h4 class="font-bold text-slate-900 text-sm">Student Entrepreneurship Mission</h4>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Ideation workshops and founder mentoring.</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">Ideation workshops and founder mentoring.</p>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- 4. YOUTUBE MEDIA CHANNEL (FIXED 2-COLUMN LAYOUT) -->
-        <section id="media-channel" class="card-surface p-8 sm:p-10">
+        <section id="media-channel" class="card-surface p-8 sm:p-10" style="background-color: #fcf5ea; border: 1.5px solid rgba(180, 115, 60, 0.25);">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                 <div class="space-y-4">
                     <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-300">

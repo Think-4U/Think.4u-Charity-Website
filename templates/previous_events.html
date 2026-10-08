@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% block title %}Previous Events &amp; Impact Gallery - Think.4U Charitable Trust{% endblock %}
+{% block meta_description %}Witness how Think.4U Charitable Trust volunteers and donors bring genuine smiles through relief drives, rural school renovation, Swasthya women healing, and legal advisory sessions.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .events-hero {
+        background: linear-gradient(135deg, #1f0606 0%, #3a160b 50%, #522110 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .events-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.25), transparent 50%);
+        pointer-events: none;
+    }
+    .card-surface {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.1);
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-surface:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.1);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+    .events-subnav-sticky {
+        position: sticky;
+        top: 78px;
+        z-index: 40;
+        backdrop-filter: blur(12px);
+        background: rgba(253, 250, 246, 0.94);
+        border-bottom: 1px solid rgba(75, 38, 24, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fdfaf6] min-h-screen text-slate-800">
+
+    <!-- HERO HEADER -->
+    <section class="events-hero py-16 sm:py-20 px-4">
+        <div class="max-w-5xl mx-auto text-center space-y-4">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-200 border border-amber-400/30">
+                <i data-lucide="history" class="w-3.5 h-3.5"></i> Field Drives &bull; Milestones &bull; Ground Impact
+            </span>
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
+                Previous Events &amp; Impact Gallery
+            </h1>
+            <p class="text-amber-100/90 text-base sm:text-lg max-w-3xl mx-auto leading-relaxed">
+                Witness how our volunteers and donors bring genuine smiles to children, women, and underserved communities.
+            </p>
+            <div class="pt-4 flex flex-wrap justify-center gap-3">
+                <a href="#featured-milestone" class="px-6 py-3 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-bold text-sm shadow-lg transition">
+                    Website Launch Milestone
+                </a>
+                <a href="#initiatives-showcase" class="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm border border-white/20 transition">
+                    Explore 4 Core Drives
+                </a>
+                <a href="{{ url_for('donate') }}" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg transition">
+                    Support Future Drives
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB-NAVIGATION PILL BAR -->
+    <nav class="events-subnav-sticky py-3 px-4">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+            <div class="flex items-center gap-2 text-xs font-bold whitespace-nowrap">
+                <a href="{{ url_for('events_page') }}" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-amber-900 hover:bg-amber-100/60 transition flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Current Events
+                </a>
+                <span class="px-3.5 py-1.5 rounded-lg bg-[#24120b] text-white flex items-center gap-1.5">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-amber-400"></i> Previous Events &amp; Gallery
+                </span>
+                <a href="#featured-milestone" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-amber-900 hover:bg-amber-100/60 transition">
+                    Website Launch
+                </a>
+                <a href="#initiatives-showcase" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-amber-900 hover:bg-amber-100/60 transition">
+                    Ground Drives
+                </a>
+                <a href="#impact-photos" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-amber-900 hover:bg-amber-100/60 transition">
+                    Photo Stream
+                </a>
+                <a href="#media-channel" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-amber-900 hover:bg-amber-100/60 transition">
+                    Video Channel
+                </a>
+            </div>
+            <div class="hidden sm:block">
+                <a href="{{ url_for('volunteer') }}" class="text-xs font-bold text-amber-800 hover:underline">
+                    Volunteer With Us &rarr;
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN BODY CONTAINER -->
+    <div class="max-w-5xl mx-auto px-4 py-12 space-y-16">
+
+        <!-- 1. FEATURED MILESTONE: OFFICIAL WEBSITE LAUNCH (OCTOBER 4, 2026) -->
+        <section id="featured-milestone" class="card-surface overflow-hidden p-0 border-2 border-amber-900/15">
+            <div class="bg-gradient-to-r from-[#24120b] to-[#3a160b] text-white p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider">
+                        Historic Digital Milestone
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white mt-2">
+                        Official Website Launch Ceremony
+                    </h2>
+                    <p class="text-xs sm:text-sm text-amber-200/90 mt-1">
+                        4 October 2026 &bull; Connecting Compassion with Action
+                    </p>
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
+                        Website Launched By
+                    </span>
+                    <p class="text-base sm:text-lg font-black text-white mt-1">Shri Eatala Rajender Garu</p>
+                    <p class="text-xs text-slate-300">Hon’ble MP, Malkajgiri Parliamentary Constituency, Telangana</p>
+                </div>
+            </div>
+
+            <!-- Media Row: Video Player + Official Poster Image -->
+            <div class="p-6 sm:p-8 space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                    <!-- Launch Video Player -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
+                            <span class="flex items-center gap-1.5 text-amber-800">
+                                <i data-lucide="play-circle" class="w-4 h-4 text-red-600"></i> Official Launch Video
+                            </span>
+                            <span class="text-slate-500">Live Recording</span>
+                        </div>
+                        <div class="relative rounded-2xl overflow-hidden shadow-xl bg-black border border-stone-200 aspect-video">
+                            <video controls preload="metadata" playsinline class="w-full h-full object-cover">
+                                <source src="https://media.think4u.org/videos/WhatsApp%20Video%202026-10-08%20at%2010.16.17%20PM.mp4" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <p class="text-[11px] text-slate-500 italic text-center">
+                            Official website launch by Shri Eatala Rajender Garu MP on 4th October 2026.
+                        </p>
+                    </div>
+
+                    <!-- Official Launch Ceremony Poster -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
+                            <span class="flex items-center gap-1.5 text-slate-800">
+                                <i data-lucide="image" class="w-4 h-4 text-blue-600"></i> Launch Photograph &amp; Plaque
+                            </span>
+                            <span class="text-slate-500">Official Release</span>
+                        </div>
+                        <div class="relative rounded-2xl overflow-hidden shadow-xl bg-[#1f0606] border border-amber-500/30">
+                            <img src="{{ url_for('static', filename='images/website_launch_etela_rajender.png') }}" alt="Think.4U Website Launch with Shri Eatala Rajender MP" class="w-full h-auto object-cover max-h-[340px]">
+                            <div class="p-2.5 bg-gradient-to-t from-black/90 to-transparent absolute bottom-0 inset-x-0 text-white text-center">
+                                <span class="text-xs font-bold text-amber-300">Website Launch &bull; 04-10-2026</span>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 text-center">
+                            A new digital beginning for a greater social mission across Telangana.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Descriptive Statement -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-amber-200/80 space-y-3">
+                    <h3 class="text-lg font-black text-slate-900">
+                        A Digital Bridge for Community Welfare
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        Think.4U Charitable Trust is committed to serving society through meaningful grassroots initiatives, empowering communities, supporting those in need, and creating opportunities for a better tomorrow. With our official website unveiled by Shri Eatala Rajender Garu, our operations now feature end-to-end transparent donation tracking, volunteer registration, campus ambassador cohorts, and real-time impact publishing.
+                    </p>
+                    <div class="pt-2 flex flex-wrap items-center gap-3 text-xs font-bold">
+                        <span class="px-3.5 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300">
+                            Think &bull; Serve &bull; Empower &bull; Transform
+                        </span>
+                        <a href="{{ url_for('about') }}" class="text-amber-800 hover:underline">Learn About Our Trust Leadership &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. FOUR CORE PREVIOUS EVENTS & GROUND INITIATIVES -->
+        <section id="initiatives-showcase" class="space-y-8">
+            <div class="text-center max-w-3xl mx-auto">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300 mb-2">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-700"></i> Documented Ground Drives
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 mb-2">
+                    Our 4 Core Previous Initiatives
+                </h2>
+                <p class="text-slate-600 text-sm">
+                    Witness how our volunteers and donors bring genuine smiles to children, women, and underserved communities:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- 1. RELIEF DRIVE: HELP US BRING A SMILE! -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_7_6.png') }}" alt="Help Us Bring a Smile Distribution Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-4 left-4 px-3 py-1 rounded-md bg-rose-600 text-white text-xs font-black uppercase tracking-wider shadow">
+                                Relief Drive
+                            </span>
+                        </div>
+                        <div class="p-6 sm:p-7 space-y-3">
+                            <h3 class="text-2xl font-black text-slate-900">
+                                Help Us Bring a Smile!
+                            </h3>
+                            <p class="text-sm font-semibold text-rose-800">
+                                Essential distribution of warm clothes, blankets, food kits, medicines, and toys to children in underserved slum clusters.
+                            </p>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Our relief volunteers identified vulnerable slum communities and shelter homes facing severe seasonal weather. Through organized collection drives and doorstep distributions, warm winter wear, dry ration groceries, hygiene kits, and educational toys were handed directly to children and elderly residents, restoring hope and dignity.
+                            </p>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Warm Clothes &amp; Blankets</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Nutrition Kits</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Toys &amp; Books</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                        <a href="{{ url_for('donate') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow transition">
+                            <span>Sponsor Essentials</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </a>
+                        <span class="text-xs font-bold text-rose-800">Direct Beneficiary Reach</span>
+                    </div>
+                </div>
+
+                <!-- 2. EDUCATION: RURAL SCHOOL RENOVATION -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_4_3.png') }}" alt="Rural School Renovation Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-4 left-4 px-3 py-1 rounded-md bg-blue-600 text-white text-xs font-black uppercase tracking-wider shadow">
+                                Education
+                            </span>
+                        </div>
+                        <div class="p-6 sm:p-7 space-y-3">
+                            <h3 class="text-2xl font-black text-slate-900">
+                                Rural School Renovation
+                            </h3>
+                            <p class="text-sm font-semibold text-blue-800">
+                                Upgrading dilapidated classrooms, providing school kits, library books, and safe drinking water for rural students.
+                            </p>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Many government primary schools in peripheral villages struggle with damaged blackboards, lack of clean water filters, and missing benches. Our renovation program coordinates with local village heads and teachers to repaint walls with educational art, repair washroom sanitations, supply clean RO water, and stock library corners with inspiring regional and English books.
+                            </p>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Classroom Repairs</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Safe Drinking Water</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Library &amp; Desks</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                        <a href="{{ url_for('donate') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow transition">
+                            <span>Support a School</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </a>
+                        <span class="text-xs font-bold text-blue-800">SDG 4: Quality Education</span>
+                    </div>
+                </div>
+
+                <!-- 3. WELLNESS: SWASTHYA (स्वास्थ्य) -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_6_5.png') }}" alt="Swasthya Free Healing Therapy for Women" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-4 left-4 px-3 py-1 rounded-md bg-purple-600 text-white text-xs font-black uppercase tracking-wider shadow">
+                                Wellness
+                            </span>
+                        </div>
+                        <div class="p-6 sm:p-7 space-y-3">
+                            <h3 class="text-2xl font-black text-slate-900">
+                                Swasthya (स्वास्थ्य)
+                            </h3>
+                            <p class="text-sm font-semibold text-purple-800">
+                                Free healing therapy initiative for women launching on 5th July 2026. Nourish soul, balance mind, and heal body with compassion.
+                            </p>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Women bear enormous physical and emotional strain within underprivileged households, frequently without access to healthcare or therapeutic support. The Swasthya initiative provides a peaceful sanctuary offering trauma-informed psychological guidance, stress alleviation therapies, herbal health awareness, and personalized nutrition consultations led by voluntary medical practitioners.
+                            </p>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Mental Health Healing</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Body &amp; Soul Balance</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Women Hygiene Counseling</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                        <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow transition">
+                            <span>Learn More</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </a>
+                        <span class="text-xs font-bold text-purple-800">Launch: 5 July 2026</span>
+                    </div>
+                </div>
+
+                <!-- 4. LEGAL AID: LEGAL ADVISORY SESSIONS -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div class="h-64 sm:h-72 overflow-hidden relative group bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_5_4.png') }}" alt="Legal Advisory Sessions for Women" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-4 left-4 px-3 py-1 rounded-md bg-indigo-600 text-white text-xs font-black uppercase tracking-wider shadow">
+                                Legal Aid
+                            </span>
+                        </div>
+                        <div class="p-6 sm:p-7 space-y-3">
+                            <h3 class="text-2xl font-black text-slate-900">
+                                Legal Advisory Sessions
+                            </h3>
+                            <p class="text-sm font-semibold text-indigo-800">
+                                Free legal guidance, domestic support, and constitutional rights counseling by our dedicated pool of experienced advocates.
+                            </p>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Injustice thrives when marginalized women cannot afford legal representation. Our legal advisory camps connect women facing domestic violence, property disenfranchisement, or employment exploitation with seasoned legal practitioners. We organize regular legal awareness workshops ensuring every citizen understands their constitutional protections and remedies.
+                            </p>
+                            <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Pro-Bono Legal Counsel</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Constitutional Rights</span>
+                                <span class="px-2.5 py-1 rounded-md bg-stone-100">&bull; Domestic Support Pool</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 sm:p-7 pt-0 border-t border-stone-100 mt-4 flex items-center justify-between">
+                        <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow transition">
+                            <span>Request Support</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </a>
+                        <span class="text-xs font-bold text-indigo-800">SDG 16: Peace &amp; Justice</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ADDITIONAL FIELD PHOTO STREAM -->
+        <section id="impact-photos" class="space-y-6">
+            <div class="text-center max-w-3xl mx-auto">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-2">
+                    <i data-lucide="camera" class="w-3.5 h-3.5 text-amber-700"></i> Photo Stream
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-1">
+                    Smiles in Action
+                </h2>
+                <p class="text-slate-600 text-sm">
+                    Glimpses from volunteer fieldwork, startup orientation sessions, and rural community engagements:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div class="card-surface overflow-hidden group">
+                    <div class="h-60 overflow-hidden bg-stone-100">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_1_0.png') }}" alt="Think.4U Community Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold text-slate-900 text-sm">Youth &amp; Student Mobilization</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Engaging college leaders in community action.</p>
+                    </div>
+                </div>
+
+                <div class="card-surface overflow-hidden group">
+                    <div class="h-60 overflow-hidden bg-stone-100">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_2_1.png') }}" alt="Think.4U Youth Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold text-slate-900 text-sm">Volunteering &amp; Grassroots Care</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Direct distribution drives with high accountability.</p>
+                    </div>
+                </div>
+
+                <div class="card-surface overflow-hidden group">
+                    <div class="h-60 overflow-hidden bg-stone-100">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_3_2.png') }}" alt="Entrepreneurship Awareness Camp" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold text-slate-900 text-sm">Student Entrepreneurship Mission</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Ideation workshops and founder mentoring.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. YOUTUBE MEDIA CHANNEL (FIXED 2-COLUMN LAYOUT) -->
+        <section id="media-channel" class="card-surface p-8 sm:p-10">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div class="space-y-4">
+                    <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-300">
+                        <i data-lucide="video" class="w-3.5 h-3.5 text-red-600"></i> YouTube Media Channel
+                    </span>
+                    <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
+                        Watch Our Drives &amp; Stories in Motion
+                    </h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                        Follow our official video channel for live footage of our relief operations, student interaction sessions, tree plantation drives, and guest addresses.
+                    </p>
+                    <div class="pt-2">
+                        <a href="https://www.youtube.com/@Think.4U-h9g" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow transition text-sm">
+                            <svg viewBox="0 0 24 24" fill="white" class="w-4 h-4">
+                                <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+                                <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#dc2626"/>
+                            </svg>
+                            <span>Visit Think.4U YouTube Channel</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-[#24120b] to-[#3a160b] text-white space-y-4 border border-amber-500/30 shadow-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center font-black text-xl shadow">
+                                ▶
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-lg">Think.4U Media &amp; Podcasts</h4>
+                                <span class="text-xs text-amber-300">@Think.4U-h9g &bull; Official Broadcasts</span>
+                            </div>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            Subscribe to receive notifications about live webinars, youth leader interviews, volunteer orientations, and ceremony highlights.
+                        </p>
+                        <div class="pt-2 flex items-center justify-between text-xs font-semibold text-amber-400">
+                            <span>Official Media Production</span>
+                            <a href="https://www.youtube.com/@Think.4U-h9g" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">Subscribe &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. CALL TO ACTION: JOIN OR DONATE -->
+        <section class="card-surface p-8 sm:p-12 text-center bg-gradient-to-br from-[#24120b] to-[#3a160b] text-white border border-amber-500/30">
+            <div class="max-w-2xl mx-auto space-y-4">
+                <span class="inline-block px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-wider">
+                    Be Part of the Next Milestone
+                </span>
+                <h3 class="text-3xl font-black text-white">
+                    Every Contribution Reaches Real Lives
+                </h3>
+                <p class="text-slate-300 text-sm leading-relaxed">
+                    Whether you sponsor a relief box, help renovate a village classroom, or volunteer your skills, you become an essential partner in our journey.
+                </p>
+                <div class="pt-4 flex flex-wrap justify-center gap-3">
+                    <a href="{{ url_for('donate') }}" class="px-8 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition">
+                        Donate to Our Drives
+                    </a>
+                    <a href="{{ url_for('volunteer') }}" class="px-8 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold border border-white/30 transition">
+                        Register as Volunteer
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

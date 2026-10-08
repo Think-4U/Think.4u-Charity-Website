@@ -2310,6 +2310,7 @@ def sitemap_xml():
         {"loc": f"{site_url}/campus-ambassadors", "changefreq": "weekly", "priority": "0.9"},
         {"loc": f"{site_url}/partners", "changefreq": "weekly", "priority": "0.9"},
         {"loc": f"{site_url}/events", "changefreq": "daily", "priority": "0.9"},
+        {"loc": f"{site_url}/previous-events", "changefreq": "daily", "priority": "0.9"},
         {"loc": f"{site_url}/fundraising", "changefreq": "daily", "priority": "0.9"},
         {"loc": f"{site_url}/donate", "changefreq": "monthly", "priority": "0.9"},
         {"loc": f"{site_url}/donate-upi", "changefreq": "monthly", "priority": "0.8"},
@@ -2409,11 +2410,115 @@ def campus_ambassadors():
     return render_template("campus_ambassadors.html")
 
 
-@app.route("/partners")
-@app.route("/programs/partners")
+@app.route("/partners", methods=["GET", "POST"])
+@app.route("/programs/partners", methods=["GET", "POST"])
 def partners():
-    """Our Partners & Collaboration Network."""
-    return render_template("partners.html")
+    """Our Partners & Collaboration Network with partner inquiry submission."""
+    if request.method == "POST":
+        turnstile_token = get_turnstile_token()
+        # If turnstile is configured on server, verify the token
+        if TURNSTILE_SITE_KEY and not verify_turnstile(turnstile_token, get_client_ip()):
+            flash("Security verification failed. Please try again.", "error")
+            return redirect(url_for("partners") + "#partner-form")
+
+        org_name = clean_text(request.form.get("name"), 140)
+        contact_person = clean_text(request.form.get("contact_person"), 120)
+        email = normalize_email(request.form.get("email"))
+        phone = normalize_phone(request.form.get("phone"))
+        partner_domain = clean_text(request.form.get("partner_domain") or "General Collaboration", 120)
+        message_body = clean_text(request.form.get("message"), 3000, keep_new_lines=True)
+
+        if not org_name or not email or not message_body:
+            flash("Organization name, valid email address, and collaboration proposal are required.", "error")
+            return redirect(url_for("partners") + "#partner-form")
+
+        sender_label = f"{contact_person} ({org_name})" if contact_person else org_name
+        full_message = (
+            f"Organization: {org_name}\n"
+            f"Contact Person: {contact_person or '-'}\n"
+            f"Domain: {partner_domain}\n"
+            f"Phone: {phone or '-'}\n"
+            f"Email: {email}\n\n"
+            f"Proposal / Details:\n{message_body}"
+        )
+
+        saved_ok = False
+        try:
+            supabase.table("contact_messages").insert({
+                "user_id": current_db_user_id() if current_user.is_authenticated else None,
+                "name": sender_label,
+                "email": email,
+                "phone": phone,
+                "subject": f"Partnership Proposal: {partner_domain} - {org_name}",
+                "message": full_message,
+                "status": "open",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+            saved_ok = True
+        except Exception as se:
+            app.logger.warning(f"Supabase partner proposal insert failed, attempting Neon: {se}")
+            try:
+                conn = get_db_connection()
+                if conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            INSERT INTO contact_messages (user_id, name, email, phone, subject, message, status, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """,
+                            (
+                                current_db_user_id() if current_user.is_authenticated else None,
+                                sender_label,
+                                email,
+                                phone,
+                                f"Partnership Proposal: {partner_domain} - {org_name}",
+                                full_message,
+                                "open",
+                                datetime.now(timezone.utc),
+                            )
+                        )
+                        conn.commit()
+                        saved_ok = True
+            except Exception as ne:
+                app.logger.error(f"Neon DB partner proposal insert failed: {ne}")
+
+        try:
+
+            admin_email = get_cms_content("contact_email", app.config.get("MAIL_USERNAME") or "")
+            if admin_email:
+                send_email_async(
+                    subject=f"Think.4U Partnership Proposal: {org_name} ({partner_domain})",
+                    recipients=[admin_email],
+                    html=f"""
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+                        <h2 style="color:#7c2d12;">New Partnership Proposal Received</h2>
+                        <p><strong>Organization:</strong> {html.escape(org_name)}</p>
+                        <p><strong>Contact Person:</strong> {html.escape(contact_person or '-')}</p>
+                        <p><strong>Email:</strong> {html.escape(email)}</p>
+                        <p><strong>Phone:</strong> {html.escape(phone or '-')}</p>
+                        <p><strong>Partnership Domain:</strong> {html.escape(partner_domain)}</p>
+                        <hr style="border:0;border-top:1px solid #e2e8f0;margin:16px 0;">
+                        <p><strong>Proposal Details:</strong></p>
+                        <p>{html.escape(message_body).replace(chr(10), '<br>')}</p>
+                    </div>
+                    """
+                )
+            flash("Thank you for reaching out! Your partnership proposal has been submitted successfully. Our leadership team will connect with you shortly.", "success")
+            return redirect(url_for("partners") + "#partner-form")
+        except Exception as e:
+            app.logger.error(f"Partner proposal submission failed: {e}")
+            flash("Unable to submit proposal right now. Please email us directly at info@think4u.org.", "error")
+            return redirect(url_for("partners") + "#partner-form")
+
+    return render_template("partners.html", turnstile_site_key=TURNSTILE_SITE_KEY)
+
+
+@app.route("/previous-events")
+@app.route("/events/previous")
+@app.route("/events/impact-gallery")
+def previous_events():
+    """Previous Events & Impact Gallery showcase page."""
+    return render_template("previous_events.html")
 
 
 
@@ -5832,9 +5937,11 @@ def events_page():
                 event_id = item.get("event_id")
                 if event_id is not None:
                     certificate_map[db_id(event_id)] = item
-                    certificate_map[str(event_id)] = item
         except Exception:
             certificate_map = {}
+
+    if not events and not request.args.get("all"):
+        return redirect(url_for("previous_events"))
 
     return render_template(
         "events.html",

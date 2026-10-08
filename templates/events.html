@@ -69,58 +69,80 @@
 
         <!-- 1. FEATURED MILESTONE: OFFICIAL WEBSITE LAUNCH -->
         <section id="website-launch" class="card-surface overflow-hidden p-0 border-2 border-amber-900/15">
-            <div class="grid grid-cols-1 lg:grid-cols-12 items-center">
-                
-                <!-- Left Poster / Image Display -->
-                <div class="lg:col-span-5 bg-[#1f0606] p-6 flex flex-col items-center justify-center">
-                    <div class="relative rounded-2xl overflow-hidden shadow-2xl border border-amber-500/30 max-w-sm w-full">
-                        <img src="{{ url_for('static', filename='images/website_launch_etela_rajender.png') }}" alt="Think.4U Official Website Launch by Shri Eatala Rajender Garu MP" class="w-full h-auto object-cover">
-                        <div class="p-3 bg-gradient-to-t from-black/95 to-transparent absolute bottom-0 inset-x-0 text-white text-center">
-                            <span class="text-xs font-bold text-amber-300">Website Launch Ceremony &bull; 04-10-2026</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Narrative & Details -->
-                <div class="lg:col-span-7 p-8 sm:p-10 space-y-5">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-black uppercase tracking-wider">
-                            Historic Milestone
-                        </span>
-                        <span class="px-3 py-1 rounded-full bg-stone-100 text-slate-700 text-xs font-bold flex items-center gap-1.5">
-                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-700"></i> 4 October 2026
-                        </span>
-                    </div>
-
-                    <h2 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
-                        THINK.4U CHARITABLE TRUST<br>
-                        <span class="text-[#d58d4b]">OFFICIAL WEBSITE LAUNCH</span>
+            <div class="bg-gradient-to-r from-[#24120b] to-[#3a160b] text-white p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider">
+                        Historic Milestone &bull; 04-10-2026
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white mt-2">
+                        Official Website Launch Ceremony
                     </h2>
+                    <p class="text-xs sm:text-sm text-amber-200/90 mt-1">
+                        Connecting Compassion with Action &bull; A New Digital Beginning
+                    </p>
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
+                        Website Launched By
+                    </span>
+                    <p class="text-base sm:text-lg font-black text-white mt-1">Shri Eatala Rajender Garu</p>
+                    <p class="text-xs text-slate-300">Hon’ble MP, Malkajgiri Parliamentary Constituency, Telangana</p>
+                </div>
+            </div>
 
-                    <div class="p-5 rounded-2xl bg-[#fff8f1] border-l-4 border-[#d58d4b] space-y-2">
-                        <p class="text-xs uppercase font-bold text-amber-800 tracking-wider">Website Launched By</p>
-                        <h3 class="text-xl sm:text-2xl font-black text-slate-900">
-                            Shri Eatala Rajender Garu
-                        </h3>
-                        <p class="text-sm font-semibold text-slate-700">
-                            Hon’ble Member of Parliament &bull; Malkajgiri Parliamentary Constituency, Telangana
+            <!-- Media Row: Video Player + Official Launch Photograph -->
+            <div class="p-6 sm:p-8 space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                    <!-- Launch Video Player -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
+                            <span class="flex items-center gap-1.5 text-amber-800">
+                                <i data-lucide="play-circle" class="w-4 h-4 text-red-600"></i> Official Launch Video
+                            </span>
+                            <span class="text-slate-500">Live Recording</span>
+                        </div>
+                        <div class="relative rounded-2xl overflow-hidden shadow-xl bg-black border border-stone-200 aspect-video">
+                            <video controls preload="metadata" playsinline class="w-full h-full object-cover">
+                                <source src="https://media.think4u.org/videos/WhatsApp%20Video%202026-10-08%20at%2010.16.17%20PM.mp4" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <p class="text-[11px] text-slate-500 italic text-center">
+                            Official website launch by Shri Eatala Rajender Garu MP on 4th October 2026.
                         </p>
                     </div>
 
-                    <p class="text-base text-slate-700 leading-relaxed font-medium italic">
-                        “Connecting Compassion with Action — A New Digital Beginning for a Greater Social Mission.”
-                    </p>
+                    <!-- Launch Photo Display -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
+                            <span class="flex items-center gap-1.5 text-slate-800">
+                                <i data-lucide="image" class="w-4 h-4 text-blue-600"></i> Launch Photograph &amp; Plaque
+                            </span>
+                            <span class="text-slate-500">Official Release</span>
+                        </div>
+                        <div class="relative rounded-2xl overflow-hidden shadow-xl bg-[#1f0606] border border-amber-500/30">
+                            <img src="{{ url_for('static', filename='images/website_launch_etela_rajender.png') }}" alt="Think.4U Official Website Launch by Shri Eatala Rajender Garu MP" class="w-full h-auto object-cover max-h-[340px]">
+                            <div class="p-2.5 bg-gradient-to-t from-black/90 to-transparent absolute bottom-0 inset-x-0 text-white text-center">
+                                <span class="text-xs font-bold text-amber-300">Website Launch &bull; 04-10-2026</span>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 text-center">
+                            A new digital beginning for a greater social mission across Telangana.
+                        </p>
+                    </div>
+                </div>
 
-                    <p class="text-sm text-slate-600 leading-relaxed">
-                        Think.4U Charitable Trust marked a monumental milestone with the official launch of our digital platform by Hon'ble MP Shri Eatala Rajender Garu. The portal serves as a transparent bridge connecting donors, volunteers, college campus ambassadors, and communities in need across Telangana and beyond.
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-amber-200/80 space-y-3">
+                    <p class="text-sm font-semibold text-slate-700 italic">
+                        “Think.4U Charitable Trust is committed to serving society through meaningful initiatives, empowering communities, supporting those in need, and creating opportunities for a better tomorrow.”
                     </p>
-
-                    <div class="pt-2 flex flex-wrap items-center gap-3">
-                        <span class="px-4 py-2 rounded-xl bg-amber-50 text-amber-950 text-xs font-bold border border-amber-200">
+                    <div class="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs font-bold">
+                        <span class="px-3.5 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300">
                             Think &bull; Serve &bull; Empower &bull; Transform
                         </span>
-                        <a href="{{ url_for('donate') }}" class="px-5 py-2 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white text-xs font-bold shadow transition">
-                            Support Our Mission &rarr;
+                        <a href="{{ url_for('previous_events') }}" class="text-amber-800 hover:underline flex items-center gap-1">
+                            <span>View Full Impact Gallery &amp; Previous Drives</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
                         </a>
                     </div>
                 </div>
@@ -306,8 +328,8 @@
 
         <!-- 4. OFFICIAL VIDEOS & MEDIA HIGHLIGHTS -->
         <section class="card-surface p-8 sm:p-10">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div class="lg:col-span-6 space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div class="space-y-4">
                     <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-300">
                         <i data-lucide="video" class="w-3.5 h-3.5 text-red-600"></i> YouTube Media Channel
                     </span>
@@ -328,18 +350,18 @@
                     </div>
                 </div>
 
-                <div class="lg:col-span-6">
-                    <div class="p-6 rounded-2xl bg-gradient-to-br from-[#24120b] to-[#3a160b] text-white space-y-4">
+                <div>
+                    <div class="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-[#24120b] to-[#3a160b] text-white space-y-4 border border-amber-500/30 shadow-xl">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-black">
+                            <div class="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center font-black text-xl shadow">
                                 ▶
                             </div>
                             <div>
-                                <h4 class="font-bold text-white text-base">Think.4U Media &amp; Podcasts</h4>
+                                <h4 class="font-bold text-white text-lg">Think.4U Media &amp; Podcasts</h4>
                                 <span class="text-xs text-amber-300">@Think.4U-h9g &bull; Official Broadcasts</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-300 leading-relaxed">
+                        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
                             Subscribe to receive notifications about live webinars, youth leader interviews, volunteer orientations, and ceremony highlights.
                         </p>
                         <div class="pt-1 flex items-center justify-between text-xs font-semibold text-amber-400">

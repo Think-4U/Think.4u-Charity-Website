@@ -379,9 +379,21 @@
                     </p>
                 </div>
 
-                <form method="POST" action="{{ url_for('contact') }}" class="space-y-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for category, message in messages %}
+                    <div class="p-4 rounded-xl text-sm font-semibold flex items-start gap-3 {% if category == 'success' %}bg-emerald-50 text-emerald-900 border border-emerald-300{% else %}bg-rose-50 text-rose-900 border border-rose-300{% endif %}">
+                        <i data-lucide="{% if category == 'success' %}check-circle-2{% else %}alert-circle{% endif %}" class="w-5 h-5 flex-shrink-0 mt-0.5 {% if category == 'success' %}text-emerald-600{% else %}text-rose-600{% endif %}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('partners') }}" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="subject" value="Partnership & Collaboration Proposal">
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -389,8 +401,8 @@
                             <input type="text" name="name" required placeholder="e.g. Acme Foundation or University" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Contact Person &amp; Designation *</label>
-                            <input type="text" name="contact_person" required placeholder="e.g. Director, CSR Lead" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Contact Person &amp; Designation</label>
+                            <input type="text" name="contact_person" placeholder="e.g. Director, CSR Lead" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
                         </div>
                     </div>
 
@@ -400,14 +412,14 @@
                             <input type="email" name="email" required placeholder="name@organization.org" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Phone / Mobile Number *</label>
-                            <input type="tel" name="phone" required placeholder="+91 98765 43210" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Phone / Mobile Number</label>
+                            <input type="tel" name="phone" placeholder="+91 98765 43210" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Partnership Domain</label>
-                        <select name="partner_domain" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Partnership Domain *</label>
+                        <select name="partner_domain" required class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
                             <option value="CSR & Corporate Partnership">Corporate Social Responsibility (CSR)</option>
                             <option value="Collegiate / University Collaboration">Collegiate / University Collaboration</option>
                             <option value="Entrepreneurship & Innovation Mentorship">Entrepreneurship &amp; Innovation Mentorship</option>
@@ -422,6 +434,12 @@
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Collaboration Proposal / Details *</label>
                         <textarea name="message" rows="4" required placeholder="Describe how your organization would like to partner with Think.4U Charitable Trust..." class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white"></textarea>
                     </div>
+
+                    {% if turnstile_site_key %}
+                    <div class="flex justify-center my-2">
+                        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light"></div>
+                    </div>
+                    {% endif %}
 
                     <div class="pt-2 text-center">
                         <button type="submit" class="px-8 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition inline-flex items-center gap-2">

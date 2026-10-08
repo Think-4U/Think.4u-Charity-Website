@@ -451,7 +451,16 @@
                         <li><a href="{{ url_for('partners') }}"><i data-lucide="handshake"></i>Our Partners</a></li>
                     </ul>
                 </li>
-                <li><a href="{{ url_for('events_page') }}">Events</a></li>
+                <li class="nav-dropdown">
+                    <button type="button" class="nav-dropdown-btn" id="events-dropdown-btn" aria-haspopup="true" aria-expanded="false" data-no-loader>
+                        <span>Events</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+                    </button>
+                    <ul class="nav-dropdown-menu" aria-labelledby="events-dropdown-btn">
+                        <li><a href="{{ url_for('events_page') }}"><i data-lucide="calendar"></i>Current Events</a></li>
+                        <li><a href="{{ url_for('previous_events') }}"><i data-lucide="history"></i>Previous Events</a></li>
+                    </ul>
+                </li>
                 <li><a href="{{ url_for('fundraising') }}">Fundraising</a></li>
                 <li><a href="{{ url_for('index') }}#impact">Impact</a></li>
                 <li><a href="{{ url_for('contact') }}">Contact</a></li>
@@ -489,8 +498,12 @@
                 <a href="{{ url_for('campus_ambassadors') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm border-b border-white/5"><i data-lucide="graduation-cap" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Campus Ambassadors</a>
                 <a href="{{ url_for('partners') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm"><i data-lucide="handshake" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Our Partners</a>
             </div>
+            <div class="px-4 py-2 border-b border-white/10">
+                <p class="text-xs font-bold uppercase tracking-widest text-amber-400 py-1">Events</p>
+                <a href="{{ url_for('events_page') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm border-b border-white/5"><i data-lucide="calendar" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Current Events</a>
+                <a href="{{ url_for('previous_events') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2 text-sm"><i data-lucide="history" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>Previous Events &amp; Impact</a>
+            </div>
             <div class="px-4 py-2">
-                <a href="{{ url_for('events_page') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Events</a>
                 <a href="{{ url_for('fundraising') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Fundraising</a>
                 <a href="{{ url_for('index') }}#impact" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Impact</a>
                 <a href="{{ url_for('contact') }}" class="flex items-center gap-3 text-white/90 hover:text-[#d58d4b] py-2.5 text-sm border-b border-white/5">Contact</a>
@@ -695,6 +708,7 @@
                     <li><a href="{{ url_for('campus_ambassadors') }}">Campus Ambassadors</a></li>
                     <li><a href="{{ url_for('partners') }}">Our Partners</a></li>
                     <li><a href="{{ url_for('events_page') }}">Events</a></li>
+                    <li><a href="{{ url_for('previous_events') }}">Previous Events &amp; Gallery</a></li>
                     <li><a href="{{ url_for('fundraising') }}">Fundraising</a></li>
                     <li><a href="{{ url_for('index') }}#impact">Impact</a></li>
                     <li><a href="{{ url_for('sitemap_page') }}">Sitemap</a></li>
@@ -1065,21 +1079,23 @@
                 });
             }
 
-            // About Us dropdown interaction
-            const aboutBtn = document.getElementById('about-dropdown-btn');
-            const aboutDropdown = aboutBtn?.closest('.nav-dropdown');
-            if (aboutBtn && aboutDropdown) {
-                aboutBtn.addEventListener('click', (e) => {
+            // Nav dropdown click/touch interactions (About Us, Programs, Events)
+            document.querySelectorAll('.nav-dropdown-btn').forEach(btn => {
+                const dropdown = btn.closest('.nav-dropdown');
+                if (!dropdown) return;
+                btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    aboutDropdown.classList.toggle('open');
+                    const isOpen = dropdown.classList.contains('open');
+                    document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+                    if (!isOpen) dropdown.classList.add('open');
                 });
-                document.addEventListener('click', (e) => {
-                    if (!aboutDropdown.contains(e.target)) {
-                        aboutDropdown.classList.remove('open');
-                    }
+            });
+            document.addEventListener('click', (e) => {
+                document.querySelectorAll('.nav-dropdown').forEach(d => {
+                    if (!d.contains(e.target)) d.classList.remove('open');
                 });
-            }
+            });
 
             // International Geolocation Detection
             (async function checkUserGeoLocation() {

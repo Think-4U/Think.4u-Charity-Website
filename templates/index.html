@@ -413,7 +413,23 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-center text-slate-600">No public events are available right now.</p>
+            <div class="max-w-3xl mx-auto p-6 sm:p-8 rounded-3xl bg-white border border-stone-200 shadow-sm text-center space-y-4">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-800 mx-auto flex items-center justify-center">
+                    <i data-lucide="calendar" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-900">Explore Our Milestones &amp; Previous Drives</h3>
+                <p class="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+                    No public volunteer drives scheduled for today. Check out our <strong>Official Website Launch Ceremony</strong> by Shri Eatala Rajender Garu MP and explore our <strong>Previous Events &amp; Impact Gallery</strong>!
+                </p>
+                <div class="pt-2 flex flex-wrap justify-center gap-3">
+                    <a href="{{ url_for('previous_events') }}" class="btn-cta text-sm py-2.5 px-5 flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4"></i> View Previous Events &amp; Gallery
+                    </a>
+                    <a href="{{ url_for('volunteer') }}" class="btn-cta btn-secondary text-sm py-2.5 px-5 flex items-center gap-2">
+                        <i data-lucide="users" class="w-4 h-4"></i> Join Volunteer Network
+                    </a>
+                </div>
+            </div>
             {% endif %}
         </div>
     </section>
@@ -485,6 +501,107 @@
                             <i data-lucide="arrow-right" class="w-4 h-4"></i>
                         </a>
                         <span class="text-[10px] bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full font-bold">CSR Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Core Community Initiatives & Impact Programs -->
+            <div class="mb-14">
+                <div class="text-center mb-8">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300 mb-2">
+                        <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-700"></i> Core Community Initiatives
+                    </span>
+                    <h3 class="text-2xl sm:text-3xl font-black text-slate-900">Field Drives &amp; Social Impact</h3>
+                    <p class="text-slate-600 text-sm max-w-2xl mx-auto mt-1">Direct support reaching underserved children, rural schools, and women in need.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+                    <!-- Initiative 1: Relief Drive -->
+                    <div class="content-card overflow-hidden flex flex-col justify-between group">
+                        <div class="h-48 overflow-hidden relative bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_7_6.png') }}" alt="Help Us Bring a Smile Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-black uppercase">Relief Drive</span>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-black text-slate-900 text-base mb-1">Help Us Bring a Smile!</h4>
+                                <p class="text-xs text-slate-600 leading-relaxed mb-4">
+                                    Essential distribution of warm clothes, blankets, food kits, medicines, and toys to children in underserved slum clusters.
+                                </p>
+                            </div>
+                            <div class="pt-3 border-t border-stone-200">
+                                <a href="{{ url_for('donate') }}" class="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1">
+                                    <span>Sponsor Essentials</span>
+                                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Initiative 2: Education -->
+                    <div class="content-card overflow-hidden flex flex-col justify-between group">
+                        <div class="h-48 overflow-hidden relative bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_4_3.png') }}" alt="Rural School Renovation" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-black uppercase">Education</span>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-black text-slate-900 text-base mb-1">Rural School Renovation</h4>
+                                <p class="text-xs text-slate-600 leading-relaxed mb-4">
+                                    Upgrading dilapidated classrooms, providing school kits, library books, and safe drinking water for rural students.
+                                </p>
+                            </div>
+                            <div class="pt-3 border-t border-stone-200">
+                                <a href="{{ url_for('donate') }}" class="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1">
+                                    <span>Support a School</span>
+                                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Initiative 3: Wellness -->
+                    <div class="content-card overflow-hidden flex flex-col justify-between group">
+                        <div class="h-48 overflow-hidden relative bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_6_5.png') }}" alt="Swasthya Healing Therapy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 px-2 py-0.5 rounded bg-purple-600 text-white text-[10px] font-black uppercase">Wellness</span>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-black text-slate-900 text-base mb-1">Swasthya (स्वास्थ्य)</h4>
+                                <p class="text-xs text-slate-600 leading-relaxed mb-4">
+                                    Free healing therapy initiative for women launching on 5th July 2026. Nourish soul, balance mind, and heal body with compassion.
+                                </p>
+                            </div>
+                            <div class="pt-3 border-t border-stone-200">
+                                <a href="{{ url_for('contact') }}" class="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1">
+                                    <span>Learn More</span>
+                                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Initiative 4: Legal Aid -->
+                    <div class="content-card overflow-hidden flex flex-col justify-between group">
+                        <div class="h-48 overflow-hidden relative bg-stone-100">
+                            <img src="{{ url_for('static', filename='images/initiatives/page_5_4.png') }}" alt="Legal Advisory Sessions" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 px-2 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-black uppercase">Legal Aid</span>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-black text-slate-900 text-base mb-1">Legal Advisory Sessions</h4>
+                                <p class="text-xs text-slate-600 leading-relaxed mb-4">
+                                    Free legal guidance, domestic support, and constitutional rights counseling by our dedicated pool of experienced advocates.
+                                </p>
+                            </div>
+                            <div class="pt-3 border-t border-stone-200">
+                                <a href="{{ url_for('contact') }}" class="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1">
+                                    <span>Request Support</span>
+                                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -603,51 +720,51 @@
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-white font-bold text-xs">
-                    <div class="p-3 rounded-xl bg-[#e5243b] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 1</span>
-                        <div><span class="font-black text-sm block">No Poverty</span><span class="text-[10px] font-normal opacity-90">Needy Support</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #e5243b; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 1</span>
+                        <div><span class="font-black text-sm block text-white">No Poverty</span><span class="text-[10px] font-normal text-white/90">Needy Support</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#dda63a] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 2</span>
-                        <div><span class="font-black text-sm block">Zero Hunger</span><span class="text-[10px] font-normal opacity-90">Food Relief</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #dda63a; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 2</span>
+                        <div><span class="font-black text-sm block text-white">Zero Hunger</span><span class="text-[10px] font-normal text-white/90">Food Relief</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#4c9f38] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 3</span>
-                        <div><span class="font-black text-sm block">Good Health</span><span class="text-[10px] font-normal opacity-90">Swasthya Healing</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #4c9f38; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 3</span>
+                        <div><span class="font-black text-sm block text-white">Good Health</span><span class="text-[10px] font-normal text-white/90">Swasthya Healing</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#c5192d] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 4</span>
-                        <div><span class="font-black text-sm block">Education</span><span class="text-[10px] font-normal opacity-90">Rural Schools</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #c5192d; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 4</span>
+                        <div><span class="font-black text-sm block text-white">Education</span><span class="text-[10px] font-normal text-white/90">Rural Schools</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#ff3a21] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 5</span>
-                        <div><span class="font-black text-sm block">Gender Equality</span><span class="text-[10px] font-normal opacity-90">Skill4Her</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #ff3a21; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 5</span>
+                        <div><span class="font-black text-sm block text-white">Gender Equality</span><span class="text-[10px] font-normal text-white/90">Skill4Her</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#a21942] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 8</span>
-                        <div><span class="font-black text-sm block">Decent Work</span><span class="text-[10px] font-normal opacity-90">Entrepreneurship</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #a21942; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 8</span>
+                        <div><span class="font-black text-sm block text-white">Decent Work</span><span class="text-[10px] font-normal text-white/90">Entrepreneurship</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#fd6925] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 9</span>
-                        <div><span class="font-black text-sm block">Innovation</span><span class="text-[10px] font-normal opacity-90">Startup Ecosystem</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #fd6925; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 9</span>
+                        <div><span class="font-black text-sm block text-white">Innovation</span><span class="text-[10px] font-normal text-white/90">Startup Ecosystem</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#dd1367] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 10</span>
-                        <div><span class="font-black text-sm block">Reduced Gaps</span><span class="text-[10px] font-normal opacity-90">Inclusive Welfare</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #dd1367; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 10</span>
+                        <div><span class="font-black text-sm block text-white">Reduced Gaps</span><span class="text-[10px] font-normal text-white/90">Inclusive Welfare</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#fd9d24] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 11</span>
-                        <div><span class="font-black text-sm block">Communities</span><span class="text-[10px] font-normal opacity-90">Green Future</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #fd9d24; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 11</span>
+                        <div><span class="font-black text-sm block text-white">Communities</span><span class="text-[10px] font-normal text-white/90">Green Future</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#00689d] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 16</span>
-                        <div><span class="font-black text-sm block">Peace &amp; Justice</span><span class="text-[10px] font-normal opacity-90">Legal Advisory</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #00689d; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 16</span>
+                        <div><span class="font-black text-sm block text-white">Peace &amp; Justice</span><span class="text-[10px] font-normal text-white/90">Legal Advisory</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#19486a] flex flex-col justify-between min-h-[90px] shadow-sm">
-                        <span class="text-[10px] uppercase opacity-80">SDG 17</span>
-                        <div><span class="font-black text-sm block">Partnerships</span><span class="text-[10px] font-normal opacity-90">CSR &amp; Alliances</span></div>
+                    <div class="p-3 rounded-xl flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #19486a; color: #ffffff !important;">
+                        <span class="text-[10px] uppercase opacity-90">SDG 17</span>
+                        <div><span class="font-black text-sm block text-white">Partnerships</span><span class="text-[10px] font-normal text-white/90">CSR &amp; Alliances</span></div>
                     </div>
-                    <div class="p-3 rounded-xl bg-[#24120b] border border-amber-500/40 flex flex-col justify-between min-h-[90px] shadow-sm">
+                    <div class="p-3 rounded-xl border flex flex-col justify-between min-h-[95px] shadow-sm" style="background-color: #24120b; color: #ffffff !important; border-color: rgba(213, 141, 75, 0.4);">
                         <span class="text-[10px] uppercase text-amber-300">Govt Reg.</span>
                         <div><span class="font-black text-amber-200 text-xs block">TS/2026/1868819</span><span class="text-[9px] text-white/70">Darpan Certified</span></div>
                     </div>

@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}Our Programs &amp; Social Initiatives - Think.4U Charitable Trust{% endblock %}
+{% block meta_description %}Explore Think.4U Charitable Trust programs: Entrepreneurship Mission, Campus Ambassadors, Rural School Renovation, Swasthya Healing Therapy, and SDG-aligned initiatives.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .programs-hero {
+        background: linear-gradient(135deg, #1f0606 0%, #3a160b 50%, #522110 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .programs-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.25), transparent 50%);
+        pointer-events: none;
+    }
+    .card-surface {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.1);
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-surface:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.1);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+    .sdg-card {
+        padding: 1rem;
+        border-radius: 1rem;
+        color: white;
+        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 110px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    .sdg-card:hover {
+        transform: translateY(-3px) scale(1.02);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b]">
+
+    <!-- HERO SECTION -->
+    <section class="programs-hero py-16 sm:py-20 px-4 text-center">
+        <div class="max-w-5xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="layers" class="w-4 h-4"></i> Charitable Initiatives &bull; Love in Action, Care with Compassion
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-3">
+                Our <span class="text-[#d58d4b]">Programs</span>
+            </h1>
+            <p class="text-xl sm:text-2xl font-semibold text-amber-200/95 mb-4 italic">
+                “Small Actions Create Big Change”
+            </p>
+            <p class="max-w-3xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed">
+                Dedicated to empowering underprivileged communities, advancing student entrepreneurship, renovating rural schools, supporting women's welfare, and protecting the environment.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="{{ url_for('entrepreneurship') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-bold shadow-lg transition">
+                    <i data-lucide="lightbulb" class="w-5 h-5"></i> Entrepreneurship Mission
+                </a>
+                <a href="{{ url_for('campus_ambassadors') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="graduation-cap" class="w-5 h-5"></i> Campus Ambassadors
+                </a>
+                <a href="{{ url_for('partners') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="handshake" class="w-5 h-5"></i> Our Partners
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB NAVIGATION PILL BAR -->
+    <section class="sticky top-[78px] z-40 bg-[#f4eadf]/95 backdrop-blur-md border-y border-[#e2cdb9] shadow-sm py-3 px-4">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+            <a href="{{ url_for('programs_overview') }}" class="px-4 py-2 rounded-xl bg-[#d58d4b] text-white shadow-sm flex items-center gap-1.5 font-bold">
+                <i data-lucide="layers" class="w-4 h-4"></i> All Programs
+            </a>
+            <a href="{{ url_for('entrepreneurship') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-amber-700"></i> Entrepreneurship Mission
+            </a>
+            <a href="{{ url_for('campus_ambassadors') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="graduation-cap" class="w-4 h-4 text-amber-700"></i> Campus Ambassadors
+            </a>
+            <a href="{{ url_for('partners') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="handshake" class="w-4 h-4 text-amber-700"></i> Our Partners
+            </a>
+        </div>
+    </section>
+
+    <!-- MAIN BODY -->
+    <div class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-16">
+
+        <!-- 1. FEATURED THREE CORE PILLARS -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Pillar 1: Entrepreneurship -->
+            <div class="card-surface p-6 sm:p-7 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/15 text-[#d58d4b] flex items-center justify-center mb-4">
+                        <i data-lucide="lightbulb" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-[11px] font-bold uppercase text-amber-700 tracking-wider">Free Student Cohort</span>
+                    <h3 class="text-xl font-black text-slate-900 mt-1 mb-2">Entrepreneurship Mission</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        Empowering college students to become job creators, innovators, and future founders with free courses, mentorship, and practical guidance.
+                    </p>
+                </div>
+                <div class="pt-4 border-t border-stone-200">
+                    <a href="{{ url_for('entrepreneurship') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-amber-800 hover:text-amber-900">
+                        <span>Explore Curriculum &amp; Vision</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Pillar 2: Campus Ambassadors -->
+            <div class="card-surface p-6 sm:p-7 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-700 flex items-center justify-center mb-4">
+                        <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-[11px] font-bold uppercase text-emerald-700 tracking-wider">Collegiate Leadership</span>
+                    <h3 class="text-xl font-black text-slate-900 mt-1 mb-2">Campus Ambassadors</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        Be the Voice. Lead the Change. Empowering undergraduate and postgraduate students to represent Think.4U, lead drives, and earn certificates.
+                    </p>
+                </div>
+                <div class="pt-4 border-t border-stone-200">
+                    <a href="{{ url_for('campus_ambassadors') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-800 hover:text-emerald-900">
+                        <span>Apply on Google Forms</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Pillar 3: Our Partners -->
+            <div class="card-surface p-6 sm:p-7 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/15 text-blue-700 flex items-center justify-center mb-4">
+                        <i data-lucide="handshake" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-[11px] font-bold uppercase text-blue-700 tracking-wider">Strategic Synergy</span>
+                    <h3 class="text-xl font-black text-slate-900 mt-1 mb-2">Our Partners &amp; CSR</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        Collaborating with educational institutions, corporates, NGOs, and government bodies to create long-term social impact across Telangana.
+                    </p>
+                </div>
+                <div class="pt-4 border-t border-stone-200">
+                    <a href="{{ url_for('partners') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-blue-800 hover:text-blue-900">
+                        <span>Partner With Us</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. UPCOMING PROGRAMS & PROPOSED ACTIVITIES -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-2">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Proposed Activities &amp; Upcoming Drives
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">Key Operational Initiatives</h2>
+                <p class="text-slate-600 text-sm">
+                    Action-oriented grassroots projects addressing fundamental needs in education, health, women's empowerment, and ecology:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 1. Rural School Renovation -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-800 flex items-center justify-center">
+                        <i data-lucide="school" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Education &amp; Rural School Renovation</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Repairing and upgrading rural classrooms, roofs, washrooms, and drinking water facilities. Providing library books, digital resources, and scholarships.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md">Better Schools, Brighter Futures</span>
+                </div>
+
+                <!-- 2. Think Smart Education Drive -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Think Smart Education Drive</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Distributing 500+ school kits, backpacks, uniforms, and stationery to underprivileged rural students to curb dropout rates.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md">500+ School Kits Target</span>
+                </div>
+
+                <!-- 3. Skill4Her Program -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-800 flex items-center justify-center">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Skill4Her Program</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Vocational training, tailoring, handicrafts, digital skills, and micro-entrepreneurship support helping women achieve economic self-reliance.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md">Women Livelihood Support</span>
+                </div>
+
+                <!-- 4. Swasthya & Health4All -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-800 flex items-center justify-center">
+                        <i data-lucide="heart-pulse" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Swasthya (स्वास्थ्य) Healing Therapy</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Free holistic healing therapy initiative for women: healing body, balancing mind, nourishing soul, alongside monthly health and hygiene camps.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md">Heal with Compassion</span>
+                </div>
+
+                <!-- 5. Legal Advisory Sessions -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-800 flex items-center justify-center">
+                        <i data-lucide="scale" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Legal Advisory &amp; Women Support</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Free legal guidance and advocacy support to weaker section women through a pool of experienced advocates. Because every woman deserves respect and justice.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md">Advocate Network Pool</span>
+                </div>
+
+                <!-- 6. Green Future Initiative -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-800 flex items-center justify-center">
+                        <i data-lucide="trees" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Green Future Initiative</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Planting 2,000+ saplings in schools and public spaces. Fostering environmental awareness, water conservation, and clean community practices.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">2,000+ Saplings Plantation</span>
+                </div>
+
+                <!-- 7. Digital Minds Project -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-800 flex items-center justify-center">
+                        <i data-lucide="laptop" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Digital Minds Project</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Digital literacy workshops and hands-on computer familiarization modules for rural youth to bridge the digital divide.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-md">Digital Literacy for Youth</span>
+                </div>
+
+                <!-- 8. Think4Change Volunteer Program -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-teal-500/15 text-teal-800 flex items-center justify-center">
+                        <i data-lucide="user-check" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Think4Change Volunteer Program</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Building a 100-member active volunteer network across Hyderabad and Telangana for ground outreach, disaster relief, and donation logistics.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-md">100-Member Volunteer Network</span>
+                </div>
+
+                <!-- 9. Help Us Bring a Smile Drive -->
+                <div class="p-6 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-orange-500/15 text-orange-800 flex items-center justify-center">
+                        <i data-lucide="gift" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-base">Help Us Bring a Smile Drive</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Direct collection and distribution of clothes, blankets, groceries, medicines, toys, and school supplies to slum settlements and homeless shelters.
+                    </p>
+                    <span class="inline-block text-[11px] font-bold text-orange-700 bg-orange-50 px-2.5 py-1 rounded-md">Material &amp; Relief Drives</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ALIGNED WITH SUSTAINABLE DEVELOPMENT GOALS (SDGs) -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-900 border border-blue-300 mb-2">
+                    <i data-lucide="globe" class="w-3.5 h-3.5"></i> Global Alignment
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">Aligned with Sustainable Development Goals (SDGs)</h2>
+                <p class="text-slate-600 text-sm">
+                    Think.4U Charitable Trust's grassroots programs directly contribute to the United Nations Sustainable Development Goals:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <!-- SDG 1 -->
+                <div class="sdg-card bg-[#e5243b]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 1</span>
+                    <div>
+                        <span class="text-lg font-black block">No Poverty</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Uplifting underprivileged families</span>
+                    </div>
+                </div>
+
+                <!-- SDG 2 -->
+                <div class="sdg-card bg-[#dda63a]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 2</span>
+                    <div>
+                        <span class="text-lg font-black block">Zero Hunger</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Food distribution &amp; nutrition kits</span>
+                    </div>
+                </div>
+
+                <!-- SDG 3 -->
+                <div class="sdg-card bg-[#4c9f38]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 3</span>
+                    <div>
+                        <span class="text-lg font-black block">Good Health</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Swasthya &amp; wellness camps</span>
+                    </div>
+                </div>
+
+                <!-- SDG 4 -->
+                <div class="sdg-card bg-[#c5192d]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 4</span>
+                    <div>
+                        <span class="text-lg font-black block">Quality Education</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">School kits &amp; renovation</span>
+                    </div>
+                </div>
+
+                <!-- SDG 5 -->
+                <div class="sdg-card bg-[#ff3a21]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 5</span>
+                    <div>
+                        <span class="text-lg font-black block">Gender Equality</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Skill4Her &amp; legal counsel</span>
+                    </div>
+                </div>
+
+                <!-- SDG 8 -->
+                <div class="sdg-card bg-[#a21942]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 8</span>
+                    <div>
+                        <span class="text-lg font-black block">Decent Work</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Student entrepreneurship</span>
+                    </div>
+                </div>
+
+                <!-- SDG 9 -->
+                <div class="sdg-card bg-[#fd6925]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 9</span>
+                    <div>
+                        <span class="text-lg font-black block">Innovation</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Youth startup ecosystems</span>
+                    </div>
+                </div>
+
+                <!-- SDG 10 -->
+                <div class="sdg-card bg-[#dd1367]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 10</span>
+                    <div>
+                        <span class="text-lg font-black block">Reduced Inequalities</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Support for vulnerable groups</span>
+                    </div>
+                </div>
+
+                <!-- SDG 11 -->
+                <div class="sdg-card bg-[#fd9d24]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 11</span>
+                    <div>
+                        <span class="text-lg font-black block">Sustainable Cities</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Clean communities &amp; greenery</span>
+                    </div>
+                </div>
+
+                <!-- SDG 16 -->
+                <div class="sdg-card bg-[#00689d]">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 16</span>
+                    <div>
+                        <span class="text-lg font-black block">Peace &amp; Justice</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">Legal advisory for women</span>
+                    </div>
+                </div>
+
+                <!-- SDG 17 -->
+                <div class="sdg-card bg-[#19486a] col-span-2 sm:col-span-1">
+                    <span class="text-xs uppercase tracking-wider opacity-90">Goal 17</span>
+                    <div>
+                        <span class="text-lg font-black block">Partnerships</span>
+                        <span class="text-[10px] opacity-85 leading-tight block">CSR &amp; institutional synergy</span>
+                    </div>
+                </div>
+
+                <!-- Slogan Card -->
+                <div class="sdg-card bg-[#24120b] border border-amber-500/40 col-span-2 sm:col-span-1">
+                    <span class="text-xs uppercase tracking-wider text-amber-300">Think.4U</span>
+                    <div>
+                        <span class="text-sm font-black text-amber-200 block">Think. Serve.</span>
+                        <span class="text-[10px] text-white/80 leading-tight block">Empower &bull; Transform</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. DATABASE REGISTERED PROGRAMS (IF ANY) -->
+        {% if programs %}
+        <section class="card-surface p-8 sm:p-10">
+            <h3 class="text-2xl font-black text-slate-900 mb-6">Active Registered Causes</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {% for program in programs %}
+                <article class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 flex flex-col justify-between">
+                    <div>
+                        {% if program.image_url %}
+                        <div class="h-44 rounded-xl overflow-hidden mb-4">
+                            <img src="{{ program.image_display_url or program.image_url }}" alt="{{ program.title }}" class="w-full h-full object-cover">
+                        </div>
+                        {% endif %}
+                        <h4 class="text-lg font-black text-slate-900 mb-2">{{ program.title }}</h4>
+                        <p class="text-xs text-slate-600 line-clamp-3 mb-4">{{ program.description }}</p>
+                    </div>
+                    <div class="flex items-center gap-3 pt-3 border-t border-stone-200">
+                        <a href="{{ url_for('program_detail', program_id=program.id) }}" class="text-xs font-bold text-amber-800 hover:underline">Learn More &rarr;</a>
+                        <a href="{{ url_for('donate', purpose_type='program', purpose_id=program.id, purpose_label=program.title) }}" class="text-xs font-bold text-emerald-800 hover:underline">Donate</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- 5. CALL TO ACTION -->
+        <section class="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-[#24120b] via-[#3a170b] to-[#24120b] text-white shadow-2xl text-center space-y-5">
+            <h2 class="text-3xl sm:text-4xl font-black text-white">Join Hands With Think.4U Charitable Trust</h2>
+            <p class="max-w-2xl mx-auto text-slate-200 text-sm sm:text-base leading-relaxed">
+                Whether you wish to sponsor a student, renovate a classroom, plant trees, or volunteer on the ground, your support touches real lives.
+            </p>
+            <div class="flex flex-wrap justify-center gap-4 pt-2">
+                <a href="{{ url_for('donate') }}" class="px-8 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition flex items-center gap-2">
+                    <i data-lucide="heart" class="w-5 h-5"></i> Donate Now
+                </a>
+                <a href="{{ url_for('volunteer') }}" class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold border border-white/20 transition flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-5 h-5"></i> Become a Volunteer
+                </a>
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

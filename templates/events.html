@@ -1,91 +1,356 @@
 {% extends "base.html" %}
-{% block title %}Events - Think.4U{% endblock %}
+{% block title %}Events &amp; Milestones - Think.4U Charitable Trust{% endblock %}
+{% block meta_description %}Official Website Launch by Shri Eatala Rajender MP, upcoming volunteer drives, and previous community events by Think.4U Charitable Trust.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .event-hero {
+        background: linear-gradient(135deg, #1f0606 0%, #39170b 50%, #542411 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .event-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.25), transparent 50%);
+        pointer-events: none;
+    }
+    .card-surface {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.1);
+        border-radius: 1.5rem;
+        box-shadow: 0 10px 30px rgba(53, 28, 18, 0.06);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-surface:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.12);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="px-4 py-14 bg-[#fcf8f3] min-h-screen text-[#24120b]">
-    <div class="max-w-5xl mx-auto">
-        <div class="flex flex-wrap items-start justify-between gap-4 mb-10">
-            <div>
-                <span class="inline-block px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold uppercase tracking-wider mb-2">
-                    Community Drives
-                </span>
-                <h1 class="text-4xl sm:text-5xl font-black text-slate-900 mb-2">Upcoming Events</h1>
-                <p class="text-slate-600 max-w-xl">Register here to participate. Certificates are verified and approved event-wise by admin.</p>
-            </div>
-            {% if current_user.is_authenticated %}
-            <a href="{{ url_for('certificates_page') }}" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold shadow transition hover:from-amber-700 hover:to-amber-800">My Certificates</a>
-            {% else %}
-            <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-5 py-2.5 rounded-xl bg-[#24120b] text-white font-bold shadow transition hover:bg-[#38180e] border border-amber-500/30">Login to Register</a>
-            {% endif %}
-        </div>
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b] pb-20">
 
-        {% if events %}
-        <div class="space-y-5">
-            {% for e in events %}
-            {% set event_id = e.id|int %}
-            {% set registration = registration_map.get(event_id) if registration_map else None %}
-            {% set cert = certificate_map.get(event_id) if certificate_map else None %}
-            <div class="bg-white rounded-3xl shadow-lg border border-amber-900/10 p-6 sm:p-7 hover:border-amber-500/30 transition">
-                <div class="flex flex-wrap gap-4 items-start justify-between">
-                    <div class="flex-1 min-w-[240px]">
-                        <h2 class="text-xl font-bold text-slate-900">{{ e.title or 'Event' }}</h2>
-                        <p class="text-sm text-slate-500 mb-2">{{ e.event_date or e.date or 'Date TBA' }}{% if e.location %} • {{ e.location }}{% endif %}</p>
-                        {% set count = participant_counts.get(event_id, 0) if participant_counts else 0 %}
-                        <p class="text-xs font-semibold text-slate-600 mb-2">
-                            Registrations: <span class="text-violet-700">{{ count }}</span> / {{ e.max_registrations if e.max_registrations is not none else 'Unlimited' }}
-                        </p>
-                        {% if e.description %}
-                        <p class="text-slate-700">{{ e.description }}</p>
-                        {% endif %}
+    <!-- HERO HEADER -->
+    <section class="event-hero py-16 sm:py-20 px-4 text-center">
+        <div class="max-w-5xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Think &bull; Serve &bull; Empower &bull; Transform
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-3">
+                Events &amp; <span class="text-[#d58d4b]">Milestones</span>
+            </h1>
+            <p class="text-xl sm:text-2xl font-semibold text-amber-200/95 mb-4">
+                Connecting Compassion with Action
+            </p>
+            <p class="max-w-3xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed">
+                Think.4U Charitable Trust is committed to serving society through meaningful initiatives, empowering communities, supporting those in need, and creating opportunities for a better tomorrow.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="#website-launch" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition">
+                    <i data-lucide="award" class="w-5 h-5"></i> Official Website Launch
+                </a>
+                <a href="#upcoming-events" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="calendar" class="w-5 h-5"></i> Upcoming Drives
+                </a>
+                <a href="#past-events" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="camera" class="w-5 h-5"></i> Gallery &amp; Past Events
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <div class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-16">
+
+        <!-- 1. FEATURED MILESTONE: OFFICIAL WEBSITE LAUNCH -->
+        <section id="website-launch" class="card-surface overflow-hidden p-0 border-2 border-amber-900/15">
+            <div class="grid grid-cols-1 lg:grid-cols-12 items-center">
+                
+                <!-- Left Poster / Image Display -->
+                <div class="lg:col-span-5 bg-[#1f0606] p-6 flex flex-col items-center justify-center">
+                    <div class="relative rounded-2xl overflow-hidden shadow-2xl border border-amber-500/30 max-w-sm w-full">
+                        <img src="{{ url_for('static', filename='images/website_launch_etela_rajender.png') }}" alt="Think.4U Official Website Launch by Shri Eatala Rajender Garu MP" class="w-full h-auto object-cover">
+                        <div class="p-3 bg-gradient-to-t from-black/95 to-transparent absolute bottom-0 inset-x-0 text-white text-center">
+                            <span class="text-xs font-bold text-amber-300">Website Launch Ceremony &bull; 04-10-2026</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Narrative & Details -->
+                <div class="lg:col-span-7 p-8 sm:p-10 space-y-5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-black uppercase tracking-wider">
+                            Historic Milestone
+                        </span>
+                        <span class="px-3 py-1 rounded-full bg-stone-100 text-slate-700 text-xs font-bold flex items-center gap-1.5">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-700"></i> 4 October 2026
+                        </span>
                     </div>
 
-                    <div class="flex flex-col gap-2 min-w-[220px]">
-                        {% if registration %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {% if registration.status == 'registered' %}bg-blue-100 text-blue-700{% elif registration.status == 'attended' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-700{% endif %}">
-                            Participation: {{ registration.status|title }}
+                    <h2 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
+                        THINK.4U CHARITABLE TRUST<br>
+                        <span class="text-[#d58d4b]">OFFICIAL WEBSITE LAUNCH</span>
+                    </h2>
+
+                    <div class="p-5 rounded-2xl bg-[#fff8f1] border-l-4 border-[#d58d4b] space-y-2">
+                        <p class="text-xs uppercase font-bold text-amber-800 tracking-wider">Website Launched By</p>
+                        <h3 class="text-xl sm:text-2xl font-black text-slate-900">
+                            Shri Eatala Rajender Garu
+                        </h3>
+                        <p class="text-sm font-semibold text-slate-700">
+                            Hon’ble Member of Parliament &bull; Malkajgiri Parliamentary Constituency, Telangana
+                        </p>
+                    </div>
+
+                    <p class="text-base text-slate-700 leading-relaxed font-medium italic">
+                        “Connecting Compassion with Action — A New Digital Beginning for a Greater Social Mission.”
+                    </p>
+
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                        Think.4U Charitable Trust marked a monumental milestone with the official launch of our digital platform by Hon'ble MP Shri Eatala Rajender Garu. The portal serves as a transparent bridge connecting donors, volunteers, college campus ambassadors, and communities in need across Telangana and beyond.
+                    </p>
+
+                    <div class="pt-2 flex flex-wrap items-center gap-3">
+                        <span class="px-4 py-2 rounded-xl bg-amber-50 text-amber-950 text-xs font-bold border border-amber-200">
+                            Think &bull; Serve &bull; Empower &bull; Transform
                         </span>
-                        {% if cert %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {% if cert.status == 'approved' %}bg-emerald-100 text-emerald-700{% elif cert.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">
-                            Certificate: {{ cert.status|title }}
-                        </span>
-                        {% else %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                            Certificate: Pending
-                        </span>
-                        {% endif %}
-                        {% else %}
-                        <a href="{{ url_for('donate', purpose_type='event', purpose_id=event_id, purpose_label=e.title) }}" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-center text-sm">
-                            Donate to Event
+                        <a href="{{ url_for('donate') }}" class="px-5 py-2 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white text-xs font-bold shadow transition">
+                            Support Our Mission &rarr;
                         </a>
-                        {% if e.max_registrations is not none and count >= e.max_registrations|int %}
-                        <span class="px-4 py-2 rounded-xl bg-red-100 text-red-700 font-semibold text-center text-sm cursor-not-allowed select-none">
-                            Registration Full
-                        </span>
-                        {% else %}
-                            {% if current_user.is_authenticated %}
-                            <form method="POST" action="{{ url_for('register_for_event', event_id=event_id) }}">
-                                <button type="submit" class="px-4 py-2 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm">
-                                    Register for Event
-                                </button>
-                            </form>
-                            {% else %}
-                            <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center text-sm">
-                                Login to Register
-                            </a>
-                            {% endif %}
-                            <span class="text-xs text-slate-500 text-center">Register now to become eligible for certification review.</span>
-                        {% endif %}
-                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="bg-white rounded-2xl shadow border p-8 text-center text-slate-600">
-            No events published yet.
-        </div>
-        {% endif %}
+        </section>
+
+        <!-- 2. UPCOMING COMMUNITY DRIVES & EVENTS -->
+        <section id="upcoming-events" class="space-y-6">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <span class="inline-block px-3.5 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold uppercase tracking-wider mb-2">
+                        Volunteer Opportunities
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-black text-slate-900">Upcoming Drives &amp; Programs</h2>
+                    <p class="text-slate-600 text-sm max-w-xl mt-1">Register below to participate. Certificates of recognition are verified and issued upon event completion.</p>
+                </div>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('certificates_page') }}" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold shadow transition hover:from-amber-700 hover:to-amber-800 text-sm">
+                    My Certificates
+                </a>
+                {% else %}
+                <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-5 py-2.5 rounded-xl bg-[#24120b] text-white font-bold shadow transition hover:bg-[#38180e] border border-amber-500/30 text-sm">
+                    Login to Register
+                </a>
+                {% endif %}
+            </div>
+
+            {% if events %}
+            <div class="space-y-5">
+                {% for e in events %}
+                {% set event_id = e.id|int %}
+                {% set registration = registration_map.get(event_id) if registration_map else None %}
+                {% set cert = certificate_map.get(event_id) if certificate_map else None %}
+                <div class="card-surface p-6 sm:p-7">
+                    <div class="flex flex-wrap gap-4 items-start justify-between">
+                        <div class="flex-1 min-w-[240px]">
+                            <h3 class="text-xl font-bold text-slate-900 mb-1">{{ e.title or 'Event' }}</h3>
+                            <p class="text-sm text-slate-500 mb-2 font-medium flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-4 h-4 text-amber-700"></i>
+                                <span>{{ e.event_date or e.date or 'Date TBA' }}</span>
+                                {% if e.location %}<span>&bull; {{ e.location }}</span>{% endif %}
+                            </p>
+                            {% set count = participant_counts.get(event_id, 0) if participant_counts else 0 %}
+                            <p class="text-xs font-semibold text-slate-600 mb-2">
+                                Registrations: <span class="text-violet-700 font-bold">{{ count }}</span> / {{ e.max_registrations if e.max_registrations is not none else 'Unlimited' }}
+                            </p>
+                            {% if e.description %}
+                            <p class="text-slate-700 text-sm leading-relaxed">{{ e.description }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex flex-col gap-2 min-w-[220px]">
+                            {% if registration %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {% if registration.status == 'registered' %}bg-blue-100 text-blue-700{% elif registration.status == 'attended' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-700{% endif %}">
+                                Participation: {{ registration.status|title }}
+                            </span>
+                            {% if cert %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {% if cert.status == 'approved' %}bg-emerald-100 text-emerald-700{% elif cert.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                Certificate: {{ cert.status|title }}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                                Certificate: Pending Review
+                            </span>
+                            {% endif %}
+                            {% else %}
+                            <a href="{{ url_for('donate', purpose_type='event', purpose_id=event_id, purpose_label=e.title) }}" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-center text-sm">
+                                Donate to Event
+                            </a>
+                            {% if e.max_registrations is not none and count >= e.max_registrations|int %}
+                            <span class="px-4 py-2 rounded-xl bg-red-100 text-red-700 font-semibold text-center text-sm cursor-not-allowed select-none">
+                                Registration Full
+                            </span>
+                            {% else %}
+                                {% if current_user.is_authenticated %}
+                                <form method="POST" action="{{ url_for('register_for_event', event_id=event_id) }}">
+                                    <button type="submit" class="px-4 py-2 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm">
+                                        Register for Event
+                                    </button>
+                                </form>
+                                {% else %}
+                                <a href="{{ url_for('login', next=url_for('events_page')) }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center text-sm">
+                                    Login to Register
+                                </a>
+                                {% endif %}
+                                <span class="text-[11px] text-slate-500 text-center">Register to become eligible for event certificate.</span>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="card-surface p-8 text-center text-slate-600">
+                <p class="font-medium">No custom public drives active right now. Please explore our recurring initiatives below!</p>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- 3. PREVIOUS EVENTS & COMMUNITY INITIATIVES GALLERY -->
+        <section id="past-events" class="space-y-8">
+            <div class="text-center max-w-3xl mx-auto">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300 mb-2">
+                    <i data-lucide="camera" class="w-3.5 h-3.5"></i> Field Photos &amp; Ground Drives
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 mb-2">Previous Events &amp; Impact Gallery</h2>
+                <p class="text-slate-600 text-sm">
+                    Witness how our volunteers and donors bring genuine smiles to children, women, and underserved communities:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Event 1: Help Us Bring a Smile Drive -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div class="h-64 overflow-hidden relative group">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_7_6.png') }}" alt="Help Us Bring a Smile Distribution Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase">Relief Drive</span>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-black text-slate-900 text-base mb-1">Help Us Bring a Smile!</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                                Essential distribution of warm clothes, blankets, food kits, medicines, and toys to children in underserved slum clusters.
+                            </p>
+                        </div>
+                        <a href="{{ url_for('donate') }}" class="text-xs font-bold text-rose-700 hover:underline">Sponsor Essentials &rarr;</a>
+                    </div>
+                </div>
+
+                <!-- Event 2: Education & School Renovation -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div class="h-64 overflow-hidden relative group">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_4_3.png') }}" alt="Rural School Renovation Drive" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-blue-600 text-white text-[10px] font-black uppercase">Education</span>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-black text-slate-900 text-base mb-1">Rural School Renovation</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                                Upgrading dilapidated classrooms, providing school kits, library books, and safe drinking water for rural students.
+                            </p>
+                        </div>
+                        <a href="{{ url_for('donate') }}" class="text-xs font-bold text-blue-700 hover:underline">Support a School &rarr;</a>
+                    </div>
+                </div>
+
+                <!-- Event 3: Swasthya Healing Therapy for Women -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div class="h-64 overflow-hidden relative group">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_6_5.png') }}" alt="Swasthya Free Healing Therapy Initiative for Women" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-purple-600 text-white text-[10px] font-black uppercase">Wellness</span>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-black text-slate-900 text-base mb-1">Swasthya (स्वास्थ्य)</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                                Free healing therapy initiative for women launching on 5th July 2026. Nourish soul, balance mind, and heal body with compassion.
+                            </p>
+                        </div>
+                        <a href="{{ url_for('contact') }}" class="text-xs font-bold text-purple-700 hover:underline">Learn More &rarr;</a>
+                    </div>
+                </div>
+
+                <!-- Event 4: Legal Advisory Sessions for Women -->
+                <div class="card-surface overflow-hidden flex flex-col justify-between">
+                    <div class="h-64 overflow-hidden relative group">
+                        <img src="{{ url_for('static', filename='images/initiatives/page_5_4.png') }}" alt="Legal Advisory Sessions for Weaker Section Women" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase">Legal Aid</span>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-black text-slate-900 text-base mb-1">Legal Advisory Sessions</h4>
+                            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                                Free legal guidance, domestic support, and constitutional rights counseling by our dedicated pool of experienced advocates.
+                            </p>
+                        </div>
+                        <a href="{{ url_for('contact') }}" class="text-xs font-bold text-indigo-700 hover:underline">Request Support &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. OFFICIAL VIDEOS & MEDIA HIGHLIGHTS -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-6 space-y-4">
+                    <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-300">
+                        <i data-lucide="video" class="w-3.5 h-3.5 text-red-600"></i> YouTube Media Channel
+                    </span>
+                    <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
+                        Watch Our Drives &amp; Stories in Motion
+                    </h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                        Follow our official video channel for live footage of our relief operations, student interaction sessions, tree plantation drives, and guest addresses.
+                    </p>
+                    <div class="pt-2">
+                        <a href="https://www.youtube.com/@Think.4U-h9g" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow transition text-sm">
+                            <svg viewBox="0 0 24 24" fill="white" class="w-4 h-4">
+                                <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+                                <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#dc2626"/>
+                            </svg>
+                            <span>Visit Think.4U YouTube Channel</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-6">
+                    <div class="p-6 rounded-2xl bg-gradient-to-br from-[#24120b] to-[#3a160b] text-white space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-black">
+                                ▶
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base">Think.4U Media &amp; Podcasts</h4>
+                                <span class="text-xs text-amber-300">@Think.4U-h9g &bull; Official Broadcasts</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Subscribe to receive notifications about live webinars, youth leader interviews, volunteer orientations, and ceremony highlights.
+                        </p>
+                        <div class="pt-1 flex items-center justify-between text-xs font-semibold text-amber-400">
+                            <span>Official Media Production</span>
+                            <a href="https://www.youtube.com/@Think.4U-h9g" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">Subscribe &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </div>
-</section>
+</div>
 {% endblock %}

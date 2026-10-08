@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}Campus Ambassador Programme - Think.4U Charitable Trust{% endblock %}
+{% block meta_description %}Think.4U Campus Ambassador Programme: Empowering college students to become changemakers, develop leadership skills, and drive social impact on campuses.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ca-hero {
+        background: linear-gradient(135deg, #1f0606 0%, #351509 50%, #4f2110 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .ca-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.25), transparent 50%);
+        pointer-events: none;
+    }
+    .card-surface {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.1);
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-surface:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.1);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b]">
+
+    <!-- HERO SECTION -->
+    <section class="ca-hero py-16 sm:py-20 px-4 text-center">
+        <div class="max-w-5xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="award" class="w-4 h-4"></i> Student Leadership &bull; Small Steps Create Big Change
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-3">
+                Campus Ambassador <span class="text-[#d58d4b]">Programme</span>
+            </h1>
+            <p class="text-xl sm:text-2xl font-semibold text-amber-200/95 mb-4">
+                “Be the Voice. Lead the Change.”
+            </p>
+            <p class="max-w-3xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed">
+                Empowering college students to become official representatives and changemakers within their campuses and communities. Develop leadership, event management, and networking skills while making an enduring societal impact.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSeEoWpnvXuxVZqr5YY0rbas_0kXzNz7aDfkTSssf60hMTbjIQ/viewform" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition">
+                    <i data-lucide="external-link" class="w-5 h-5"></i> Register on Google Forms
+                </a>
+                <a href="#programme-details" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="info" class="w-5 h-5"></i> View Details &amp; Benefits
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB NAVIGATION PILL BAR -->
+    <section class="sticky top-[78px] z-40 bg-[#f4eadf]/95 backdrop-blur-md border-y border-[#e2cdb9] shadow-sm py-3 px-4">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+            <a href="{{ url_for('programs_overview') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-700"></i> All Programs
+            </a>
+            <a href="{{ url_for('entrepreneurship') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-amber-700"></i> Entrepreneurship Mission
+            </a>
+            <a href="{{ url_for('campus_ambassadors') }}" class="px-4 py-2 rounded-xl bg-[#d58d4b] text-white shadow-sm flex items-center gap-1.5 font-bold">
+                <i data-lucide="graduation-cap" class="w-4 h-4"></i> Campus Ambassadors
+            </a>
+            <a href="{{ url_for('partners') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="handshake" class="w-4 h-4 text-amber-700"></i> Our Partners
+            </a>
+        </div>
+    </section>
+
+    <!-- MAIN BODY -->
+    <div id="programme-details" class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-16">
+
+        <!-- 1. OVERVIEW & POSTER DISPLAY -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-7 space-y-5">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i> About the Programme
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
+                    Lead Meaningful Change on Your College Campus
+                </h2>
+                <p class="text-slate-700 text-base sm:text-lg leading-relaxed">
+                    The <strong>Think.4U Campus Ambassador Programme</strong> empowers college students to become representatives and changemakers within their campuses and communities.
+                </p>
+                <p class="text-slate-700 leading-relaxed">
+                    Campus Ambassadors help promote education, youth empowerment, volunteering, fundraising, and social-impact initiatives, while developing valuable skills in leadership, communication, teamwork, networking, and event management.
+                </p>
+
+                <!-- Who Can Apply Card -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border-2 border-amber-300 shadow-sm space-y-2">
+                    <div class="flex items-center gap-2 text-amber-900 font-black text-base">
+                        <i data-lucide="user-check" class="w-5 h-5 text-[#d58d4b]"></i>
+                        <span>Who Can Apply?</span>
+                    </div>
+                    <p class="text-slate-700 text-sm leading-relaxed">
+                        Students pursuing <strong>UG, PG, diploma, or professional courses</strong> who are passionate about social service, community welfare, and eager to make a positive difference in society.
+                    </p>
+                </div>
+
+                <div class="pt-2">
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSeEoWpnvXuxVZqr5YY0rbas_0kXzNz7aDfkTSssf60hMTbjIQ/viewform" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md transition">
+                        <i data-lucide="send" class="w-5 h-5"></i> Fill Online Application Form
+                    </a>
+                </div>
+            </div>
+
+            <!-- Official Poster -->
+            <div class="lg:col-span-5 flex justify-center">
+                <div class="relative max-w-sm rounded-3xl overflow-hidden shadow-2xl border-2 border-amber-900/15 bg-white">
+                    <img src="{{ url_for('static', filename='images/campus_ambassador_poster.jpg') }}" alt="Think.4U Campus Ambassador Programme Poster" class="w-full h-auto object-cover">
+                    <div class="p-4 bg-[#24120b] text-white text-center">
+                        <p class="text-xs text-amber-300 font-bold uppercase tracking-wider">Scan QR Code or Register Online</p>
+                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSeEoWpnvXuxVZqr5YY0rbas_0kXzNz7aDfkTSssf60hMTbjIQ/viewform" target="_blank" rel="noopener noreferrer" class="text-xs text-white/90 underline font-semibold mt-1 inline-block">
+                            Open Direct Registration Link &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. WHAT CAMPUS AMBASSADORS DO -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-900 border border-blue-300 mb-2">
+                    <i data-lucide="check-square" class="w-3.5 h-3.5"></i> Roles &amp; Responsibilities
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">What Campus Ambassadors Do</h2>
+                <p class="text-slate-600 text-sm">
+                    As an official representative of Think.4U Charitable Trust, you will lead high-impact student activities on campus:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center mb-3">
+                            <i data-lucide="megaphone" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Campus Outreach</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Promote Think.4U programmes, drives, and awareness campaigns across your campus.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-800 flex items-center justify-center mb-3">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Mobilize Volunteers</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Encourage classmates and college students to participate in social volunteering activities.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-800 flex items-center justify-center mb-3">
+                            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Organize Initiatives</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Conduct awareness sessions, educational workshops, and seminars in your institution.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-800 flex items-center justify-center mb-3">
+                            <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Fundraising Support</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Support charitable donation drives, food/cloth collection, and educational kits distribution.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/15 text-teal-800 flex items-center justify-center mb-3">
+                            <i data-lucide="sprout" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Community Service</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Lead tree plantations, blood donation camps, cleanliness drives, and rural visits.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-800 flex items-center justify-center mb-3">
+                            <i data-lucide="share-2" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Social Media Advocacy</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Create and share inspiring awareness content to amplify social causes online.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-800 flex items-center justify-center mb-3">
+                            <i data-lucide="network" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Build Student Teams</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Form and mentor a passionate chapter of student volunteers in your college.</p>
+                    </div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-600/15 text-amber-900 flex items-center justify-center mb-3">
+                            <i data-lucide="building" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-1">Institutional Bridge</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Connect Think.4U with college authorities, NSS/NCC units, and student clubs.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. KEY BENEFITS -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300 mb-2">
+                    <i data-lucide="gift" class="w-3.5 h-3.5"></i> Why Join?
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">Key Ambassador Benefits</h2>
+                <p class="text-slate-600 text-sm">
+                    Gain unparalleled exposure, credibility, and verified credentials to boost your career and personal growth:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 1 -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-stone-200 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/15 text-[#d58d4b] flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="shield-check" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-900 text-base mb-1">Leadership Experience</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Real-world experience managing campaigns, leading teams, and driving measurable impact.</p>
+                    </div>
+                </div>
+
+                <!-- 2 -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-stone-200 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="award" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-900 text-base mb-1">Certificate of Recognition</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Official Government-registered Charitable Trust certificate verifying your leadership tenure.</p>
+                    </div>
+                </div>
+
+                <!-- 3 -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-stone-200 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/15 text-blue-700 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="heart" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-900 text-base mb-1">Volunteer Experience</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Documented social service hours highly valued by top universities and recruiters.</p>
+                    </div>
+                </div>
+
+                <!-- 4 -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-stone-200 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/15 text-purple-700 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="users" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-900 text-base mb-1">Networking Opportunities</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Connect with student leaders across 30+ colleges, social innovators, and industry mentors.</p>
+                    </div>
+                </div>
+
+                <!-- 5 -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-stone-200 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-rose-500/15 text-rose-700 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="sparkles" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-900 text-base mb-1">Social Impact Experience</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Direct hands-on experience helping underprivileged children, rural schools, and women.</p>
+                    </div>
+                </div>
+
+                <!-- 6 -->
+                <div class="p-6 rounded-2xl bg-[#fffaf4] border border-stone-200 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/15 text-indigo-700 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="calendar" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-900 text-base mb-1">Event &amp; Campaign Experience</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Master public relations, marketing, digital media campaigns, and stage coordination.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. REGISTRATION CALL TO ACTION WITH GOOGLE FORM -->
+        <section class="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-[#24120b] via-[#351509] to-[#24120b] text-white shadow-2xl text-center space-y-6">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Apply Today
+            </span>
+            <h2 class="text-3xl sm:text-5xl font-black text-white">Be the Voice. Lead the Change.</h2>
+            <p class="max-w-2xl mx-auto text-slate-200 text-base sm:text-lg leading-relaxed">
+                Step up and represent Think.4U Charitable Trust in your college. Join a motivated community of young changemakers dedicated to building an empowered society.
+            </p>
+
+            <div class="pt-2 flex flex-wrap justify-center gap-4">
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSeEoWpnvXuxVZqr5YY0rbas_0kXzNz7aDfkTSssf60hMTbjIQ/viewform" target="_blank" rel="noopener noreferrer" class="px-8 py-4 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition flex items-center gap-2 text-base">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i> Open Application Form (Google Forms)
+                </a>
+                <a href="{{ url_for('entrepreneurship') }}" class="px-6 py-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold border border-white/20 transition flex items-center gap-2 text-base">
+                    <i data-lucide="lightbulb" class="w-5 h-5"></i> Explore Entrepreneurship Mission
+                </a>
+            </div>
+
+            <p class="text-xs text-white/60">
+                Think.4U Charitable Trust &bull; Reg. Under Govt of Telangana (DARPAN ID: TS/2026/1868819)
+            </p>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% block title %}Our Partners & Collaborations - Think.4U Charitable Trust{% endblock %}
+{% block meta_description %}Building Partnerships. Creating Impact. Transforming Communities. Partner with Think.4U Charitable Trust across Education, Women Empowerment, CSR, and Youth Development.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .partners-hero {
+        background: linear-gradient(135deg, #1f0606 0%, #38180d 50%, #542512 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .partners-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.25), transparent 50%);
+        pointer-events: none;
+    }
+    .card-surface {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.1);
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-surface:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.1);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+    .partner-logo-box {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.12);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 150px;
+        transition: all 0.25s ease;
+    }
+    .partner-logo-box:hover {
+        border-color: #d58d4b;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(213, 141, 75, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b]">
+
+    <!-- HERO SECTION -->
+    <section class="partners-hero py-16 sm:py-20 px-4 text-center">
+        <div class="max-w-5xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="handshake" class="w-4 h-4"></i> Strategic Alliances &amp; CSR Collaboration
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-3">
+                Our <span class="text-[#d58d4b]">Partners</span>
+            </h1>
+            <p class="text-xl sm:text-2xl font-semibold text-amber-200/95 mb-4">
+                Building Partnerships. Creating Impact. Transforming Communities.
+            </p>
+            <p class="max-w-3xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed">
+                At <strong>Think.4U Charitable Trust</strong>, we believe meaningful social impact is achieved through collaboration. We work with educational institutions, corporates, NGOs, government bodies, industry experts, volunteers, and community organizations to create sustainable opportunities.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="#partner-form" class="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition">
+                    <i data-lucide="handshake" class="w-5 h-5"></i> Collaborate With Us
+                </a>
+                <a href="#previous-collaborations" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="history" class="w-5 h-5"></i> Past Collaborations
+                </a>
+                <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="mail" class="w-5 h-5"></i> Contact Office
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB NAVIGATION PILL BAR -->
+    <section class="sticky top-[78px] z-40 bg-[#f4eadf]/95 backdrop-blur-md border-y border-[#e2cdb9] shadow-sm py-3 px-4">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+            <a href="{{ url_for('programs_overview') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-700"></i> All Programs
+            </a>
+            <a href="{{ url_for('entrepreneurship') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-amber-700"></i> Entrepreneurship Mission
+            </a>
+            <a href="{{ url_for('campus_ambassadors') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="graduation-cap" class="w-4 h-4 text-amber-700"></i> Campus Ambassadors
+            </a>
+            <a href="{{ url_for('partners') }}" class="px-4 py-2 rounded-xl bg-[#d58d4b] text-white shadow-sm flex items-center gap-1.5 font-bold">
+                <i data-lucide="handshake" class="w-4 h-4"></i> Our Partners
+            </a>
+        </div>
+    </section>
+
+    <!-- MAIN BODY -->
+    <div class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-16">
+
+        <!-- 1. COLLABORATION NARRATIVE & IMPACT PILLARS -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-7 space-y-5">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Synergistic Action
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
+                    Transforming Ideas Into Meaningful Community Action
+                </h2>
+                <p class="text-slate-700 text-base sm:text-lg leading-relaxed">
+                    Our partners play an indispensable role in helping us transform ideas into meaningful action and reach communities that need support most.
+                </p>
+                <p class="text-slate-700 leading-relaxed">
+                    Whether you are an organization looking to contribute through Corporate Social Responsibility (CSR), an educational institution interested in community drives, a professional willing to volunteer your expertise, or a social organization looking for meaningful collaboration, we welcome you with open arms.
+                </p>
+
+                <!-- Impact Pillars Ribbon -->
+                <div class="p-5 rounded-2xl bg-[#fffaf4] border border-stone-200">
+                    <p class="text-xs uppercase font-bold text-amber-800 tracking-wider mb-2">Together, we can work towards:</p>
+                    <div class="flex flex-wrap gap-2 text-xs font-bold text-slate-800">
+                        <span class="px-3 py-1.5 rounded-lg bg-amber-100/70 border border-amber-200">Education</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-emerald-100/70 border border-emerald-200">Women Empowerment</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-blue-100/70 border border-blue-200">Youth Development</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-stone-100 border border-stone-300">Rural Development</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-rose-100/70 border border-rose-200">Community Welfare</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-purple-100/70 border border-purple-200">Innovation &amp; Entrepreneurship</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Value Callout Card -->
+            <div class="lg:col-span-5">
+                <div class="p-8 rounded-3xl bg-gradient-to-br from-[#24120b] to-[#441a0b] text-white shadow-xl space-y-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center">
+                        <i data-lucide="shield-check" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-2xl font-black text-white">Why Partner with Think.4U?</h3>
+                    <ul class="space-y-3 text-sm text-slate-200">
+                        <li class="flex items-start gap-2.5">
+                            <i data-lucide="check" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i>
+                            <span><strong>Registered Credibility:</strong> Govt of Telangana registered trust (TS/2026/1868819).</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <i data-lucide="check" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i>
+                            <span><strong>Direct Grassroots Execution:</strong> High accountability and measurable local impact.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <i data-lucide="check" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i>
+                            <span><strong>End-to-End CSR Reporting:</strong> Complete photographic, volunteer, and beneficiary documentation.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <i data-lucide="check" class="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"></i>
+                            <span><strong>Youth &amp; Campus Reach:</strong> Direct bridge into 30+ collegiate networks across Telangana.</span>
+                        </li>
+                    </ul>
+                    <div class="pt-2">
+                        <a href="#partner-form" class="inline-block w-full py-3 text-center bg-[#d58d4b] hover:bg-[#c97835] text-white font-bold rounded-xl transition">
+                            Submit Partner Proposal
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. OUR COLLABORATION NETWORK -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300 mb-2">
+                    <i data-lucide="network" class="w-3.5 h-3.5"></i> Collaborative Ecosystem
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">Our Collaboration Network</h2>
+                <p class="text-slate-600 text-sm">
+                    We actively collaborate across a multi-stakeholder network to create long-term social value:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- 1 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Educational Institutions &amp; Universities</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Collaborating for student entrepreneurship cohorts, campus ambassador chapters, and community drives.</p>
+                    </div>
+                </div>
+
+                <!-- 2 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="briefcase" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Corporate Organizations &amp; CSR Partners</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Channeling corporate social responsibility funding directly into high-leverage school and women welfare initiatives.</p>
+                    </div>
+                </div>
+
+                <!-- 3 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="landmark" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Government Departments &amp; Local Bodies</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Coordinating with municipal bodies and panchayats for rural school renovations and environmental drives.</p>
+                    </div>
+                </div>
+
+                <!-- 4 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">NGOs &amp; Social Organizations</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Joining hands with sister non-profits to distribute relief materials and organize specialized medical health camps.</p>
+                    </div>
+                </div>
+
+                <!-- 5 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="lightbulb" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Innovation &amp; Entrepreneurship Ecosystems</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Incubation cells, accelerators, and startup hubs mentoring young student founders and innovators.</p>
+                    </div>
+                </div>
+
+                <!-- 6 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="user-check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Industry Experts &amp; Professional Networks</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Senior engineers, legal experts, business consultants, and executives volunteering as advisors.</p>
+                    </div>
+                </div>
+
+                <!-- 7 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-teal-500/15 text-teal-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="flower2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Women Entrepreneurship Organizations</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Empowering women artisans, self-help groups (SHGs), and micro-business creators through vocational skills.</p>
+                    </div>
+                </div>
+
+                <!-- 8 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-orange-500/15 text-orange-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Community &amp; Youth Organizations</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Youth sports clubs, cultural groups, and local volunteers mobilizing youth for social service.</p>
+                    </div>
+                </div>
+
+                <!-- 9 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-600/15 text-amber-900 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Volunteers, Mentors &amp; Contributors</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Dedicated individuals devoting their time, passion, and resources to uplift society.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. PREVIOUS COLLABORATIONS SHOWCASE -->
+        <section id="previous-collaborations" class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-2">
+                    <i data-lucide="history" class="w-3.5 h-3.5"></i> Track Record of Collaboration
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">Previous Collaborations &amp; Milestones</h2>
+                <p class="text-slate-600 text-sm">
+                    A glimpse of our successful collaborative partnerships and community outreach drives:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Collab 1: Official Website Launch & Parliamentary Leadership -->
+                <div class="partner-logo-box !items-start text-left space-y-3">
+                    <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                        Official Launch Partner
+                    </span>
+                    <h4 class="text-base font-black text-slate-900">Malkajgiri Parliamentary Constituency</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Official website launched by <strong>Shri Eatala Rajender Garu</strong>, Hon’ble Member of Parliament, connecting digital compassion with direct public action on 4th October 2026.
+                    </p>
+                    <a href="{{ url_for('events_page') }}" class="text-xs font-bold text-amber-800 hover:underline inline-flex items-center gap-1">
+                        View Launch Event &rarr;
+                    </a>
+                </div>
+
+                <!-- Collab 2: University & College Campus Chapters -->
+                <div class="partner-logo-box !items-start text-left space-y-3">
+                    <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        Higher Education Network
+                    </span>
+                    <h4 class="text-base font-black text-slate-900">Collegiate &amp; University Ecosystems</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Active coordination across 30+ engineering and degree colleges for the <strong>Campus Ambassador Programme</strong>, Free Startup Awareness, and student volunteer camps.
+                    </p>
+                    <a href="{{ url_for('campus_ambassadors') }}" class="text-xs font-bold text-emerald-800 hover:underline inline-flex items-center gap-1">
+                        Campus Ambassador Portal &rarr;
+                    </a>
+                </div>
+
+                <!-- Collab 3: Legal & Women Empowerment Network -->
+                <div class="partner-logo-box !items-start text-left space-y-3">
+                    <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase bg-purple-100 text-purple-900 border border-purple-300">
+                        Legal Advisory Alliance
+                    </span>
+                    <h4 class="text-base font-black text-slate-900">Pool of Advocates for Women's Rights</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Partnership with practicing advocates providing free legal consultation, rights advocacy, and counseling support to women from weaker sections.
+                    </p>
+                    <span class="text-xs font-bold text-purple-800">
+                        Swasthya &amp; Legal Advisory
+                    </span>
+                </div>
+            </div>
+
+            <!-- Valued Partners Logo Grid Placeholder -->
+            <div class="mt-12 pt-8 border-t border-stone-200">
+                <h4 class="text-center font-bold text-slate-900 text-lg mb-6">Our Valued Partners &amp; Institutional Supporters</h4>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                    <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-amber-500/10 text-amber-800 flex items-center justify-center mb-2 font-black text-base">T4U</div>
+                        <span class="text-xs font-bold text-slate-800">Think.4U Academic Alliance</span>
+                        <span class="text-[10px] text-slate-500">Student Innovation</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-800 flex items-center justify-center mb-2 font-black text-base">CSR</div>
+                        <span class="text-xs font-bold text-slate-800">Corporate Philanthropy Forum</span>
+                        <span class="text-[10px] text-slate-500">School Infrastructure</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-blue-500/10 text-blue-800 flex items-center justify-center mb-2 font-black text-base">CA</div>
+                        <span class="text-xs font-bold text-slate-800">Campus Ambassador Network</span>
+                        <span class="text-[10px] text-slate-500">30+ Colleges</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-purple-500/10 text-purple-800 flex items-center justify-center mb-2 font-black text-base">W4H</div>
+                        <span class="text-xs font-bold text-slate-800">Skill4Her &amp; Swasthya Hub</span>
+                        <span class="text-[10px] text-slate-500">Women Empowerment</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. BECOME A PARTNER / COLLABORATION FORM -->
+        <section id="partner-form" class="card-surface p-8 sm:p-12">
+            <div class="max-w-3xl mx-auto">
+                <div class="text-center mb-8">
+                    <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-2">
+                        <i data-lucide="handshake" class="w-3.5 h-3.5"></i> Partnership Inquiry
+                    </span>
+                    <h2 class="text-3xl font-black text-slate-900 mb-2">Collaborate With Think.4U</h2>
+                    <p class="text-slate-600 text-sm">
+                        Interested in CSR collaboration, institutional partnership, or volunteering expertise? Reach out to our leadership directly.
+                    </p>
+                </div>
+
+                <form method="POST" action="{{ url_for('contact') }}" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="subject" value="Partnership & Collaboration Proposal">
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Organization / Institution Name *</label>
+                            <input type="text" name="name" required placeholder="e.g. Acme Foundation or University" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Contact Person &amp; Designation *</label>
+                            <input type="text" name="contact_person" required placeholder="e.g. Director, CSR Lead" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Official Email Address *</label>
+                            <input type="email" name="email" required placeholder="name@organization.org" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Phone / Mobile Number *</label>
+                            <input type="tel" name="phone" required placeholder="+91 98765 43210" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Partnership Domain</label>
+                        <select name="partner_domain" class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white">
+                            <option value="CSR & Corporate Partnership">Corporate Social Responsibility (CSR)</option>
+                            <option value="Collegiate / University Collaboration">Collegiate / University Collaboration</option>
+                            <option value="Entrepreneurship & Innovation Mentorship">Entrepreneurship &amp; Innovation Mentorship</option>
+                            <option value="Rural School Renovation Support">Rural School Renovation Support</option>
+                            <option value="Women Empowerment & Swasthya">Women Empowerment &amp; Swasthya Initiative</option>
+                            <option value="NGO / Non-Profit Synergy">NGO / Non-Profit Synergy</option>
+                            <option value="Other">Other Community Collaboration</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Collaboration Proposal / Details *</label>
+                        <textarea name="message" rows="4" required placeholder="Describe how your organization would like to partner with Think.4U Charitable Trust..." class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:border-[#d58d4b] text-sm bg-white"></textarea>
+                    </div>
+
+                    <div class="pt-2 text-center">
+                        <button type="submit" class="px-8 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition inline-flex items-center gap-2">
+                            <i data-lucide="send" class="w-5 h-5"></i> Submit Partnership Proposal
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-8 pt-6 border-t border-stone-200 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-600">
+                    <div>
+                        <strong>Direct Contact:</strong> <a href="mailto:info@think4u.org" class="text-amber-800 underline">info@think4u.org</a> | +91 99591 28946
+                    </div>
+                    <div>
+                        Think.4U Charitable Trust &bull; Together for a better tomorrow.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

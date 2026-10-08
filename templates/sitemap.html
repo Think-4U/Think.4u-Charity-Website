@@ -140,15 +140,33 @@
                 </div>
                 <ul class="space-y-1">
                     <li>
-                        <a href="{{ url_for('index') }}#programs" class="sitemap-link">
+                        <a href="{{ url_for('programs_overview') }}" class="sitemap-link">
                             <i data-lucide="layers" class="w-4 h-4"></i>
                             <span>All Charity Programs</span>
                         </a>
                     </li>
                     <li>
+                        <a href="{{ url_for('entrepreneurship') }}" class="sitemap-link">
+                            <i data-lucide="lightbulb" class="w-4 h-4"></i>
+                            <span>Entrepreneurship Mission</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('campus_ambassadors') }}" class="sitemap-link">
+                            <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                            <span>Campus Ambassador Programme</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('partners') }}" class="sitemap-link">
+                            <i data-lucide="handshake" class="w-4 h-4"></i>
+                            <span>Our Partners &amp; CSR</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{{ url_for('events_page') }}" class="sitemap-link">
                             <i data-lucide="calendar-days" class="w-4 h-4"></i>
-                            <span>Upcoming Volunteer Events</span>
+                            <span>Events &amp; Milestones</span>
                         </a>
                     </li>
                     <li>

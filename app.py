@@ -2305,6 +2305,10 @@ def sitemap_xml():
     static_urls = [
         {"loc": f"{site_url}/", "changefreq": "daily", "priority": "1.0"},
         {"loc": f"{site_url}/about", "changefreq": "weekly", "priority": "0.9"},
+        {"loc": f"{site_url}/programs", "changefreq": "daily", "priority": "0.9"},
+        {"loc": f"{site_url}/entrepreneurship", "changefreq": "weekly", "priority": "0.9"},
+        {"loc": f"{site_url}/campus-ambassadors", "changefreq": "weekly", "priority": "0.9"},
+        {"loc": f"{site_url}/partners", "changefreq": "weekly", "priority": "0.9"},
         {"loc": f"{site_url}/events", "changefreq": "daily", "priority": "0.9"},
         {"loc": f"{site_url}/fundraising", "changefreq": "daily", "priority": "0.9"},
         {"loc": f"{site_url}/donate", "changefreq": "monthly", "priority": "0.9"},
@@ -2375,9 +2379,42 @@ def sitemap_page():
 
 
 @app.route("/programs")
-def programs_redirect():
-    """Convenience redirect to the programs section on the home page."""
-    return redirect(url_for("index") + "#programs")
+def programs_overview():
+    """Programs overview portal showcasing Entrepreneurship, Campus Ambassadors, Partners, and SDG initiatives."""
+    try:
+        response = supabase.table('programs').select(
+            'id,title,description,image_url,status,created_at'
+        ).eq("status", "active").order("created_at", desc=True).limit(12).execute()
+        programs = attach_program_image_display_urls(response.data if response.data else [])
+    except Exception as e:
+        app.logger.warning(f"Error fetching programs for overview: {e}")
+        programs = []
+    return render_template("programs_overview.html", programs=programs)
+
+
+@app.route("/entrepreneurship")
+@app.route("/programs/entrepreneurship")
+@app.route("/entrepreneur")
+def entrepreneurship():
+    """Entrepreneurship Mission: Free courses, practical training, mentorship for college students."""
+    return render_template("entrepreneurship.html")
+
+
+@app.route("/campus-ambassadors")
+@app.route("/campus_ambassadors")
+@app.route("/programs/campus-ambassadors")
+@app.route("/ca")
+def campus_ambassadors():
+    """Campus Ambassador Programme: Be the Voice. Lead the Change."""
+    return render_template("campus_ambassadors.html")
+
+
+@app.route("/partners")
+@app.route("/programs/partners")
+def partners():
+    """Our Partners & Collaboration Network."""
+    return render_template("partners.html")
+
 
 
 @app.route("/")

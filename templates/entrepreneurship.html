@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+{% block title %}Entrepreneurship Mission - Think.4U Charitable Trust{% endblock %}
+{% block meta_description %}Empowering students to become future entrepreneurs. Free entrepreneurship education, practical training, mentorship, and guidance by Think.4U Charitable Trust.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .program-hero {
+        background: linear-gradient(135deg, #1f0606 0%, #3a170b 50%, #522312 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .program-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(213, 141, 75, 0.25), transparent 50%);
+        pointer-events: none;
+    }
+    .card-surface {
+        background: #ffffff;
+        border: 1px solid rgba(75, 38, 24, 0.1);
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px rgba(53, 28, 18, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-surface:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 36px rgba(53, 28, 18, 0.1);
+        border-color: rgba(213, 141, 75, 0.4);
+    }
+    .step-badge {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #d58d4b, #9a5318);
+        color: white;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 10px rgba(213, 141, 75, 0.35);
+    }
+    .journey-step {
+        position: relative;
+        padding: 1.25rem;
+        background: #fff8f1;
+        border: 1px solid rgba(213, 141, 75, 0.25);
+        border-radius: 1rem;
+        text-align: center;
+        transition: all 0.25s ease;
+    }
+    .journey-step:hover {
+        background: #ffffff;
+        border-color: #d58d4b;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(213, 141, 75, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b]">
+
+    <!-- HERO SECTION -->
+    <section class="program-hero py-16 sm:py-20 px-4 text-center">
+        <div class="max-w-5xl mx-auto relative z-10">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Think.4U Programs &bull; Better Colleges, Brighter Futures
+            </span>
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4">
+                Entrepreneurship <span class="text-[#d58d4b]">Mission</span>
+            </h1>
+            <p class="text-xl sm:text-2xl font-semibold text-amber-200/95 mb-4">
+                Empowering Students to Become Future Entrepreneurs
+            </p>
+            <p class="max-w-3xl mx-auto text-base sm:text-lg text-white/85 leading-relaxed">
+                At <strong>Think.4u Charitable Trust</strong>, we believe that every student has the potential to become an entrepreneur, innovator, job creator, and changemaker. Our mission is designed to identify and nurture young talent with free education, practical training, mentorship, and guidance.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="#enroll" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-bold shadow-lg transition">
+                    <i data-lucide="user-plus" class="w-5 h-5"></i> Join Entrepreneurship Mission
+                </a>
+                <a href="{{ url_for('campus_ambassadors') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="award" class="w-5 h-5"></i> Campus Ambassadors
+                </a>
+                <a href="{{ url_for('partners') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="handshake" class="w-5 h-5"></i> Collaborate With Us
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB NAVIGATION PILL BAR -->
+    <section class="sticky top-[78px] z-40 bg-[#f4eadf]/95 backdrop-blur-md border-y border-[#e2cdb9] shadow-sm py-3 px-4">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+            <a href="{{ url_for('programs_overview') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-700"></i> All Programs
+            </a>
+            <a href="{{ url_for('entrepreneurship') }}" class="px-4 py-2 rounded-xl bg-[#d58d4b] text-white shadow-sm flex items-center gap-1.5 font-bold">
+                <i data-lucide="lightbulb" class="w-4 h-4"></i> Entrepreneurship Mission
+            </a>
+            <a href="{{ url_for('campus_ambassadors') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="graduation-cap" class="w-4 h-4 text-amber-700"></i> Campus Ambassadors
+            </a>
+            <a href="{{ url_for('partners') }}" class="px-4 py-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-amber-800 border border-stone-300 transition flex items-center gap-1.5">
+                <i data-lucide="handshake" class="w-4 h-4 text-amber-700"></i> Our Partners
+            </a>
+        </div>
+    </section>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <div class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-16">
+
+        <!-- 1. VISION & OVERVIEW WITH POSTER -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-7 space-y-5">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                    <i data-lucide="compass" class="w-3.5 h-3.5"></i> Our Vision
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
+                    Nurturing Young Minds to Dream, Build &amp; Lead
+                </h2>
+                <div class="p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-l-4 border-[#d58d4b]">
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Our Vision Statement</h3>
+                    <p class="text-slate-700 leading-relaxed italic">
+                        “To build a generation of confident, skilled, and socially responsible young entrepreneurs who can create employment opportunities, develop innovative solutions, and contribute to the growth of society and the nation.”
+                    </p>
+                </div>
+                <p class="text-slate-700 leading-relaxed">
+                    Our Entrepreneurship Mission is designed to identify and nurture young talent by providing students with <strong>free entrepreneurship education</strong>, practical training, mentorship, and guidance — helping them transform their ideas into meaningful opportunities.
+                </p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                    <div class="p-3 bg-white rounded-xl border border-stone-200 text-center shadow-sm">
+                        <span class="block text-xl font-black text-[#d58d4b]">100% Free</span>
+                        <span class="text-xs text-slate-600 font-semibold">Student Access</span>
+                    </div>
+                    <div class="p-3 bg-white rounded-xl border border-stone-200 text-center shadow-sm">
+                        <span class="block text-xl font-black text-emerald-700">Practical</span>
+                        <span class="text-xs text-slate-600 font-semibold">Hands-on Learning</span>
+                    </div>
+                    <div class="p-3 bg-white rounded-xl border border-stone-200 text-center shadow-sm col-span-2 sm:col-span-1">
+                        <span class="block text-xl font-black text-blue-700">Mentorship</span>
+                        <span class="text-xs text-slate-600 font-semibold">Industry Experts</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Poster Display -->
+            <div class="lg:col-span-5 flex justify-center">
+                <div class="relative max-w-sm rounded-3xl overflow-hidden shadow-2xl border-2 border-amber-900/10 bg-white group">
+                    <img src="{{ url_for('static', filename='images/initiatives/page_3_2.png') }}" alt="Free Entrepreneurship & Startup Awareness Program Poster" class="w-full h-auto object-cover group-hover:scale-[1.02] transition duration-500">
+                    <div class="p-4 bg-gradient-to-t from-black/90 via-black/70 to-transparent absolute bottom-0 inset-x-0 text-white text-center">
+                        <p class="text-xs uppercase tracking-widest font-bold text-amber-300">Think.4U Initiative</p>
+                        <p class="text-sm font-semibold">Only for College Students / Undergraduates</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. FREE ENTREPRENEURSHIP COURSE CURRICULUM -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300 mb-2">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Comprehensive Curriculum
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-3">Free Entrepreneurship Course for Students</h2>
+                <p class="text-slate-600 text-sm sm:text-base">
+                    Through our initiative, eligible students can access free entrepreneurship courses designed to introduce them to the complete entrepreneurial journey.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- 1 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="lightbulb" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Idea Generation &amp; Innovation</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Brainstorming disruptive concepts, problem discovery, and design thinking.</p>
+                    </div>
+                </div>
+
+                <!-- 2 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="rocket" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">How to Start a Business</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Legal fundamentals, registration essentials, team building, and initial launch roadmaps.</p>
+                    </div>
+                </div>
+
+                <!-- 3 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="pie-chart" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Business Planning &amp; Market Research</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Structuring business plans, analyzing competitive landscapes, and evaluating target demographics.</p>
+                    </div>
+                </div>
+
+                <!-- 4 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Financial &amp; Basic Management</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Budgeting, cash flow forecasting, pricing models, unit economics, and seed capital.</p>
+                    </div>
+                </div>
+
+                <!-- 5 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="share-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Digital Marketing &amp; Social Media</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Building online brand presence, content marketing, organic SEO, and modern growth strategies.</p>
+                    </div>
+                </div>
+
+                <!-- 6 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="award" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Leadership &amp; Communication Skills</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Executive presence, public speaking, pitching to stakeholders, and persuasive storytelling.</p>
+                    </div>
+                </div>
+
+                <!-- 7 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-teal-500/15 text-teal-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Networking &amp; Relationships</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Connecting with peers, founders, angel investors, advisors, and corporate partners.</p>
+                    </div>
+                </div>
+
+                <!-- 8 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-orange-500/15 text-orange-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="target" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Understanding Customers &amp; Markets</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">User interviews, persona building, product-market fit validation, and feedback loops.</p>
+                    </div>
+                </div>
+
+                <!-- 9 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-800 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="cpu" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Problem-Solving &amp; Mindset</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Resilience, critical reasoning, pivoting in uncertainty, and agile iteration.</p>
+                    </div>
+                </div>
+
+                <!-- 10 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-600/15 text-amber-900 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="trending-up" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Business Growth &amp; Sustainability</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Scaling operations, long-term resource management, and enduring economic viability.</p>
+                    </div>
+                </div>
+
+                <!-- 11 -->
+                <div class="p-5 rounded-2xl bg-[#fffcf7] border border-stone-200 hover:border-amber-400 transition flex items-start gap-4 md:col-span-2 lg:col-span-2">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600/15 text-emerald-900 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">Social Entrepreneurship &amp; Impact Creation</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">Designing enterprises that solve acute community problems, uplift marginalized populations, and generate lasting social change.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. FROM STUDENT TO ENTREPRENEUR & THE JOURNEY -->
+        <section class="space-y-8">
+            <div class="text-center max-w-3xl mx-auto">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-900 border border-blue-300 mb-2">
+                    <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i> Practical Progression
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-3">From Student to Entrepreneur</h2>
+                <p class="text-slate-700 leading-relaxed">
+                    Our goal goes beyond providing classroom education. We want to help students move from <strong>learning to doing</strong>. Through practical activities, mentorship, workshops, projects, and guidance, students are encouraged to develop their own ideas and explore how those ideas can become sustainable businesses or social enterprises.
+                </p>
+            </div>
+
+            <!-- The Entrepreneurial Journey Ribbon -->
+            <div class="p-8 rounded-3xl bg-gradient-to-r from-[#24120b] via-[#3d1a0e] to-[#24120b] text-white shadow-xl">
+                <div class="text-center mb-6">
+                    <h3 class="text-xl font-black text-amber-300 uppercase tracking-widest">Our Entrepreneurial Journey</h3>
+                    <p class="text-xs text-white/80 mt-1">A structured 6-phase experiential lifecycle</p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div class="journey-step !bg-white/10 !border-white/20 text-white">
+                        <span class="text-2xl mb-1 block">📚</span>
+                        <strong class="text-amber-300 block text-sm">1. LEARN</strong>
+                        <span class="text-[11px] text-white/80">Foundations</span>
+                    </div>
+                    <div class="journey-step !bg-white/10 !border-white/20 text-white">
+                        <span class="text-2xl mb-1 block">💡</span>
+                        <strong class="text-amber-300 block text-sm">2. THINK</strong>
+                        <span class="text-[11px] text-white/80">Ideation</span>
+                    </div>
+                    <div class="journey-step !bg-white/10 !border-white/20 text-white">
+                        <span class="text-2xl mb-1 block">🎨</span>
+                        <strong class="text-amber-300 block text-sm">3. CREATE</strong>
+                        <span class="text-[11px] text-white/80">Prototyping</span>
+                    </div>
+                    <div class="journey-step !bg-white/10 !border-white/20 text-white">
+                        <span class="text-2xl mb-1 block">🛠️</span>
+                        <strong class="text-amber-300 block text-sm">4. BUILD</strong>
+                        <span class="text-[11px] text-white/80">Validation</span>
+                    </div>
+                    <div class="journey-step !bg-white/10 !border-white/20 text-white">
+                        <span class="text-2xl mb-1 block">🚀</span>
+                        <strong class="text-amber-300 block text-sm">5. LAUNCH</strong>
+                        <span class="text-[11px] text-white/80">Go-to-Market</span>
+                    </div>
+                    <div class="journey-step !bg-white/10 !border-white/20 text-white">
+                        <span class="text-2xl mb-1 block">📈</span>
+                        <strong class="text-amber-300 block text-sm">6. GROW</strong>
+                        <span class="text-[11px] text-white/80">Scale Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 10 Action Steps Grid -->
+            <div>
+                <h3 class="text-2xl font-black text-slate-900 text-center mb-6">10 Milestones Students Will Master</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">1</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Discover Interests &amp; Strengths</h5>
+                            <p class="text-xs text-slate-600">Uncover individual passions, skill sets, and unique entrepreneurial personality.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">2</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Identify Real-World Problems &amp; Opportunities</h5>
+                            <p class="text-xs text-slate-600">Analyze local, regional, and societal gaps begging for creative interventions.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">3</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Develop Innovative Solutions</h5>
+                            <p class="text-xs text-slate-600">Formulate viable value propositions and differentiated services or products.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">4</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Create and Test Business Ideas</h5>
+                            <p class="text-xs text-slate-600">Build minimal viable prototypes (MVP) and gather immediate user feedback.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">5</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Prepare Business &amp; Financial Plans</h5>
+                            <p class="text-xs text-slate-600">Map out cost structures, revenue streams, pricing, and operational workflows.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">6</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Develop Entrepreneurial &amp; Leadership Skills</h5>
+                            <p class="text-xs text-slate-600">Cultivate emotional intelligence, team management, resilience, and drive.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">7</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Receive Mentorship &amp; Expert Guidance</h5>
+                            <p class="text-xs text-slate-600">Gain periodic 1-on-1 reviews with seasoned entrepreneurs and academics.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">8</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Present Ideas &amp; Showcase Projects</h5>
+                            <p class="text-xs text-slate-600">Pitch in demo days, college showcases, hackathons, and investor tables.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">9</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Take First Steps Toward Launching</h5>
+                            <p class="text-xs text-slate-600">Initiate company registration, compliance basics, and first client sales.</p>
+                        </div>
+                    </div>
+                    <div class="card-surface p-4 flex items-start gap-3.5">
+                        <div class="step-badge">10</div>
+                        <div>
+                            <h5 class="font-bold text-slate-900 text-sm">Continue Learning &amp; Growing</h5>
+                            <p class="text-xs text-slate-600">Engage in lifelong entrepreneurial peer networks and accelerator cohorts.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. MENTORSHIP & GUIDANCE + BUILDING JOB CREATORS -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="card-surface p-6 sm:p-8 space-y-4">
+                <div class="w-12 h-12 rounded-xl bg-amber-500/15 text-amber-800 flex items-center justify-center">
+                    <i data-lucide="compass" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-900">Mentorship &amp; Guidance</h3>
+                <p class="text-slate-700 leading-relaxed">
+                    We aim to connect students with experienced professionals, entrepreneurs, mentors, educators, and industry experts who can share practical knowledge and guide young innovators.
+                </p>
+                <p class="text-slate-700 leading-relaxed">
+                    Our mentorship approach focuses on <strong>real-world learning</strong>, helping students understand both the opportunities and obstacles involved in starting and scaling sustainable ventures.
+                </p>
+                <div class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 font-semibold">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 inline mr-1 text-amber-700"></i> Direct access to veteran startup founders, corporate executives, and innovation heads.
+                </div>
+            </div>
+
+            <div class="card-surface p-6 sm:p-8 space-y-4">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-800 flex items-center justify-center">
+                    <i data-lucide="briefcase" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-900">Building Job Creators, Not Only Job Seekers</h3>
+                <p class="text-slate-700 leading-relaxed">
+                    Education should prepare young people not only to find employment but also to <strong>create opportunities for themselves and others</strong>.
+                </p>
+                <p class="text-slate-700 leading-relaxed">
+                    Through the Entrepreneurship Mission, we aim to encourage students to develop an entrepreneurial mindset and become future job creators, innovators, founders, and transformative community leaders.
+                </p>
+                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 font-semibold">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 inline mr-1 text-emerald-700"></i> Catalyzing local economic growth and sustainable livelihoods across Telangana &amp; India.
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. OUR IMPACT & LONG TERM GOALS -->
+        <section class="card-surface p-8 sm:p-10">
+            <div class="text-center max-w-3xl mx-auto mb-8">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300 mb-2">
+                    <i data-lucide="award" class="w-3.5 h-3.5"></i> Measurable Goals
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">Our Impact &amp; Long-Term Commitments</h2>
+                <p class="text-slate-600 text-sm">
+                    We aspire to create an inclusive ecosystem where students from diverse backgrounds can access entrepreneurship education without financial barriers.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Providing free entrepreneurship education to students</p>
+                </div>
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Encouraging innovation, critical inquiry, and creativity</p>
+                </div>
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Supporting student-led business ideas and prototypes</p>
+                </div>
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Developing leadership, pitch ability, and employability skills</p>
+                </div>
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Connecting young entrepreneurs with mentors &amp; capital avenues</p>
+                </div>
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Encouraging sustainable social-impact businesses</p>
+                </div>
+                <div class="p-4 bg-[#fffaf4] rounded-xl border border-stone-200 flex items-start gap-3 sm:col-span-2 lg:col-span-3">
+                    <i data-lucide="check" class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm font-semibold text-slate-800">Creating a vibrant, active nationwide community of visionary student founders</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. JOIN THE MISSION CALL TO ACTION -->
+        <section id="enroll" class="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-[#24120b] via-[#3a170b] to-[#24120b] text-white shadow-2xl relative overflow-hidden">
+            <div class="max-w-3xl mx-auto text-center space-y-5 relative z-10">
+                <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> Take the First Step
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-black text-white">Join the Entrepreneurship Mission</h2>
+                <h3 class="text-xl sm:text-2xl font-bold text-amber-300">Are you a student with an idea?</h3>
+                <p class="text-slate-200 text-base sm:text-lg leading-relaxed">
+                    You don’t need to have a registered business today. You only need the willingness to learn, think differently, and take the first step.
+                </p>
+                <div class="p-4 rounded-xl bg-white/10 border border-white/15 max-w-xl mx-auto">
+                    <p class="text-base sm:text-lg font-bold text-amber-200 italic">
+                        “Learn Today. Build Tomorrow. Create Impact.”
+                    </p>
+                    <p class="text-xs text-white/70 mt-1 uppercase tracking-wider">
+                        Think.4u Charitable Trust &bull; Empowering Students. Inspiring Innovation. Creating Entrepreneurs.
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-4 pt-4">
+                    <a href="{{ url_for('contact') }}?subject=Entrepreneurship+Mission+Inquiry" class="px-8 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition flex items-center gap-2 text-base">
+                        <i data-lucide="send" class="w-5 h-5"></i> Enroll / Inquire Now
+                    </a>
+                    <a href="{{ url_for('campus_ambassadors') }}" class="px-6 py-3.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold border border-white/30 transition flex items-center gap-2 text-base">
+                        <i data-lucide="award" class="w-5 h-5"></i> Apply as Campus Ambassador
+                    </a>
+                    <a href="mailto:info@think4u.org?subject=Think.4U%20Entrepreneurship%20Mission%20Participation" class="px-6 py-3.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold border border-white/30 transition flex items-center gap-2 text-base">
+                        <i data-lucide="mail" class="w-5 h-5"></i> Email Us
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

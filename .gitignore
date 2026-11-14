@@ -30,3 +30,5 @@ __pycache__/
 .dist/
 static/uploads/
 node_modules/
+.vercel
+.env*

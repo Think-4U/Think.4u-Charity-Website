@@ -52,13 +52,17 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
-from payment_gateways import (
-    get_active_payment_gateway,
-    payment_manager,
-    CashfreeGateway,
-    RazorpayGateway,
-    BasePaymentGateway
-)
+# ── Payment Gateway imports DISABLED (archived) ──────────────────────────
+# The payment_gateways module has been archived to "Archive Payments/".
+# These imports are preserved as comments for future restoration.
+# from payment_gateways import (
+#     get_active_payment_gateway,
+#     payment_manager,
+#     CashfreeGateway,
+#     RazorpayGateway,
+#     BasePaymentGateway
+# )
+# ── End archived payment imports ──────────────────────────────────────────
 from sms_service import (
     generate_and_send_mobile_otp,
     verify_mobile_otp,
@@ -411,52 +415,159 @@ SUPABASE_ENABLED = DB_ENABLED
 
 
 
-# ------------------------------
-# Common Payment Gateway Architecture (Cashfree, Razorpay, Pluggable)
-# ------------------------------
-RAZOR_KEY = os.getenv('RAZOR_KEY_ID')
-RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET')
-CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID') or os.getenv('CASHFREE_CLIENT_ID')
-CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY') or os.getenv('CASHFREE_CLIENT_SECRET')
+# ---------------------------------------------------------------------------
+# Payment Gateway Stubs & Verification for Outstanding Transactions (ARCHIVED)
+# The full payment gateway logic has been archived to "Archive Payments/".
+# The classes/functions below preserve signature verification strictly for
+# legitimate callbacks/webhooks of transactions already in flight, while
+# disabling any new order creation or active gateway integrations.
+# ---------------------------------------------------------------------------
+RAZOR_KEY = os.getenv('RAZOR_KEY_ID', '')
+RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET', '')
+CASHFREE_APP_ID = (os.getenv('CASHFREE_APP_ID') or os.getenv('CASHFREE_CLIENT_ID') or '').strip()
+CASHFREE_SECRET_KEY = (os.getenv('CASHFREE_SECRET_KEY') or os.getenv('CASHFREE_CLIENT_SECRET') or '').strip()
+
+ONLINE_PAYMENTS_ENABLED = False
+RAZORPAY_ENABLED = False
+
+
+class _ArchivedCallbackHandler:
+    """Safely verifies incoming callbacks/webhooks for outstanding payments without active SDK/gateway dependency."""
+    gateway_id = "archived"
+    gateway_name = "Archived Gateway"
+
+    def is_configured(self) -> bool:
+        return False
+
+    def create_order(self, *args, **kwargs):
+        raise RuntimeError("Payment creation is currently under maintenance. New orders cannot be created.")
+
+    def verify_payment(self, payload: dict) -> dict:
+        """Verify payment return for pending transactions initiated prior to archival."""
+        order_id = payload.get("order_id") or payload.get("cf_order_id") or payload.get("razorpay_order_id") or payload.get("order_token")
+        payment_id = payload.get("payment_id") or payload.get("cf_payment_id") or payload.get("razorpay_payment_id") or payload.get("payment_token")
+        signature = payload.get("checkout_signature") or payload.get("razorpay_signature")
+
+        # Razorpay HMAC verification if secret and signature present
+        if signature and order_id and payment_id and RAZOR_SECRET:
+            try:
+                msg = f"{order_id}|{payment_id}".encode("utf-8")
+                expected = hmac.new(RAZOR_SECRET.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(expected, signature):
+                    return {
+                        "verified": True,
+                        "status": "PAID",
+                        "order_id": order_id,
+                        "payment_id": payment_id,
+                        "payment_method": "Razorpay",
+                        "error": None
+                    }
+            except Exception as e:
+                app.logger.warning(f"Archived Razorpay verification error: {e}")
+
+        # Cashfree status check fallback if secret present
+        if order_id and order_id.upper().startswith("CF_") and CASHFREE_APP_ID and CASHFREE_SECRET_KEY:
+            try:
+                env = os.getenv("CASHFREE_ENV", "").upper()
+                base_url = "https://api.cashfree.com/pg" if env == "PROD" else "https://sandbox.cashfree.com/pg"
+                api_version = os.getenv("CASHFREE_API_VERSION", "2023-08-01").strip()
+                headers = {
+                    "x-client-id": CASHFREE_APP_ID,
+                    "x-client-secret": CASHFREE_SECRET_KEY,
+                    "x-api-version": api_version,
+                    "Content-Type": "application/json"
+                }
+                with httpx.Client(timeout=10.0) as client:
+                    resp = client.get(f"{base_url}/orders/{order_id}", headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if (data.get("order_status") or "").upper() == "PAID":
+                        return {
+                            "verified": True,
+                            "status": "PAID",
+                            "order_id": order_id,
+                            "payment_id": payment_id or f"cf_{order_id}",
+                            "amount_paise": int(round(float(data.get("order_amount", 0.0)) * 100)),
+                            "payment_method": "Cashfree",
+                            "error": None
+                        }
+            except Exception as e:
+                app.logger.warning(f"Archived Cashfree verification error: {e}")
+
+        return {"verified": False, "error": "Gateway is under maintenance and verification could not be validated."}
+
+    def verify_webhook(self, headers: dict, raw_body: bytes) -> dict:
+        """Verify webhooks for pending transactions initiated prior to archival."""
+        # Check Cashfree webhook signature
+        cf_sig = headers.get("x-webhook-signature") or headers.get("X-Webhook-Signature")
+        cf_ts = headers.get("x-webhook-timestamp") or headers.get("X-Webhook-Timestamp")
+        if cf_sig and cf_ts and CASHFREE_SECRET_KEY:
+            try:
+                data_to_sign = cf_ts.encode("utf-8") + raw_body
+                computed = base64.b64encode(
+                    hmac.new(CASHFREE_SECRET_KEY.encode("utf-8"), data_to_sign, hashlib.sha256).digest()
+                ).decode("utf-8")
+                if hmac.compare_digest(computed, cf_sig):
+                    data = pyjson.loads(raw_body.decode("utf-8"))
+                    order_data = data.get("data", {}).get("order", {})
+                    payment_data = data.get("data", {}).get("payment", {})
+                    status = (payment_data.get("payment_status") or "").upper()
+                    return {
+                        "verified": True,
+                        "order_id": order_data.get("order_id", ""),
+                        "payment_id": str(payment_data.get("cf_payment_id", "")),
+                        "status": "PAID" if status == "SUCCESS" else "FAILED",
+                        "error": None
+                    }
+            except Exception as e:
+                return {"verified": False, "error": str(e)}
+
+        # Check Razorpay webhook signature
+        rzp_sig = headers.get("X-Razorpay-Signature") or headers.get("x-razorpay-signature")
+        rzp_sec = (os.getenv("RAZORPAY_WEBHOOK_SECRET") or "").strip()
+        if rzp_sig and rzp_sec:
+            try:
+                expected = hmac.new(rzp_sec.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(expected, rzp_sig):
+                    data = pyjson.loads(raw_body.decode("utf-8"))
+                    entity = data.get("payload", {}).get("payment", {}).get("entity", {})
+                    status = entity.get("status", "")
+                    return {
+                        "verified": True,
+                        "order_id": entity.get("order_id", ""),
+                        "payment_id": entity.get("id", ""),
+                        "status": "PAID" if status == "captured" else "FAILED",
+                        "error": None
+                    }
+            except Exception as e:
+                return {"verified": False, "error": str(e)}
+
+        return {"verified": False, "error": "No valid gateway signature or webhook secret configured."}
+
+
+class _ArchivedPaymentManager:
+    def list_gateways(self):
+        return {
+            "cashfree": {"name": "Cashfree (Archived)", "configured": False},
+            "razorpay": {"name": "Razorpay (Archived)", "configured": False}
+        }
+
+
+_archived_handler = _ArchivedCallbackHandler()
+_archived_manager = _ArchivedPaymentManager()
+
+
+def get_active_payment_gateway(gateway_id=None):
+    return _archived_handler
+
 
 def get_active_gateway(gateway_id=None):
-    """Retrieve the active or specified payment gateway instance."""
-    return get_active_payment_gateway(gateway_id)
-
-ACTIVE_PAYMENT_GW = get_active_gateway()
-ONLINE_PAYMENTS_ENABLED = ACTIVE_PAYMENT_GW.is_configured()
-RAZORPAY_ENABLED = ONLINE_PAYMENTS_ENABLED
-
-if not ONLINE_PAYMENTS_ENABLED:
-    app.logger.warning(
-        f"Payment gateway credentials missing for '{ACTIVE_PAYMENT_GW.gateway_id}'. "
-        "Online payment checkout routes will report unavailable."
-    )
-else:
-    app.logger.info(f"Primary payment gateway active: {ACTIVE_PAYMENT_GW.gateway_name} (ID: {ACTIVE_PAYMENT_GW.gateway_id})")
+    return _archived_handler
 
 
-def create_razorpay_order(amount, currency, receipt, notes=None):
-    """Backward-compatible order creator."""
-    gw = get_active_gateway("razorpay")
-    if not gw.is_configured():
-        raise RuntimeError("Razorpay is not configured")
-    res = gw.create_order(amount_paise=amount, currency=currency, donor_details=None, notes=notes)
-    return res["raw_response"]
-
-
-def verify_checkout_signature(payload):
-    """Verify Razorpay checkout signature without SDK."""
-    gw = get_active_gateway("razorpay")
-    res = gw.verify_payment(payload)
-    return res.get("verified", False)
-
-
-def verify_webhook_signature(webhook_body, webhook_signature, webhook_secret):
-    """Verify webhook signature."""
-    gw = get_active_gateway("razorpay")
-    res = gw.verify_webhook({"X-Razorpay-Signature": webhook_signature}, webhook_body)
-    return res.get("verified", False)
+payment_manager = _archived_manager
+ACTIVE_PAYMENT_GW = _archived_handler
+app.logger.info("Payment gateway module is archived. Donation services are in maintenance mode.")
 
 
 # ------------------------------
@@ -2171,15 +2282,15 @@ def set_security_headers(response):
         "media-src 'self' blob: data: https: https://media.think4u.org; "
         "worker-src 'self' blob: https://challenges.cloudflare.com; "
         "child-src 'self' blob: https://challenges.cloudflare.com; "
-        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://sdk.cashfree.com https://*.cashfree.com https://accounts.google.com {challenge_src} {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://sdk.cashfree.com https://*.cashfree.com https://accounts.google.com {challenge_src} {jitsi_src}; "
+        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com {challenge_src} {jitsi_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com {challenge_src} {jitsi_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://ipapi.co https://unpkg.com https://cdn.jsdelivr.net https://*.razorpay.com https://api.cashfree.com https://sandbox.cashfree.com https://*.cashfree.com https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
-        f"frame-src 'self' https://*.razorpay.com https://*.cashfree.com https://accounts.google.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
+        f"connect-src 'self' https://ipapi.co https://unpkg.com https://cdn.jsdelivr.net https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
+        f"frame-src 'self' https://accounts.google.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
         "base-uri 'self'; "
-        "form-action 'self' https://*.cashfree.com https://*.razorpay.com https://accounts.google.com; "
+        "form-action 'self' https://accounts.google.com; "
         "object-src 'none'"
     )
     if current_user.is_authenticated and not request.path.startswith("/static/"):
@@ -2638,451 +2749,54 @@ def healthz():
 
 @app.route("/donate")
 def donate():
-    """Public donation page. Anonymous donors verify email before payment."""
-    amount_rupees = request.args.get("amount", "")
-    amount_paise = None
-    if amount_rupees:
-        try:
-            amount_paise = int(float(amount_rupees) * 100)
-        except Exception:
-            amount_paise = None
-
-    donation_context = donation_context_from_args(request.args)
-
-    donor_name = ""
-    donor_email = ""
-    donor_phone = ""
-    donor_address = ""
-    if current_user.is_authenticated:
-        donor_name = current_user.name
-        donor_email = current_user.email
-        donor_phone = getattr(current_user, "phone", "") or ""
-        donor_address = getattr(current_user, "address", "") or ""
-
-    active_gw = get_active_payment_gateway()
-    cashfree_mode = getattr(active_gw, "sdk_mode", "production") if active_gw.gateway_id == "cashfree" else "production"
-
-    return render_template(
-        "donate.html",
-        amount_display=amount_rupees,
-        amount_paise=amount_paise,
-        razor_key=RAZOR_KEY,
-        active_gateway=active_gw.gateway_id,
-        active_gateway_name=active_gw.gateway_name,
-        cashfree_mode=cashfree_mode,
-        is_payment_enabled=active_gw.is_configured(),
-        donor_name=donor_name,
-        donor_email=donor_email,
-        donor_phone=donor_phone,
-        donor_address=donor_address,
-        donation_context=donation_context,
-        is_donation_verified=current_user.is_authenticated,
-        payment_retry_window_minutes=PAYMENT_PENDING_TIMEOUT_MINUTES,
-    )
+    """Donation entry point - redirected to professional donation maintenance experience."""
+    return render_template("donate_maintenance.html")
 
 
 @app.route("/donation/start", methods=["POST"])
 def start_public_donation_verification():
-    """Send OTP for anonymous/public donation checkout (supports mobile SMS OTP or Email OTP)."""
-    if current_user.is_authenticated:
-        return jsonify({"ok": True, "verified": True}), 200
-
-    data = request.get_json(silent=True) or {}
-    turnstile_token = get_turnstile_token()
-    if not verify_turnstile(turnstile_token, get_client_ip()):
-        return jsonify({"error": "Security verification failed. Please try again."}), 400
-
-    name = clean_text(data.get("name"), 120)
-    email = normalize_email(data.get("email"))
-    phone = normalize_phone(data.get("phone", ""))
-    address = clean_text(data.get("address"), 500)
-    channel = (data.get("channel") or data.get("verify_method") or "").lower()
-
-    try:
-        amount = int(data.get("amount", 0))
-    except (TypeError, ValueError):
-        amount = 0
-
-    if not name:
-        return jsonify({"error": "Donor name is required"}), 400
-    if amount < 1000:
-        return jsonify({"error": "Minimum donation is Rs 10"}), 400
-
-    # Auto-select channel if not explicitly chosen: phone if valid 10-digit phone given, else email
-    if not channel:
-        channel = "phone" if (phone and len(phone) == 10) else "email"
-
-    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
-
-    if channel == "phone":
-        if not phone or len(phone) != 10:
-            return jsonify({"error": "A valid 10-digit Indian mobile number is required for SMS OTP"}), 400
-
-        from sms_service import generate_and_send_mobile_otp
-        ok, send_msg, _ = generate_and_send_mobile_otp(
-            phone,
-            purpose="donation_public",
-            ip=get_client_ip(),
-            metadata={"name": name, "email": email, "address": address, "amount": amount}
-        )
-        if not ok:
-            return jsonify({"error": f"Failed to send SMS OTP: {send_msg}"}), 400
-
-        session["pending_donation_channel"] = "phone"
-        session["pending_donation_phone"] = phone
-        session["pending_donation_data"] = {
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "address": address,
-            "purpose_type": purpose_type,
-            "purpose_id": purpose_id,
-            "purpose_label": purpose_label,
-        }
-        return jsonify({"ok": True, "channel": "phone", "message": f"6-digit SMS OTP sent to +91-{phone}"}), 200
-
-    else:
-        # Email OTP
-        if not email:
-            return jsonify({"error": "A valid email address is required for Email OTP"}), 400
-
-        otp = set_pending_otp("donation_public", email, {
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "address": address,
-            "purpose_type": purpose_type,
-            "purpose_id": purpose_id,
-            "purpose_label": purpose_label,
-        })
-        session["pending_donation_channel"] = "email"
-        session["pending_donation_email"] = email
-
-        email_sent = send_otp_email(email, otp, "Donation Verification")
-        if not email_sent:
-            if DEV_OTP_FALLBACK_ENABLED:
-                app.logger.warning(f"DEV OTP fallback (donation) for {email}: {otp}")
-                return jsonify({"ok": True, "channel": "email", "message": "OTP email failed; development OTP printed in server terminal"}), 200
-            session.pop("pending_donation_public", None)
-            return jsonify({"error": "Unable to send OTP email right now. Please select Mobile SMS verification."}), 503
-
-        return jsonify({"ok": True, "channel": "email", "message": f"OTP sent to {email}"}), 200
+    """Donation verification start endpoint - disabled while in maintenance mode."""
+    return jsonify({
+        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
+    }), 503
 
 
 @app.route("/donation/verify", methods=["POST"])
 def verify_public_donation():
-    """Verify public donation OTP (supports mobile SMS OTP or Email OTP) and create/login donor account."""
-    if current_user.is_authenticated:
-        return jsonify({"ok": True, "verified": True}), 200
-
-    data = request.get_json(silent=True) or {}
-    otp_code = clean_text(data.get("otp"), 10)
-    channel = session.get("pending_donation_channel") or data.get("channel") or ("phone" if data.get("phone") else "email")
-
-    if channel == "phone":
-        phone = session.get("pending_donation_phone") or normalize_phone(data.get("phone", ""))
-        from sms_service import verify_mobile_otp
-        verified, msg, metadata = verify_mobile_otp(phone, otp_code, purpose="donation_public")
-        if not verified:
-            return jsonify({"error": msg}), 400
-
-        saved_data = session.get("pending_donation_data") or metadata or {}
-        donor_name = saved_data.get("name") or data.get("name")
-        donor_email = saved_data.get("email") or data.get("email")
-        donor_address = saved_data.get("address") or data.get("address")
-
-        user_row, temp_password = get_or_create_public_donor(
-            name=donor_name,
-            email=donor_email,
-            phone=phone,
-            address=donor_address
-        )
-    else:
-        # Email OTP flow
-        ok, payload_or_message = validate_pending_otp("donation_public", otp_code)
-        if not ok:
-            return jsonify({"error": payload_or_message}), 400
-
-        payload = payload_or_message.get("payload", {})
-        email = payload_or_message.get("email")
-        user_row, temp_password = get_or_create_public_donor(
-            name=payload.get("name"),
-            email=email,
-            phone=payload.get("phone"),
-            address=payload.get("address"),
-        )
-
-    if not user_row:
-        return jsonify({"error": "Unable to prepare donor account"}), 500
-
-    user = User(
-        id=user_row["id"],
-        email=user_row["email"],
-        name=user_row.get("name", "User"),
-        is_admin=user_row.get("is_admin", False),
-        role=user_row.get("role", "donor"),
-        phone=user_row.get("phone"),
-        address=user_row.get("address"),
-    )
-    login_user(user)
-    session.pop("pending_donation_public", None)
-    session.pop("pending_donation_channel", None)
-    session.pop("pending_donation_phone", None)
-    session.pop("pending_donation_data", None)
-
-    if temp_password and user.email and not user.email.endswith("@think4u.local"):
-        send_generated_password_email(user.email, user.name, temp_password)
-        create_notification_for_user(
-            user.id,
-            "Account created",
-            "Your Think.4U account was created after verification. A temporary password was mailed to you."
-        )
-
+    """Donation verification endpoint - disabled while in maintenance mode."""
     return jsonify({
-        "ok": True,
-        "verified": True,
-        "donor": {
-            "name": user.name,
-            "email": user.email,
-            "phone": user.phone,
-            "address": user.address,
-        }
-    }), 200
+        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
+    }), 503
 
 
 @app.route("/donate-upi")
-@login_required
 def donate_upi():
-    """UPI donation page"""
-    amount = request.args.get('amount', '')
-    return render_template("donate_upi.html", upi_vpa=UPI_VPA, amount=amount)
+    """UPI donation entry point - redirected to professional donation maintenance experience."""
+    return render_template("donate_maintenance.html")
 
 
 @app.route("/donate-upi/verify", methods=["POST"])
-@login_required
 def donate_upi_verify():
-    """Create manual UPI donation entry for admin verification."""
-    amount_raw = clean_text(request.form.get("amount"), 20)
-    txn_ref = clean_text(request.form.get("txn_ref"), 80).upper()
-    phone = normalize_phone(request.form.get("phone", ""))
-
-    try:
-        amount_rupees = float(amount_raw)
-        amount_paise = int(round(amount_rupees * 100))
-    except Exception:
-        flash("Enter a valid donation amount.", "error")
-        return redirect(url_for("donate_upi", amount=amount_raw))
-
-    if amount_paise < 1000:
-        flash("Minimum donation is Rs 10.", "error")
-        return redirect(url_for("donate_upi", amount=amount_raw))
-
-    if not re.fullmatch(r"[A-Z0-9]{8,40}", txn_ref):
-        flash("Enter a valid UPI transaction reference (8-40 letters/numbers).", "error")
-        return redirect(url_for("donate_upi", amount=amount_raw))
-
-    if not phone:
-        flash("Enter a valid 10 digit phone number for verification.", "error")
-        return redirect(url_for("donate_upi", amount=amount_raw))
-
-    synthetic_order_id = f"upi_{int(datetime.now(timezone.utc).timestamp())}_{current_user.id}_{secrets.randbelow(10000)}"
-
-    try:
-        supabase.table("donations").insert({
-            "user_id": current_db_user_id(),
-            "name": clean_text(current_user.name or current_user.email.split("@")[0], 120),
-            "email": current_user.email,
-            "phone": phone,
-            "amount": amount_paise,
-            "razorpay_order_id": synthetic_order_id,
-            "razorpay_payment_id": txn_ref,
-            "payment_method": "UPI",
-            "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
-
-        create_notification_for_user(
-            current_user.id,
-            "UPI verification submitted",
-            "Your UPI payment details were submitted. Admin verification is pending."
-        )
-
-        if current_user.email:
-            upi_ack_html = f"""
-            <div style='font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;'>
-                <h2 style='color:#0ea5e9;'>UPI Payment Submitted</h2>
-                <p>Hello {html.escape(clean_text(current_user.name, 120) or 'Supporter')},</p>
-                <p>We received your UPI verification request for <strong>Rs {amount_paise / 100:.2f}</strong>.</p>
-                <p>Reference: <strong>{html.escape(txn_ref)}</strong></p>
-                <p>Our team will verify and update your donation status soon.</p>
-            </div>
-            """
-            send_email_async(
-                subject="Think.4U UPI Verification Received",
-                recipients=[current_user.email],
-                html=upi_ack_html
-            )
-
-        flash("UPI details submitted successfully. Verification is pending.", "success")
-    except Exception as e:
-        app.logger.error(f"UPI verification save failed: {e}")
-        flash("Could not submit UPI verification right now. Please try again.", "error")
-
-    return redirect(url_for("dashboard"))
+    """UPI manual verification endpoint - disabled while in maintenance mode."""
+    return jsonify({
+        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
+    }), 503
 
 
 @app.route("/create-order", methods=["POST"])
-@login_required
 def create_order():
-    """Create payment gateway order for logged-in donor (Cashfree, Razorpay, or pluggable gateway)."""
-    active_gw = get_active_gateway()
-    if not active_gw.is_configured():
-        app.logger.warning(f"Payment gateway '{active_gw.gateway_id}' is not configured.")
-        return jsonify({"error": f"Payment gateway ({active_gw.gateway_name}) is temporarily unavailable"}), 503
-
-    data = request.get_json(silent=True) or {}
-
-    try:
-        amount = int(data.get("amount", 0))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid amount"}), 400
-
-    donor_name = clean_text(data.get("name") or current_user.name or current_user.email.split("@")[0], 120)
-    donor_email = current_user.email
-    donor_phone = normalize_phone(data.get("phone", ""))
-    donor_address = clean_text(data.get("address"), 500)
-    purpose_type, purpose_id, purpose_label = normalize_donation_purpose(data)
-
-    if amount < 1000:
-        return jsonify({"error": "Minimum donation is Rs 10"}), 400
-
-    if not donor_name or not donor_phone:
-        return jsonify({"error": "Missing donor details"}), 400
-
-    base_host = request.host_url.rstrip('/')
-    if base_host.startswith("http://"):
-        if "127.0.0.1" in base_host or "localhost" in base_host:
-            base_host = "https://think4u.org"
-        else:
-            base_host = "https://" + base_host[len("http://"):]
-    return_url = f"{base_host}{url_for('payment_success_redirect')}"
-
-    try:
-        donation_ref, donation_number = make_donation_ref(
-            user_id=current_user.id, email=donor_email
-        )
-        order = active_gw.create_order(
-            amount_paise=amount,
-            currency="INR",
-            donor_details={
-                "user_id": current_user.id,
-                "name": donor_name,
-                "email": donor_email,
-                "phone": donor_phone,
-                "address": donor_address
-            },
-            notes={
-                "user_id": str(current_user.id),
-                "email": donor_email,
-                "donation_ref": donation_ref,
-                "purpose": purpose_label,
-            },
-            return_url=return_url
-        )
-
-        gateway_order_id = order["order_id"]
-
-        donation_payload = {
-            "user_id": db_id(current_user.id),
-            "name": donor_name,
-            "email": donor_email,
-            "phone": donor_phone,
-            "address": donor_address,
-            "amount": amount,
-            "donation_ref": donation_ref,
-            "donation_number": donation_number,
-            "purpose_type": purpose_type,
-            "purpose_id": purpose_id or None,
-            "purpose_label": purpose_label,
-            "razorpay_order_id": gateway_order_id,
-            "payment_method": active_gw.gateway_name,
-            "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        try:
-            supabase.table("donations").insert(donation_payload).execute()
-        except Exception:
-            for key in ["address", "donation_ref", "donation_number", "purpose_type", "purpose_id", "purpose_label"]:
-                donation_payload.pop(key, None)
-            supabase.table("donations").insert(donation_payload).execute()
-
-        return jsonify({
-            "id": gateway_order_id,
-            "order_id": gateway_order_id,
-            "gateway": order.get("gateway", active_gw.gateway_id),
-            "gateway_name": order.get("gateway_name", active_gw.gateway_name),
-            "checkout_mode": order.get("checkout_mode", "redirect"),
-            "cashfree_mode": order.get("cashfree_mode", "production"),
-            "payment_session_id": order.get("payment_session_id", ""),
-            "amount": order["amount"],
-            "currency": order["currency"],
-            "key_id": order.get("key_id", RAZOR_KEY),
-            "donation_ref": donation_ref,
-            "purpose_label": purpose_label,
-        })
-
-    except RuntimeError as e:
-        error_text = str(e)
-        app.logger.error(f"Gateway order creation error: {error_text}")
-        if "BAD_REQUEST_ERROR" in error_text or "input_validation_failed" in error_text:
-            return jsonify({"error": "Payment order was rejected by gateway. Please verify details and retry."}), 400
-        return jsonify({"error": "Payment service temporarily unavailable. Please retry shortly."}), 503
-    except Exception as e:
-        app.logger.error(f"Order creation failed: {e}")
-        return jsonify({"error": "Could not create payment order"}), 500
+    """Payment order creation - disabled while in maintenance mode."""
+    return jsonify({
+        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
+    }), 503
 
 
 @app.route("/payment-status", methods=["POST"])
-@login_required
 def payment_status_update():
-    """Mark interrupted payment attempt as failed/cancelled for quicker dashboard visibility."""
-    data = request.get_json(silent=True) or {}
-    order_id = clean_text(data.get("order_id"), 120)
-    raw_status = clean_text(data.get("status"), 40).lower()
-
-    if not order_id:
-        return jsonify({"error": "Missing order id"}), 400
-
-    if raw_status in {"retryable", "in_progress", "temporary_failure"}:
-        return jsonify({"ok": True, "updated": False}), 200
-
-    status = "failed"
-    active_gw = get_active_gateway()
-    update_payload = {
-        "status": status,
-        "payment_method": active_gw.gateway_name,
-    }
-
-    try:
-        response = supabase.table("donations") \
-            .update(update_payload) \
-            .eq("razorpay_order_id", order_id) \
-            .eq("user_id", current_db_user_id()) \
-            .eq("status", "pending") \
-            .execute()
-        updated = bool(response.data)
-
-        if updated:
-            create_notification_for_user(
-                current_user.id,
-                "Donation attempt incomplete",
-                "Your last payment attempt was not completed. You can retry safely."
-            )
-
-        return jsonify({"ok": True, "updated": updated}), 200
-    except Exception as e:
-        app.logger.warning(f"Payment status update failed: {e}")
-        return jsonify({"error": "Unable to update payment status"}), 500
+    """Payment status update endpoint - disabled while in maintenance mode."""
+    return jsonify({
+        "error": "Donation Services Temporarily Under Maintenance."
+    }), 503
 
 
 @app.route("/payment-success", methods=["GET", "POST"])
@@ -3289,43 +3003,8 @@ def payment_webhook():
 
 @app.route("/upi-qr")
 def upi_qr():
-    """Generate UPI QR code"""
-    try:
-        amount = request.args.get('amount', '')
-
-        upi_string = f"upi://pay?pa={UPI_VPA}&pn=Think.4U"
-        if amount:
-            upi_string += f"&am={amount}"
-        upi_string += "&cu=INR"
-
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(upi_string)
-        qr.make(fit=True)
-
-        img = qr.make_image(fill_color="black", back_color="white")
-
-        img_io = io.BytesIO()
-        img.save(img_io, 'PNG')
-        img_io.seek(0)
-
-        return send_file(img_io, mimetype='image/png')
-
-    except Exception as e:
-        app.logger.error(f"Error generating QR code: {e}")
-        img = Image.new('RGB', (300, 300), color='white')
-        d = ImageDraw.Draw(img)
-        d.text((150, 150), "QR Error", fill='black', anchor="mm")
-
-        img_io = io.BytesIO()
-        img.save(img_io, 'PNG')
-        img_io.seek(0)
-
-        return send_file(img_io, mimetype='image/png')
+    """UPI QR code generation - disabled while donation services are under maintenance."""
+    return redirect(url_for("donate"))
 
 
 @app.route("/donation-receipt/<donation_id>")
@@ -7532,7 +7211,7 @@ def do_reschedule_past_meetings(coordinator_id):
             if slot_id:
                 active_res = supabase.table("appointments").select("id").eq("slot_id", slot_id).neq("status", "cancelled").neq("status", "completed").execute()
                 active_count = len(active_res.data or [])
-                limit = slots[0].get("registration_limit") or 1
+                limit = slot_registration_limit
                 if active_count >= limit:
                     supabase.table("appointment_slots").update({
                         "status": "booked",
@@ -9962,7 +9641,7 @@ def generate_qr(data):
     img = qr.make_image(fill_color="black", back_color="white")
 
     buf = BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf)
     buf.seek(0)
 
     return base64.b64encode(buf.read()).decode("utf-8")

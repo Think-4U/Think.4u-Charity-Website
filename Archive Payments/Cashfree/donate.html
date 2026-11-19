@@ -151,6 +151,16 @@
           class="w-full bg-amber-800 hover:bg-amber-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-lg transition">
           <span id="btnText">{% if current_user.is_authenticated %}Proceed to Payment{% else %}Verify &amp; Proceed to Payment{% endif %}</span>
         </button>
+        <!-- QR Code Payment Option -->
+        <div class="mt-6 border border-amber-200 bg-amber-50 p-4 rounded-lg">
+           <h3 class="text-xl font-bold text-amber-800 mb-2">Pay via QR Code / Bank Transfer</h3>
+           <img src="{{ url_for('static', filename='images/bank.jpg') }}" alt="Bank QR Code" class="w-48 h-48 mx-auto mb-4"/>
+           <p class="text-sm text-amber-900"><strong>Think.4U Charitable Trust</strong></p>
+           <p class="text-sm text-amber-900">Account No: 50200122309566</p>
+           <p class="text-sm text-amber-900">IFSC: HDFC0009860</p>
+           <p class="text-sm text-amber-900">Bank: HDFC Bank Ltd</p>
+           <p class="text-sm text-amber-900">Branch: Bahadurpally</p>
+        </div>
       </div>
 
       <aside class="bg-white rounded-lg shadow-lg border border-stone-200 p-6 h-fit">

@@ -147,11 +147,31 @@
           </div>
         </div>
 
-        <button id="payBtn"
-          class="w-full bg-amber-800 hover:bg-amber-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-lg transition">
-          <span id="btnText">{% if current_user.is_authenticated %}Proceed to Payment{% else %}Verify &amp; Proceed to Payment{% endif %}</span>
-        </button>
-      </div>
+        <!-- Payment Method Selection -->
+        <div class="flex flex-col space-y-2">
+          <div class="flex items-center space-x-4">
+            <input type="radio" id="payCashfree" name="paymentMethod" value="cashfree" checked class="form-radio">
+            <label for="payCashfree" class="text-sm text-amber-900">Pay via Cashfree</label>
+            <input type="radio" id="payRazorpay" name="paymentMethod" value="razorpay" class="form-radio">
+            <label for="payRazorpay" class="text-sm text-amber-900">Pay via Razorpay</label>
+            <input type="radio" id="payQR" name="paymentMethod" value="qr" class="form-radio">
+            <label for="payQR" class="text-sm text-amber-900">Pay via QR / Bank Transfer</label>
+          </div>
+          <button id="payBtn"
+            class="w-full bg-amber-800 hover:bg-amber-900 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-lg transition">
+            <span id="btnText">{% if current_user.is_authenticated %}Proceed to Payment{% else %}Verify &amp; Proceed to Payment{% endif %}</span>
+          </button>
+        </div>
+        <!-- QR Code Container (hidden by default) -->
+        <div id="qrContainer" class="mt-6 border border-amber-200 bg-amber-50 p-4 rounded-lg hidden">
+          <h3 class="text-xl font-bold text-amber-800 mb-2">Pay via QR Code / Bank Transfer</h3>
+          <img src="{{ url_for('static', filename='images/bank.jpg') }}" alt="Bank QR Code" class="w-48 h-48 mx-auto mb-4"/>
+          <p class="text-sm text-amber-900"><strong>Think.4U Charitable Trust</strong></p>
+          <p class="text-sm text-amber-900">Account No: 50200122309566</p>
+          <p class="text-sm text-amber-900">IFSC: HDFC0009860</p>
+          <p class="text-sm text-amber-900">Bank: HDFC Bank Ltd</p>
+          <p class="text-sm text-amber-900">Branch: Bahadurpally</p>
+        </div>
 
       <aside class="bg-white rounded-lg shadow-lg border border-stone-200 p-6 h-fit">
         <h3 class="text-xl font-black text-slate-900 mb-4">Secure Donation</h3>
@@ -218,6 +238,7 @@
   }
 
   function payload() {
+    const selectedMethodEl = document.querySelector('input[name="paymentMethod"]:checked');
     const data = {
       name: (nameInput.value || "").trim(),
       email: (emailInput.value || "").trim(),
@@ -227,6 +248,7 @@
       purpose_type: document.getElementById("purpose_type").value,
       purpose_id: document.getElementById("purpose_id").value,
       purpose_label: document.getElementById("purpose_label").value,
+      gateway: selectedMethodEl ? selectedMethodEl.value : "cashfree",
     };
     const turnstileElem = document.querySelector('[name="cf-turnstile-response"]');
     if (turnstileElem) {
@@ -387,7 +409,7 @@
 
   async function createOrder(data) {
     const order = await postJson("{{ url_for('create_order') }}", data);
-    if (!order.id) throw new Error("Payment order response was incomplete.");
+    if (!order.order_id && !order.id) throw new Error("Payment order response was incomplete.");
     return order;
   }
 
@@ -418,7 +440,7 @@
       setStatus("loading", "Creating order", "Preparing secure payment...");
 
       let order = null;
-      if (isReusableOrderValid() && reusableOrder.amount === data.amount) {
+      if (isReusableOrderValid() && reusableOrder.amount === data.amount && reusableOrder.gateway === data.gateway) {
         order = reusableOrder;
       } else {
         order = await createOrder(data);
@@ -536,6 +558,35 @@
       await window.showUiAlert(message, "error", "Donation Failed");
     }
   });
+
+  // ── QR / Bank Transfer radio toggle ──────────────────────────────────────
+  document.querySelectorAll('input[name="paymentMethod"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      const qrContainer = document.getElementById('qrContainer');
+      if (this.value === 'qr') {
+        qrContainer.classList.remove('hidden');
+        setButtonState(true, 'QR Selected – transfer directly via bank / QR');
+        setStatus('idle', 'QR / Bank Transfer selected', 'Use the account details or QR code shown below to send your donation directly.');
+      } else {
+        qrContainer.classList.add('hidden');
+        setButtonState(false, AUTHENTICATED ? 'Proceed to Payment' : 'Verify & Proceed to Payment');
+        setStatus('idle', 'Ready to proceed', 'Fill details and continue. Payment receipt is available only after login.');
+      }
+    });
+  });
+
+  // ── Patch payBtn click to handle QR selection ─────────────────────────────
+  // The existing listener above handles Cashfree/Razorpay. For QR we intercept early.
+  payBtn.addEventListener('click', async function handleQRClick(e) {
+    const selectedMethodEl = document.querySelector('input[name="paymentMethod"]:checked');
+    if (!selectedMethodEl || selectedMethodEl.value !== 'qr') return; // let the existing handler run for other methods
+    e.stopImmediatePropagation();
+    const qrContainer = document.getElementById('qrContainer');
+    qrContainer.classList.remove('hidden');
+    setStatus('success', 'QR / Bank Transfer', 'Please scan the QR code or use the bank details shown below to complete your donation.');
+    await window.showUiAlert('Scan the QR code or use the bank details shown to transfer the donation amount directly.', 'info', 'QR Payment');
+  }, true); // capture phase so it fires before the bubbling handler
+
 </script>
 
 <style>

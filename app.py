@@ -52,17 +52,10 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
-# ── Payment Gateway imports DISABLED (archived) ──────────────────────────
-# The payment_gateways module has been archived to "Archive Payments/".
-# These imports are preserved as comments for future restoration.
-# from payment_gateways import (
-#     get_active_payment_gateway,
-#     payment_manager,
-#     CashfreeGateway,
-#     RazorpayGateway,
-#     BasePaymentGateway
-# )
-# ── End archived payment imports ──────────────────────────────────────────
+# ── Payment Gateway imports ───────────────────────────────────────────────
+from payment_gateways.cashfree_gateway import CashfreeGateway
+from payment_gateways.razorpay_gateway import RazorpayGateway
+# ─────────────────────────────────────────────────────────────────────────
 from sms_service import (
     generate_and_send_mobile_otp,
     verify_mobile_otp,
@@ -416,19 +409,15 @@ SUPABASE_ENABLED = DB_ENABLED
 
 
 # ---------------------------------------------------------------------------
-# Payment Gateway Stubs & Verification for Outstanding Transactions (ARCHIVED)
-# The full payment gateway logic has been archived to "Archive Payments/".
-# The classes/functions below preserve signature verification strictly for
-# legitimate callbacks/webhooks of transactions already in flight, while
-# disabling any new order creation or active gateway integrations.
+# Payment Gateway – Active (restored from archive)
 # ---------------------------------------------------------------------------
 RAZOR_KEY = os.getenv('RAZOR_KEY_ID', '')
 RAZOR_SECRET = os.getenv('RAZOR_KEY_SECRET', '')
 CASHFREE_APP_ID = (os.getenv('CASHFREE_APP_ID') or os.getenv('CASHFREE_CLIENT_ID') or '').strip()
 CASHFREE_SECRET_KEY = (os.getenv('CASHFREE_SECRET_KEY') or os.getenv('CASHFREE_CLIENT_SECRET') or '').strip()
 
-ONLINE_PAYMENTS_ENABLED = False
-RAZORPAY_ENABLED = False
+ONLINE_PAYMENTS_ENABLED = True
+RAZORPAY_ENABLED = bool(RAZOR_KEY and RAZOR_SECRET)
 
 
 class _ArchivedCallbackHandler:
@@ -548,8 +537,8 @@ class _ArchivedCallbackHandler:
 class _ArchivedPaymentManager:
     def list_gateways(self):
         return {
-            "cashfree": {"name": "Cashfree (Archived)", "configured": False},
-            "razorpay": {"name": "Razorpay (Archived)", "configured": False}
+            "cashfree": {"name": "Cashfree", "configured": bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)},
+            "razorpay": {"name": "Razorpay", "configured": bool(RAZOR_KEY and RAZOR_SECRET)}
         }
 
 
@@ -558,16 +547,19 @@ _archived_manager = _ArchivedPaymentManager()
 
 
 def get_active_payment_gateway(gateway_id=None):
-    return _archived_handler
+    gid = (gateway_id or os.getenv("PAYMENT_GATEWAY", "cashfree")).strip().lower()
+    if gid == "razorpay":
+        return RazorpayGateway()
+    return CashfreeGateway()
 
 
 def get_active_gateway(gateway_id=None):
-    return _archived_handler
+    return get_active_payment_gateway(gateway_id)
 
 
 payment_manager = _archived_manager
-ACTIVE_PAYMENT_GW = _archived_handler
-app.logger.info("Payment gateway module is archived. Donation services are in maintenance mode.")
+ACTIVE_PAYMENT_GW = get_active_payment_gateway()
+app.logger.info("Payment gateways (Cashfree + Razorpay) restored and active.")
 
 
 # ------------------------------
@@ -2275,6 +2267,8 @@ def set_security_headers(response):
     if ENFORCE_HTTPS:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     challenge_src = "https://challenges.cloudflare.com https://*.cloudflare.com https://vercel.live https://va.vercel-scripts.com"
+    # Cashfree and Razorpay checkout SDKs must be loadable for donations to work.
+    payment_src = "https://sdk.cashfree.com https://checkout.razorpay.com https://api.razorpay.com"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "frame-ancestors 'none'; "
@@ -2282,13 +2276,13 @@ def set_security_headers(response):
         "media-src 'self' blob: data: https: https://media.think4u.org; "
         "worker-src 'self' blob: https://challenges.cloudflare.com; "
         "child-src 'self' blob: https://challenges.cloudflare.com; "
-        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com {challenge_src} {jitsi_src}; "
-        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com {challenge_src} {jitsi_src}; "
+        f"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com {challenge_src} {jitsi_src} {payment_src}; "
+        f"script-src-elem 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com {challenge_src} {jitsi_src} {payment_src}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"connect-src 'self' https://ipapi.co https://unpkg.com https://cdn.jsdelivr.net https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src}; "
-        f"frame-src 'self' https://accounts.google.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src}; "
+        f"connect-src 'self' https://ipapi.co https://unpkg.com https://cdn.jsdelivr.net https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://vitals.vercel-insights.com {challenge_src} {jitsi_src} {payment_src}; "
+        f"frame-src 'self' https://accounts.google.com https://www.google.com https://maps.google.com https://*.google.com {challenge_src} {jitsi_src} {payment_src}; "
         "base-uri 'self'; "
         "form-action 'self' https://accounts.google.com; "
         "object-src 'none'"
@@ -2749,54 +2743,213 @@ def healthz():
 
 @app.route("/donate")
 def donate():
-    """Donation entry point - redirected to professional donation maintenance experience."""
-    return render_template("donate_maintenance.html")
+    """Donation page – choose Cashfree, Razorpay, or QR/Bank Transfer."""
+    donation_context = {
+        "purpose_type": request.args.get("purpose_type", "self"),
+        "purpose_id": request.args.get("purpose_id", ""),
+        "purpose_label": request.args.get("purpose_label", "Self donation"),
+    }
+    donor_name = ""
+    donor_email = ""
+    donor_phone = ""
+    donor_address = ""
+    if current_user.is_authenticated:
+        donor_name = getattr(current_user, "name", "") or ""
+        donor_email = getattr(current_user, "email", "") or ""
+        donor_phone = getattr(current_user, "phone", "") or ""
+    amount_display = request.args.get("amount", "")
+    is_donation_verified = session.get("donation_otp_verified", False)
+    turnstile_site_key = os.getenv("CLOUDFLARE_TURNSTILE_SITE_KEY", "")
+    payment_retry_window_minutes = int(os.getenv("PAYMENT_RETRY_WINDOW_MINUTES", "15"))
+    return render_template(
+        "donate.html",
+        donation_context=donation_context,
+        donor_name=donor_name,
+        donor_email=donor_email,
+        donor_phone=donor_phone,
+        donor_address=donor_address,
+        amount_display=amount_display,
+        is_donation_verified=is_donation_verified,
+        turnstile_site_key=turnstile_site_key,
+        payment_retry_window_minutes=payment_retry_window_minutes,
+    )
 
 
 @app.route("/donation/start", methods=["POST"])
 def start_public_donation_verification():
-    """Donation verification start endpoint - disabled while in maintenance mode."""
-    return jsonify({
-        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
-    }), 503
+    """Send OTP to donor's phone or email for verification before payment."""
+    data = request.get_json(silent=True) or request.form or {}
+    channel = clean_text(data.get("channel", "phone"), 10).lower()
+    name = clean_text(data.get("name", "Donor"), 100)
+
+    # Turnstile check for unauthenticated users
+    if not current_user.is_authenticated:
+        turnstile_token = data.get("cf-turnstile-response") or data.get("turnstile_token") or ""
+        if os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY") and not verify_turnstile(turnstile_token, get_client_ip()):
+            return jsonify({"error": "Security verification failed. Please try again."}), 400
+
+    if channel == "phone":
+        phone = clean_text(data.get("phone", ""), 20)
+        if not phone:
+            return jsonify({"error": "Phone number is required."}), 400
+        success, msg, norm_phone = generate_and_send_mobile_otp(
+            phone_input=phone,
+            purpose="donation",
+            ip=get_client_ip()
+        )
+        if not success:
+            return jsonify({"error": msg}), 400
+        session["donation_otp_phone"] = norm_phone
+        session["donation_otp_name"] = name
+        return jsonify({"ok": True, "message": msg, "channel": "phone"}), 200
+    else:
+        # Email OTP flow
+        email = normalize_email(data.get("email", ""))
+        if not email:
+            return jsonify({"error": "A valid email address is required."}), 400
+        import random
+        otp_code = str(random.randint(100000, 999999))
+        session["donation_otp_email"] = email
+        session["donation_otp_email_code"] = otp_code
+        session["donation_otp_name"] = name
+        try:
+            mail.send(Message(
+                subject="Think.4U – Donation OTP Verification",
+                recipients=[email],
+                html=f"<p>Hi {html.escape(name)},</p><p>Your donation verification OTP is: <strong>{otp_code}</strong></p><p>This code is valid for 10 minutes.</p>"
+            ))
+        except Exception as e:
+            app.logger.error(f"Failed to send donation email OTP: {e}")
+            return jsonify({"error": "Failed to send email OTP. Please try via mobile SMS."}), 500
+        return jsonify({"ok": True, "message": f"OTP sent to {email}", "channel": "email"}), 200
 
 
 @app.route("/donation/verify", methods=["POST"])
 def verify_public_donation():
-    """Donation verification endpoint - disabled while in maintenance mode."""
-    return jsonify({
-        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
-    }), 503
+    """Verify donor OTP (phone or email) and mark session as verified."""
+    data = request.get_json(silent=True) or request.form or {}
+    otp = clean_text(data.get("otp", ""), 10)
+    channel = clean_text(data.get("channel", "phone"), 10).lower()
+
+    if not otp or not otp.isdigit() or len(otp) != 6:
+        return jsonify({"error": "Invalid OTP. Please enter the 6-digit code."}), 400
+
+    if channel == "phone":
+        phone = clean_text(data.get("phone", ""), 20)
+        verified, msg, _ = verify_mobile_otp(phone, otp, purpose="donation")
+        if not verified:
+            return jsonify({"error": msg}), 400
+    else:
+        stored_email = session.get("donation_otp_email")
+        stored_code = session.get("donation_otp_email_code")
+        email = normalize_email(data.get("email", ""))
+        if not stored_code or otp != stored_code or email != stored_email:
+            return jsonify({"error": "OTP is incorrect or has expired."}), 400
+        session.pop("donation_otp_email_code", None)
+
+    session["donation_otp_verified"] = True
+    return jsonify({"ok": True, "verified": True, "message": "Verification successful!"}), 200
 
 
 @app.route("/donate-upi")
 def donate_upi():
-    """UPI donation entry point - redirected to professional donation maintenance experience."""
-    return render_template("donate_maintenance.html")
+    """UPI donation – redirect to main donate page."""
+    return redirect(url_for("donate"))
 
 
 @app.route("/donate-upi/verify", methods=["POST"])
 def donate_upi_verify():
-    """UPI manual verification endpoint - disabled while in maintenance mode."""
-    return jsonify({
-        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
-    }), 503
+    """UPI manual verification – redirect to main donate."""
+    return jsonify({"ok": True, "message": "Please use the main donation page."}), 200
 
 
 @app.route("/create-order", methods=["POST"])
 def create_order():
-    """Payment order creation - disabled while in maintenance mode."""
-    return jsonify({
-        "error": "Donation Services Temporarily Under Maintenance. We're currently improving our donation experience. Our donation services will be available again soon."
-    }), 503
+    """Create a payment order using Cashfree or Razorpay."""
+    data = request.get_json(silent=True) or {}
+    gateway_name = clean_text(data.get("gateway", "cashfree"), 20).lower()
+    amount_paise = int(data.get("amount", 0))
+
+    if amount_paise < 1000:
+        return jsonify({"error": "Minimum donation amount is Rs 10 (1000 paise)."}), 400
+
+    donor = {
+        "name": clean_text(data.get("name", "Donor"), 100),
+        "email": normalize_email(data.get("email", "")) or "donor@think4u.org",
+        "phone": clean_text(data.get("phone", ""), 20),
+        "address": clean_text(data.get("address", ""), 200),
+    }
+    notes = {
+        "purpose": clean_text(data.get("purpose_label", "Think.4U Donation"), 80),
+        "purpose_type": clean_text(data.get("purpose_type", "self"), 30),
+    }
+    return_url = url_for("payment_success_redirect", _external=True)
+
+    # Choose gateway
+    try:
+        if gateway_name == "razorpay":
+            gw = RazorpayGateway()
+        else:
+            gw = CashfreeGateway()
+
+        if not gw.is_configured():
+            return jsonify({"error": f"{gw.gateway_name} is not configured. Please contact support."}), 503
+
+        order = gw.create_order(
+            amount_paise=amount_paise,
+            donor_details=donor,
+            notes=notes,
+            return_url=return_url,
+        )
+    except RuntimeError as e:
+        app.logger.error(f"Order creation error ({gateway_name}): {e}")
+        return jsonify({"error": str(e)}), 503
+    except Exception as e:
+        app.logger.error(f"Unexpected order creation error: {e}")
+        return jsonify({"error": "Failed to create payment order. Please try again."}), 500
+
+    # Persist a pending donation record in the DB
+    try:
+        insert_data = {
+            "razorpay_order_id": order["order_id"],
+            "amount": amount_paise,
+            "currency": order.get("currency", "INR"),
+            "status": "pending",
+            "payment_method": gateway_name,
+            "name": donor["name"],
+            "email": donor["email"],
+            "phone": donor.get("phone", ""),
+            "address": donor.get("address", ""),
+            "purpose_type": notes.get("purpose_type", "self"),
+            "purpose_label": notes.get("purpose", "Think.4U Donation"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if current_user.is_authenticated:
+            insert_data["user_id"] = current_db_user_id()
+        supabase.table("donations").insert(insert_data).execute()
+    except Exception as db_err:
+        app.logger.warning(f"Could not persist pending donation record: {db_err}")
+
+    return jsonify(order), 200
 
 
 @app.route("/payment-status", methods=["POST"])
 def payment_status_update():
-    """Payment status update endpoint - disabled while in maintenance mode."""
-    return jsonify({
-        "error": "Donation Services Temporarily Under Maintenance."
-    }), 503
+    """Accept client-side payment status updates (pre-verification telemetry)."""
+    data = request.get_json(silent=True) or {}
+    order_id = clean_text(data.get("order_id", ""), 120)
+    status = clean_text(data.get("status", ""), 40)
+    reason = clean_text(data.get("reason", ""), 200)
+    if order_id and status in ("failed", "cancelled", "pending"):
+        try:
+            supabase.table("donations") \
+                .update({"status": status}) \
+                .eq("razorpay_order_id", order_id) \
+                .eq("status", "pending") \
+                .execute()
+        except Exception as e:
+            app.logger.warning(f"payment_status_update DB write failed: {e}")
+    return jsonify({"ok": True}), 200
 
 
 @app.route("/payment-success", methods=["GET", "POST"])

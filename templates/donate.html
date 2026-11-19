@@ -590,6 +590,30 @@
 </script>
 
 <style>
+  /* Donation form fields: force light background and dark text for readability */
+  #donor_name,
+  #donor_email,
+  #donor_phone,
+  #donor_address,
+  #amount,
+  #donation_otp {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    caret-color: #0f172a;
+  }
+  #donor_name::placeholder,
+  #donor_email::placeholder,
+  #donor_phone::placeholder,
+  #donor_address::placeholder,
+  #amount::placeholder,
+  #donation_otp::placeholder {
+    color: #94a3b8 !important;
+    opacity: 1;
+  }
+  #donor_email[readonly] {
+    background-color: #f1f5f9 !important;
+  }
+
   .amount-btn {
     min-height: 44px;
     padding: 10px;

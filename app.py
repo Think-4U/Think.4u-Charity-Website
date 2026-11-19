@@ -192,6 +192,13 @@ if app.secret_key == "dev-secret-key-change-in-production":
 
 ENFORCE_HTTPS = os.getenv("ENFORCE_HTTPS", "false").lower() == "true"
 OTP_EXPIRY_SECONDS = int(os.getenv("OTP_EXPIRY_SECONDS", "600"))
+# ---------------------------------------------------------------------------
+# DONOR VERIFICATION TOGGLE
+# Email/SMS OTP verification is disabled: donations go straight to the payment
+# gateway. Set VERIFICATION_ENABLED=true to restore the OTP flows; the email
+# (Resend) and SMS implementations are retained intact below.
+# ---------------------------------------------------------------------------
+VERIFICATION_ENABLED = os.getenv("VERIFICATION_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
 LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
 LOGIN_BLOCK_SECONDS = int(os.getenv("LOGIN_BLOCK_SECONDS", "900"))
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
@@ -2817,6 +2824,16 @@ def start_public_donation_verification():
     channel = clean_text(data.get("channel", "email"), 10).lower() or "email"
     name = clean_text(data.get("name", "Donor"), 100)
 
+    # ------------------------------------------------------------------
+    # DONATION VERIFICATION DISABLED (email + SMS) — payments run without OTP.
+    # The email/SMS delivery code below is kept intact; set
+    # VERIFICATION_ENABLED=true to restore verification.
+    # ------------------------------------------------------------------
+    if not VERIFICATION_ENABLED:
+        return jsonify({
+            "error": "Verification is temporarily disabled. No OTP is required — please proceed directly to payment."
+        }), 410
+
     # Turnstile check for unauthenticated users
     if not current_user.is_authenticated:
         turnstile_token = data.get("cf-turnstile-response") or data.get("turnstile_token") or ""
@@ -2892,6 +2909,14 @@ def verify_public_donation():
     data = request.get_json(silent=True) or request.form or {}
     otp = clean_text(data.get("otp", ""), 10)
     channel = clean_text(data.get("channel", "email"), 10).lower() or "email"
+
+    # ------------------------------------------------------------------
+    # DONATION VERIFICATION DISABLED (email + SMS) — see /donation/start.
+    # ------------------------------------------------------------------
+    if not VERIFICATION_ENABLED:
+        return jsonify({
+            "error": "Verification is temporarily disabled. No OTP is required — please proceed directly to payment."
+        }), 410
 
     if not otp or not otp.isdigit() or len(otp) != 6:
         return jsonify({"error": "Invalid OTP. Please enter the 6-digit code."}), 400
@@ -3555,7 +3580,7 @@ def generate_receipt_pdf(context):
     statutory = [
         ("PAN", get_cms_content("tax_id", "Available on request")),
         ("80G CERTIFICATE", get_cms_content("cert_80g", "Available on request")),
-        ("REGISTRATION NO.", get_cms_content("registration_number", "Available on request")),
+        ("REGISTRATION NO.", get_cms_content("registration_number", "131/2025 (Govt. of Telangana)")),
         ("FCRA REGISTRATION", get_cms_content("fcra_registration", "Not applicable")),
     ]
     stat_y = y - 40
@@ -4031,6 +4056,13 @@ def api_sms_send_otp():
     data = request.get_json(silent=True) or request.form or {}
     phone = clean_text(data.get("phone"), 20)
     purpose = clean_text(data.get("purpose") or "login", 30).lower()
+
+    # ------------------------------------------------------------------
+    # SMS INTEGRATIONS DISABLED — Resend email is the only OTP channel.
+    # Commented-out dispatch is retained below in sms_service.py.
+    # ------------------------------------------------------------------
+    if not os.getenv("SMS_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on"):
+        return jsonify({"error": "SMS verification is disabled. Please verify with your email address instead."}), 400
 
     if not phone:
         return jsonify({"error": "Phone number is required."}), 400

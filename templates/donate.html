@@ -79,7 +79,14 @@
         <input id="purpose_id" type="hidden" value="{{ donation_context.purpose_id or '' }}">
         <input id="purpose_label" type="hidden" value="{{ donation_context.purpose_label or 'Self donation' }}">
 
-        {% if not current_user.is_authenticated %}
+        <!-- Donor verification (email + SMS) is temporarily disabled: payments
+             proceed straight to the gateway. The original UI is kept below in a
+             False-guarded block so it can be restored by flipping it to True. -->
+        <div class="mb-5 p-4 rounded-xl border border-emerald-200 bg-emerald-50/70">
+          <p class="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-1">No OTP verification required</p>
+          <p class="text-xs text-emerald-900/80 leading-relaxed">Email and SMS verification are temporarily disabled. Proceed directly to payment &mdash; your donation is confirmed by the payment gateway.</p>
+        </div>
+        {% if false %}
         <div class="mb-5 p-4 rounded-xl border border-amber-200 bg-amber-50/70">
           <p class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-2">Quick Donor Verification:</p>
           <div class="grid grid-cols-1 gap-2.5">
@@ -337,6 +344,13 @@
   });
 
   async function ensureVerified(data) {
+    // ------------------------------------------------------------------
+    // VERIFICATION DISABLED (email + SMS): donations proceed straight to
+    // the payment gateway. The OTP flow below is retained intact; remove
+    // this early return to restore it.
+    // ------------------------------------------------------------------
+    return true;
+    // eslint-disable-next-line no-unreachable
     if (donationVerified || AUTHENTICATED) return true;
     if (!otpPanel.classList.contains("hidden")) {
       const otpVal = (document.getElementById("donation_otp").value || "").trim();

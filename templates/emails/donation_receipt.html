@@ -63,7 +63,7 @@
             {% if phone %}
             <p>Phone: <a href="tel:{{ phone | replace(' ', '') | replace('-', '') }}" class="font-mono text-slate-800 hover:text-cyan-700 hover:underline transition-colors">{{ phone }}</a></p>
             {% endif %}
-            <p class="text-slate-500 pt-0.5">CIN / Reg: <span class="font-mono font-bold text-slate-700">{{ get_cms('registration_number', 'T4U-CHARITY-REG') }}</span></p>
+            <p class="text-slate-500 pt-0.5">CIN / Reg: <span class="font-mono font-bold text-slate-700">{{ get_cms('registration_number', '131/2025') }}</span></p>
           </div>
         </div>
 
@@ -186,7 +186,7 @@
               </div>
               <div class="flex justify-between items-start gap-2">
                 <dt class="text-slate-500">Trust Reg. No.</dt>
-                <dd class="font-mono text-slate-800 text-right">{{ get_cms('registration_number', 'T4U-CHARITY-REG') }}</dd>
+                <dd class="font-mono text-slate-800 text-right">{{ get_cms('registration_number', '131/2025') }}</dd>
               </div>
               <div class="flex justify-between items-start gap-2">
                 <dt class="text-slate-500">FCRA Status</dt>

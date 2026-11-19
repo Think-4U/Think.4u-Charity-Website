@@ -99,12 +99,29 @@ def is_valid_secret(val: str) -> bool:
     return not (v == "" or v.startswith("your-") or "xxxx" in v or v == "none")
 
 
+def sms_delivery_enabled() -> bool:
+    """SMS delivery is OFF by default; email (Resend) is the only active OTP channel.
+
+    Set SMS_ENABLED=true in the environment to restore the provider dispatch
+    below (Twilio / Fast2SMS / MSG91 / webhook). The provider code is kept
+    intact so it can be re-enabled without rewriting anything.
+    """
+    return os.getenv("SMS_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+
+
 def send_sms_via_provider(phone: str, otp: str, message: str) -> (bool, str):
     """
     Send SMS via the configured gateway.
     Respects SMS_PROVIDER env var (twilio, fast2sms, msg91, webhook).
     Falls back gracefully to other configured providers or dev sandbox.
     """
+    # ------------------------------------------------------------------
+    # SMS INTEGRATIONS DISABLED — Resend email is the only OTP channel.
+    # ------------------------------------------------------------------
+    if not sms_delivery_enabled():
+        logger.info("SMS dispatch skipped: SMS_ENABLED is off (email/Resend is the active channel).")
+        return False, "SMS verification is disabled. Please verify with your email address instead."
+
     provider = os.getenv("SMS_PROVIDER", "").strip().lower()
     fast2sms_key = os.getenv("FAST2SMS_API_KEY", "").strip()
     twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
@@ -292,6 +309,9 @@ def generate_and_send_mobile_otp(
     Generate, hash, store, and dispatch SMS OTP to the mobile number.
     Returns (success, message, phone)
     """
+    if not sms_delivery_enabled():
+        return False, "SMS verification is disabled. Please verify with your email address instead.", ""
+
     phone = normalize_phone(phone_input)
     if not phone:
         return False, "Please enter a valid 10-digit Indian mobile number.", ""

@@ -32,3 +32,7 @@ static/uploads/
 node_modules/
 .vercel
 .env*
+
+# Secrets / env import files
+vercel.env
+*.env

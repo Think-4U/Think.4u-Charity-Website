@@ -82,17 +82,18 @@
         {% if not current_user.is_authenticated %}
         <div class="mb-5 p-4 rounded-xl border border-amber-200 bg-amber-50/70">
           <p class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-2">Quick Donor Verification:</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <label class="flex items-center gap-2.5 p-3 rounded-lg border border-amber-300 bg-white cursor-pointer hover:border-amber-500 transition shadow-sm">
+          <div class="grid grid-cols-1 gap-2.5">
+            {# Mobile SMS verification is disabled; email verification is the active channel. #}
+            {# <label class="flex items-center gap-2.5 p-3 rounded-lg border border-amber-300 bg-white cursor-pointer hover:border-amber-500 transition shadow-sm">
               <input type="radio" name="otp_channel" value="phone" checked class="text-amber-800 focus:ring-amber-700">
               <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                 <i data-lucide="smartphone" class="w-4 h-4 text-amber-600"></i> Verify via Mobile SMS
               </span>
-            </label>
-            <label class="flex items-center gap-2.5 p-3 rounded-lg border border-gray-200 bg-white cursor-pointer hover:border-amber-500 transition shadow-sm">
-              <input type="radio" name="otp_channel" value="email" class="text-amber-800 focus:ring-amber-700">
+            </label> #}
+            <label class="flex items-center gap-2.5 p-3 rounded-lg border border-amber-300 bg-white cursor-pointer hover:border-amber-500 transition shadow-sm">
+              <input type="radio" name="otp_channel" value="email" checked class="text-amber-800 focus:ring-amber-700">
               <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <i data-lucide="mail" class="w-4 h-4 text-slate-500"></i> Verify via Email
+                <i data-lucide="mail" class="w-4 h-4 text-amber-600"></i> Verify via Email
               </span>
             </label>
           </div>
@@ -259,17 +260,21 @@
 
   function getSelectedChannel() {
     const el = document.querySelector('input[name="otp_channel"]:checked');
-    return el ? el.value : 'phone';
+    // Email is the active verification channel.
+    return el ? el.value : 'email';
   }
 
   function validatePayload(data) {
     if (!data.name) return "Please enter your full name.";
     const channel = getSelectedChannel();
-    if (channel === 'phone') {
-      if (!data.phone || !/^\d{10}$/.test(data.phone)) return "Please enter a valid 10-digit Indian mobile number.";
-    } else {
-      if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return "Please enter a valid email address.";
-    }
+    // Mobile number validation is disabled while SMS verification is off;
+    // email verification is the active channel.
+    // if (channel === 'phone') {
+    //   if (!data.phone || !/^\d{10}$/.test(data.phone)) return "Please enter a valid 10-digit Indian mobile number.";
+    // } else {
+    //   if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return "Please enter a valid email address.";
+    // }
+    if (channel !== 'phone' && (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))) return "Please enter a valid email address.";
     if (!Number.isFinite(data.amount) || data.amount < 1000) return "Minimum donation is Rs 10.";
     const consentBox = document.getElementById("donation_legal_consent");
     if (consentBox && !consentBox.checked) {

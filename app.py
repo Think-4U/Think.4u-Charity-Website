@@ -574,6 +574,11 @@ app.config.update(
     MAIL_PASSWORD=(os.getenv("MAIL_PASSWORD") or "").strip(),
     MAIL_DEFAULT_SENDER=(os.getenv("MAIL_DEFAULT_SENDER_NAME", "Think.4U"), os.getenv("MAIL_USERNAME") or os.getenv("MAIL_DEFAULT_SENDER", "verify-otp@think4u.org"))
 )
+# Resend transactional email (https://resend.com) is the primary delivery channel.
+# Set RESEND_API_KEY to send through Resend; Flask-Mail stays as a fallback for
+# environments where only SMTP credentials are configured.
+RESEND_API_KEY = (os.getenv("RESEND_API_KEY") or "").strip()
+RESEND_FROM = (os.getenv("RESEND_FROM") or "Think.4U <onboarding@resend.dev>").strip()
 app.config["MAIL_TIMEOUT"] = 20
 
 mail = Mail(app)
@@ -2347,8 +2352,38 @@ def send_email_async(subject, recipients, html, attachments=None):
     threading.Thread(target=send, daemon=True).start()
 
 
+def send_email_via_resend(subject, recipients, html):
+    """Send a transactional email through the Resend HTTP API.
+
+    Returns (success, error_message) so callers can react to delivery failures.
+    """
+    if not RESEND_API_KEY:
+        return False, "RESEND_API_KEY is not configured"
+    clean_recipients = [r.strip() for r in (recipients or []) if r and str(r).strip()]
+    if not clean_recipients:
+        return False, "No recipients supplied"
+    try:
+        import resend
+
+        resend.api_key = RESEND_API_KEY
+        result = resend.Emails.send({
+            "from": RESEND_FROM,
+            "to": clean_recipients,
+            "subject": subject,
+            "html": html,
+        })
+        email_id = result.get("id") if isinstance(result, dict) else getattr(result, "id", None)
+        app.logger.info("Resend email queued for %s (id=%s)", clean_recipients, email_id)
+        return True, None
+    except Exception as e:
+        app.logger.warning("Resend delivery failed for %s: %s", clean_recipients, e, exc_info=True)
+        return False, str(e)
+
+
 def send_email_sync(subject, recipients, html, attachments=None):
     """Send email synchronously and return success status"""
+    if RESEND_API_KEY and not attachments:
+        return send_email_via_resend(subject, recipients, html)
     try:
         with app.app_context():
             msg = Message(subject=subject, recipients=recipients, html=html)
@@ -2777,9 +2812,9 @@ def donate():
 
 @app.route("/donation/start", methods=["POST"])
 def start_public_donation_verification():
-    """Send OTP to donor's phone or email for verification before payment."""
+    """Send an email OTP to the donor for verification before payment."""
     data = request.get_json(silent=True) or request.form or {}
-    channel = clean_text(data.get("channel", "phone"), 10).lower()
+    channel = clean_text(data.get("channel", "email"), 10).lower() or "email"
     name = clean_text(data.get("name", "Donor"), 100)
 
     # Turnstile check for unauthenticated users
@@ -2789,63 +2824,113 @@ def start_public_donation_verification():
             return jsonify({"error": "Security verification failed. Please try again."}), 400
 
     if channel == "phone":
-        phone = clean_text(data.get("phone", ""), 20)
-        if not phone:
-            return jsonify({"error": "Phone number is required."}), 400
-        success, msg, norm_phone = generate_and_send_mobile_otp(
-            phone_input=phone,
-            purpose="donation",
-            ip=get_client_ip()
-        )
-        if not success:
-            return jsonify({"error": msg}), 400
-        session["donation_otp_phone"] = norm_phone
-        session["donation_otp_name"] = name
-        return jsonify({"ok": True, "message": msg, "channel": "phone"}), 200
-    else:
-        # Email OTP flow
-        email = normalize_email(data.get("email", ""))
-        if not email:
-            return jsonify({"error": "A valid email address is required."}), 400
-        import random
-        otp_code = str(random.randint(100000, 999999))
-        session["donation_otp_email"] = email
-        session["donation_otp_email_code"] = otp_code
-        session["donation_otp_name"] = name
-        try:
-            mail.send(Message(
-                subject="Think.4U – Donation OTP Verification",
-                recipients=[email],
-                html=f"<p>Hi {html.escape(name)},</p><p>Your donation verification OTP is: <strong>{otp_code}</strong></p><p>This code is valid for 10 minutes.</p>"
-            ))
-        except Exception as e:
-            app.logger.error(f"Failed to send donation email OTP: {e}")
-            return jsonify({"error": "Failed to send email OTP. Please try via mobile SMS."}), 500
-        return jsonify({"ok": True, "message": f"OTP sent to {email}", "channel": "email"}), 200
+        return jsonify({"error": "Mobile SMS verification is currently unavailable. Please verify via email."}), 400
+
+    # ------------------------------------------------------------------
+    # PHONE (SMS) OTP DELIVERY — DISABLED
+    # Email is the active verification channel. The SMS implementation is
+    # retained in sms_service.py (generate_and_send_mobile_otp /
+    # verify_mobile_otp); uncomment this block to restore phone OTPs.
+    #
+    # phone = clean_text(data.get("phone", ""), 20)
+    # if not phone:
+    #     return jsonify({"error": "Phone number is required."}), 400
+    # success, msg, norm_phone = generate_and_send_mobile_otp(
+    #     phone_input=phone,
+    #     purpose="donation",
+    #     ip=get_client_ip()
+    # )
+    # if not success:
+    #     return jsonify({"error": msg}), 400
+    # session["donation_otp_phone"] = norm_phone
+    # session["donation_otp_name"] = name
+    # return jsonify({"ok": True, "message": msg, "channel": "phone"}), 200
+    # ------------------------------------------------------------------
+
+    # Email OTP flow (delivered through Resend)
+    email = normalize_email(data.get("email", ""))
+    if not email:
+        return jsonify({"error": "A valid email address is required."}), 400
+
+    otp_code = f"{secrets.randbelow(900000) + 100000}"
+    session["donation_otp_email"] = email
+    session["donation_otp_email_code"] = generate_password_hash(otp_code)
+    session["donation_otp_email_expires_at"] = int(datetime.now(timezone.utc).timestamp()) + OTP_EXPIRY_SECONDS
+    session["donation_otp_email_attempts"] = 0
+    session["donation_otp_name"] = name
+
+    site_url = get_public_site_url()
+    email_html = render_template(
+        "emails/otp_email.html",
+        otp=otp_code,
+        expires_minutes=max(1, OTP_EXPIRY_SECONDS // 60),
+        flow_label="Donation Verification",
+        logo_url=f"{site_url}/static/images/updated_main_logo.jpeg",
+        website_url=site_url,
+    )
+    sent, send_error = send_email_sync(
+        subject="Think.4U Donation Verification OTP",
+        recipients=[email],
+        html=email_html,
+    )
+    if not sent:
+        for key in (
+            "donation_otp_email",
+            "donation_otp_email_code",
+            "donation_otp_email_expires_at",
+            "donation_otp_email_attempts",
+        ):
+            session.pop(key, None)
+        app.logger.error("Failed to send donation email OTP to %s: %s", email, send_error)
+        return jsonify({"error": "Could not send the verification email. Please check your email address and try again."}), 502
+    return jsonify({"ok": True, "message": f"OTP sent to {email}", "channel": "email"}), 200
 
 
 @app.route("/donation/verify", methods=["POST"])
 def verify_public_donation():
-    """Verify donor OTP (phone or email) and mark session as verified."""
+    """Verify donor email OTP and mark the session as verified."""
     data = request.get_json(silent=True) or request.form or {}
     otp = clean_text(data.get("otp", ""), 10)
-    channel = clean_text(data.get("channel", "phone"), 10).lower()
+    channel = clean_text(data.get("channel", "email"), 10).lower() or "email"
 
     if not otp or not otp.isdigit() or len(otp) != 6:
         return jsonify({"error": "Invalid OTP. Please enter the 6-digit code."}), 400
 
     if channel == "phone":
-        phone = clean_text(data.get("phone", ""), 20)
-        verified, msg, _ = verify_mobile_otp(phone, otp, purpose="donation")
-        if not verified:
-            return jsonify({"error": msg}), 400
+        # ------------------------------------------------------------------
+        # PHONE (SMS) VERIFICATION — DISABLED (email verification is active).
+        # The SMS implementation is kept intact below; uncomment to restore.
+        # phone = clean_text(data.get("phone", ""), 20)
+        # verified, msg, _ = verify_mobile_otp(phone, otp, purpose="donation")
+        # if not verified:
+        #     return jsonify({"error": msg}), 400
+        # ------------------------------------------------------------------
+        return jsonify({"error": "Mobile SMS verification is currently unavailable. Please verify via email."}), 400
     else:
         stored_email = session.get("donation_otp_email")
-        stored_code = session.get("donation_otp_email_code")
+        stored_hash = session.get("donation_otp_email_code")
+        expires_at = int(session.get("donation_otp_email_expires_at", 0) or 0)
+        attempts = int(session.get("donation_otp_email_attempts", 0) or 0)
         email = normalize_email(data.get("email", ""))
-        if not stored_code or otp != stored_code or email != stored_email:
-            return jsonify({"error": "OTP is incorrect or has expired."}), 400
+
+        if not stored_email or not stored_hash:
+            return jsonify({"error": "No active email verification found. Please request a new OTP."}), 400
+        if datetime.now(timezone.utc).timestamp() > expires_at:
+            for key in ("donation_otp_email", "donation_otp_email_code", "donation_otp_email_expires_at"):
+                session.pop(key, None)
+            return jsonify({"error": "This OTP has expired. Please request a new one."}), 400
+        if email != stored_email:
+            return jsonify({"error": "OTP was sent to a different email address. Please request a new OTP."}), 400
+        if attempts >= 5:
+            session.pop("donation_otp_email_code", None)
+            return jsonify({"error": "Too many invalid attempts. Please request a new OTP."}), 429
+        if not check_password_hash(stored_hash, otp):
+            session["donation_otp_email_attempts"] = attempts + 1
+            return jsonify({"error": "OTP is incorrect. Please check the code and try again."}), 400
+
         session.pop("donation_otp_email_code", None)
+        session.pop("donation_otp_email_expires_at", None)
+        session.pop("donation_otp_email_attempts", None)
 
     session["donation_otp_verified"] = True
     return jsonify({"ok": True, "verified": True, "message": "Verification successful!"}), 200

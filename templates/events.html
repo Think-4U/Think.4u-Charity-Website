@@ -29,6 +29,23 @@
         box-shadow: 0 16px 36px rgba(53, 28, 18, 0.12);
         border-color: rgba(213, 141, 75, 0.4);
     }
+
+    /* Instagram-style swipeable photo carousels */
+    .ig-track {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .ig-track::-webkit-scrollbar {
+        display: none;
+    }
+    .ig-slide {
+        flex: 0 0 100%;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+    }
 </style>
 {% endblock %}
 
@@ -66,6 +83,169 @@
     </section>
 
     <div class="max-w-6xl mx-auto px-4 py-12 sm:py-16 space-y-16">
+
+        <!-- 0. PARTNER HIGHLIGHTS - INSTAGRAM-STYLE EVENT CAROUSELS -->
+        <section id="partner-highlights" class="space-y-8 scroll-mt-28">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <span class="inline-block px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold uppercase tracking-wider mb-2">
+                        Partnership Milestones
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-black text-slate-900">Partner Events &amp; Moments</h2>
+                    <p class="text-slate-600 text-sm max-w-xl mt-1">
+                        Swipe through the moments behind each partnership. Every collaboration carries its own story, photographs and milestones.
+                    </p>
+                </div>
+                <a href="{{ url_for('partners') }}" class="text-sm font-bold text-amber-800 hover:underline inline-flex items-center gap-1.5">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Our Partners
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+                <!-- EVENT A: MoU WITH VIGILANT CYBER NINJAS (VCN) -->
+                <article id="partner-vcn-mou" class="card-surface overflow-hidden flex flex-col scroll-mt-28">
+                    <div class="relative" data-ig-carousel>
+                        <div class="ig-track" data-ig-track>
+                            <figure class="ig-slide aspect-square bg-[#fffaf4] flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/partners/mou_vcn_think4u.jpg') }}" alt="Memorandum of Understanding between Vigilant Cyber Ninjas and Think.4U Charitable Trust" class="w-full h-full object-contain p-2">
+                            </figure>
+                            <figure class="ig-slide aspect-square bg-stone-100">
+                                <img src="{{ url_for('static', filename='images/partners/mou_signing.jpg') }}" alt="Signing of the MoU between VCN and Think.4U Charitable Trust" class="w-full h-full object-cover object-top">
+                            </figure>
+                            <figure class="ig-slide aspect-square bg-stone-100">
+                                <img src="{{ url_for('static', filename='images/partners/mou_team.jpg') }}" alt="VCN and Think.4U teams on the day of the MoU signing" class="w-full h-full object-cover object-top">
+                            </figure>
+                        </div>
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#24120b]/85 text-white text-[10px] font-black uppercase tracking-wider">
+                            MoU &bull; 21 Nov 2026
+                        </span>
+                        <button type="button" data-ig-prev class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center transition" aria-label="Previous photo">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <button type="button" data-ig-next class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center transition" aria-label="Next photo">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                        <div class="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 pointer-events-none" data-ig-dots></div>
+                    </div>
+                    <div class="p-6 sm:p-7 flex-1 flex flex-col justify-between gap-4">
+                        <div class="space-y-2.5">
+                            <h3 class="text-xl font-black text-slate-900">Vigilant Cyber Ninjas (VCN)</h3>
+                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Founder &amp; Chairperson: Mr. Somishetti Sai Harishith
+                            </p>
+                            <p class="text-sm text-slate-700 leading-relaxed">
+                                Think.4U Charitable Trust signed a Memorandum of Understanding with VCN &ndash; an organisation that already holds an MoU with the Ministry of Home Affairs &amp; Defence &ndash; on 21st November 2026, opening a shared path of knowledge exchange, cybersecurity awareness and opportunities for the next generation.
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                            <span class="text-[11px] font-semibold text-slate-500">Swipe or use the arrows</span>
+                            <a href="#website-launch" class="text-xs font-bold text-amber-800 hover:underline inline-flex items-center gap-1">
+                                More milestones <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- EVENT B: MoU WITH CMR ENGINEERING COLLEGE (AUTONOMOUS) -->
+                <article id="partner-cmr-mou" class="card-surface overflow-hidden flex flex-col scroll-mt-28">
+                    <div class="relative" data-ig-carousel>
+                        <div class="ig-track" data-ig-track>
+                            <figure class="ig-slide aspect-square bg-[#fffaf4] flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/partners/cmr_mou.jpg') }}" alt="Memorandum of Understanding between Think.4U Charitable Trust and CMR Engineering College (Autonomous)" class="w-full h-full object-contain p-2">
+                            </figure>
+                            <figure class="ig-slide aspect-square bg-stone-100 flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/partners/cmr_signing_1.jpg') }}" alt="MoU signing between Think.4U Charitable Trust and CMR Engineering College" class="w-full h-full object-contain">
+                            </figure>
+                            <figure class="ig-slide aspect-square bg-stone-100 flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/partners/cmr_signing_2.jpg') }}" alt="Signing of the MoU documents at CMR Engineering College" class="w-full h-full object-contain">
+                            </figure>
+                            <figure class="ig-slide aspect-square bg-stone-100 flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/partners/cmr_signing_3.jpg') }}" alt="MoU exchange with the CMR Engineering College leadership" class="w-full h-full object-contain">
+                            </figure>
+                            <figure class="ig-slide aspect-square bg-stone-100 flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/partners/cmr_signing_4.jpg') }}" alt="Moments from the CMR Engineering College MoU signing ceremony" class="w-full h-full object-contain">
+                            </figure>
+                        </div>
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#24120b]/85 text-white text-[10px] font-black uppercase tracking-wider">
+                            MoU &bull; 9 Nov 2026
+                        </span>
+                        <button type="button" data-ig-prev class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center transition" aria-label="Previous photo">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <button type="button" data-ig-next class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center transition" aria-label="Next photo">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                        <div class="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 pointer-events-none" data-ig-dots></div>
+                    </div>
+                    <div class="p-6 sm:p-7 flex-1 flex flex-col justify-between gap-4">
+                        <div class="space-y-2.5">
+                            <h3 class="text-xl font-black text-slate-900">CMR Engineering College (Autonomous)</h3>
+                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                MoU for Academics, Research &amp; Societal Activities
+                            </p>
+                            <p class="text-sm text-slate-700 leading-relaxed">
+                                Think.4U Charitable Trust and CMR Engineering College (Autonomous), Hyderabad, signed a Memorandum of Understanding on 9th November 2026 to promote academic excellence and knowledge sharing, research and innovation, student development and skill enhancement, social responsibility and community engagement, and joint societal initiatives.
+                            </p>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold">Academics</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold">Research</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold">Student Development</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold">Social Responsibility</span>
+                            </div>
+                            <p class="text-[11px] text-slate-600 leading-relaxed border-t border-stone-200 pt-2.5">
+                                With gratitude to the CMR leadership &mdash; Chief Patrons <strong>Sri Ch. Narasimha Reddy</strong> (Chairman), <strong>Sri Ch. Bhoopal Reddy</strong> (Vice-Chairman) and <strong>Sri Ch. Srisailam Reddy</strong> (Secretary &amp; Correspondent); Patron <strong>Dr. M. Ashok</strong> (Principal); Coordinator <strong>Dr. A. Pramod Kumar</strong> (Dean of MoU &amp; Skills).
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                            <span class="text-[11px] font-semibold text-slate-500">Swipe or use the arrows</span>
+                            <a href="#partner-highlights" class="text-xs font-bold text-amber-800 hover:underline inline-flex items-center gap-1">
+                                Partner highlights <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- EVENT C: OFFICIAL WEBSITE LAUNCH -->
+                <article id="partner-site-launch" class="card-surface overflow-hidden flex flex-col scroll-mt-28">
+                    <div class="relative" data-ig-carousel>
+                        <div class="ig-track" data-ig-track>
+                            <figure class="ig-slide aspect-square bg-[#fffaf4] flex items-center justify-center">
+                                <img src="{{ url_for('static', filename='images/website_launch_etela_rajender.png') }}" alt="Official website launch by Shri Eatala Rajender Garu MP" class="w-full h-full object-contain p-2">
+                            </figure>
+                        </div>
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#24120b]/85 text-white text-[10px] font-black uppercase tracking-wider">
+                            Website Launch &bull; 4 Oct 2026
+                        </span>
+                        <button type="button" data-ig-prev class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center transition" aria-label="Previous photo">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <button type="button" data-ig-next class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center transition" aria-label="Next photo">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                        <div class="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 pointer-events-none" data-ig-dots></div>
+                    </div>
+                    <div class="p-6 sm:p-7 flex-1 flex flex-col justify-between gap-4">
+                        <div class="space-y-2.5">
+                            <h3 class="text-xl font-black text-slate-900">Official Website Launch</h3>
+                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Launched by Shri Eatala Rajender Garu, Hon&rsquo;ble MP, Malkajgiri Parliamentary Constituency
+                            </p>
+                            <p class="text-sm text-slate-700 leading-relaxed">
+                                On 4th October 2026 the Think.4U Charitable Trust website was launched &mdash; a new digital beginning that connects compassion with direct public action and widens the reach of every trust initiative.
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                            <span class="text-[11px] font-semibold text-slate-500">Official launch photograph</span>
+                            <a href="#website-launch" class="text-xs font-bold text-amber-800 hover:underline inline-flex items-center gap-1">
+                                Full launch story <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </section>
 
         <!-- 1. FEATURED MILESTONE: OFFICIAL WEBSITE LAUNCH -->
         <section id="website-launch" class="card-surface overflow-hidden p-0 border-2 border-amber-900/15">
@@ -375,4 +555,56 @@
 
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-ig-carousel]').forEach((root) => {
+            const track = root.querySelector('[data-ig-track]');
+            const slides = Array.from(track.children);
+            const prev = root.querySelector('[data-ig-prev]');
+            const next = root.querySelector('[data-ig-next]');
+            const dotsWrap = root.querySelector('[data-ig-dots]');
+
+            if (slides.length < 2) {
+                if (prev) prev.style.display = 'none';
+                if (next) next.style.display = 'none';
+                return;
+            }
+
+            const dots = slides.map((_, index) => {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'h-2 w-2 rounded-full bg-white/55 ring-1 ring-black/10 transition-all';
+                dot.setAttribute('aria-label', 'Go to photo ' + (index + 1));
+                dot.addEventListener('click', () => {
+                    track.scrollTo({ left: track.clientWidth * index, behavior: 'auto' });
+                    window.setTimeout(sync, 60);
+                });
+                dotsWrap.appendChild(dot);
+                return dot;
+            });
+
+            const sync = () => {
+                const active = Math.round(track.scrollLeft / track.clientWidth);
+                dots.forEach((dot, index) => {
+                    dot.className = 'h-2 rounded-full transition-all ' + (index === active ? 'w-5 bg-[#d58d4b]' : 'w-2 bg-white/55 ring-1 ring-black/10');
+                });
+            };
+
+            track.addEventListener('scroll', sync, { passive: true });
+            sync();
+
+            const step = (direction) => {
+                const current = Math.round(track.scrollLeft / track.clientWidth);
+                const target = Math.min(Math.max(current + direction, 0), slides.length - 1);
+                track.scrollTo({ left: track.clientWidth * target, behavior: 'auto' });
+                window.setTimeout(sync, 60);
+            };
+            if (prev) prev.addEventListener('click', () => step(-1));
+            if (next) next.addEventListener('click', () => step(1));
+        });
+    });
+</script>
 {% endblock %}

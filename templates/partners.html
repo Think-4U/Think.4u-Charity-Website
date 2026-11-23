@@ -51,6 +51,14 @@
 {% endblock %}
 
 {% block content %}
+{# ------------------------------------------------------------------
+   LEGACY PARTNERS PAGE - disabled on purpose.
+   The whole previous layout (hero, collaboration narrative, network
+   grid, previous collaborations, logo placeholders and the partner
+   inquiry form) is kept here but switched off with the `if false`
+   guard below. Delete that guard to bring a section back.
+   ------------------------------------------------------------------ #}
+{% if false %}
 <div class="bg-[#fcf8f3] min-h-screen text-[#24120b]">
 
     <!-- HERO SECTION -->
@@ -72,6 +80,9 @@
             <div class="flex flex-wrap justify-center gap-4 mt-8">
                 <a href="#partner-form" class="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-black shadow-lg transition">
                     <i data-lucide="handshake" class="w-5 h-5"></i> Collaborate With Us
+                </a>
+                <a href="#vcn-mou" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
+                    <i data-lucide="file-text" class="w-5 h-5"></i> VCN MoU
                 </a>
                 <a href="#previous-collaborations" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/20 backdrop-blur-sm transition">
                     <i data-lucide="history" class="w-5 h-5"></i> Past Collaborations
@@ -282,7 +293,87 @@
             </div>
         </section>
 
-        <!-- 3. PREVIOUS COLLABORATIONS SHOWCASE -->
+        <!-- 3. FEATURED MOU PARTNER: VIGILANT CYBER NINJAS (VCN) -->
+        <section id="vcn-mou" class="card-surface p-8 sm:p-10 scroll-mt-32">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-2">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> MoU Partner
+                </span>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">A Proud Moment of Collaboration &amp; Achievement!</h2>
+                <p class="text-sm sm:text-base font-semibold text-amber-800">
+                    Memorandum of Understanding with Vigilant Cyber Ninjas (VCN) &bull; Signed 21st November 2026
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <!-- Partner identity: logo & MoU cover -->
+                <div class="lg:col-span-4 space-y-5">
+                    <div class="rounded-2xl bg-white border border-stone-200 p-6 flex items-center justify-center">
+                        <img src="{{ url_for('static', filename='images/partners/vcn_logo.png') }}" alt="Vigilant Cyber Ninjas (VCN) logo" class="w-40 sm:w-44 h-auto">
+                    </div>
+                    <figure class="rounded-2xl overflow-hidden border border-stone-200 shadow-sm bg-white">
+                        <img src="{{ url_for('static', filename='images/partners/mou_vcn_think4u.jpg') }}" alt="Memorandum of Understanding between Vigilant Cyber Ninjas (VCN) and Think.4U Charitable Trust, 21st November 2026" class="w-full h-auto">
+                        <figcaption class="text-[11px] text-slate-600 bg-[#fffaf4] px-3 py-2 text-center border-t border-stone-200">
+                            MoU cover &mdash; VCN &amp; Think.4U Charitable Trust
+                        </figcaption>
+                    </figure>
+                </div>
+
+                <!-- Partnership story -->
+                <div class="lg:col-span-8 space-y-4 text-slate-700 leading-relaxed text-sm sm:text-base">
+                    <p>
+                        It is a proud moment to have an <strong>MoU with VCN</strong>, an organisation that already holds an MoU with the <strong>Ministry of Home Affairs &amp; Defence</strong>.
+                    </p>
+                    <p>
+                        We are honoured to have successfully signed an MoU with <strong>VCN &ndash; Vigilant Cyber Ninjas</strong> on <strong>21st November 2026</strong>, marking another significant milestone in our journey towards building meaningful partnerships and creating impactful opportunities.
+                    </p>
+
+                    <div class="p-5 rounded-2xl bg-[#fffaf4] border border-amber-200">
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-800 mb-2">We had the privilege of connecting with</p>
+                        <p class="text-base font-black text-slate-900">Mr. Somishetti Sai Harishith</p>
+                        <p class="text-sm text-slate-700 mt-1">
+                            Founder &amp; Chairperson &ndash; SHIELDNET GROUPS | Member &ndash; Indian Youth Parliament | President &ndash; Cyber-Samskruti Collective
+                        </p>
+                        <p class="text-sm text-slate-600 mt-2">
+                            A distinguished Cyber Crime Investigator, Speaker, Mentor, Entrepreneur, Ethical Hacker and Developer.
+                        </p>
+                    </div>
+
+                    <p>
+                        His vision, experience and commitment towards innovation and youth empowerment make this collaboration a memorable occasion.
+                    </p>
+                    <p>
+                        This MoU represents more than just a partnership; it is a step towards a shared vision, knowledge exchange, innovation and creating opportunities for the next generation.
+                    </p>
+
+                    <div class="p-4 rounded-2xl bg-[#fffaf4] border-l-4 border-amber-600">
+                        <p class="text-amber-900 font-black text-sm">Think.4U Charitable Trust</p>
+                        <p class="text-slate-800 italic text-sm font-medium mt-1">“Together, Let's Create an Impact.”</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signing moments -->
+            <div class="mt-10 pt-8 border-t border-stone-200">
+                <h4 class="text-center font-bold text-slate-900 text-lg mb-6">Moments from the MoU Signing</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                    <figure class="rounded-2xl overflow-hidden border border-stone-200 shadow-sm bg-white">
+                        <img src="{{ url_for('static', filename='images/partners/mou_signing.jpg') }}" alt="MoU signing and exchange between VCN and Think.4U Charitable Trust" class="w-full h-auto">
+                        <figcaption class="text-[11px] text-slate-600 bg-[#fffaf4] px-3 py-2 text-center border-t border-stone-200">
+                            Signing of the MoU between VCN and Think.4U Charitable Trust
+                        </figcaption>
+                    </figure>
+                    <figure class="rounded-2xl overflow-hidden border border-stone-200 shadow-sm bg-white">
+                        <img src="{{ url_for('static', filename='images/partners/mou_team.jpg') }}" alt="Team photograph after the VCN and Think.4U MoU signing" class="w-full h-auto">
+                        <figcaption class="text-[11px] text-slate-600 bg-[#fffaf4] px-3 py-2 text-center border-t border-stone-200">
+                            The VCN and Think.4U teams on the day of the signing
+                        </figcaption>
+                    </figure>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. PREVIOUS COLLABORATIONS SHOWCASE -->
         <section id="previous-collaborations" class="card-surface p-8 sm:p-10">
             <div class="text-center max-w-3xl mx-auto mb-10">
                 <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-2">
@@ -366,7 +457,7 @@
             </div>
         </section>
 
-        <!-- 4. BECOME A PARTNER / COLLABORATION FORM -->
+        <!-- 5. BECOME A PARTNER / COLLABORATION FORM -->
         <section id="partner-form" class="card-surface p-8 sm:p-12">
             <div class="max-w-3xl mx-auto">
                 <div class="text-center mb-8">
@@ -460,5 +551,121 @@
         </section>
 
     </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     OUR PARTNERS - current page
+     ============================================================ -->
+<div class="bg-[#fcf8f3] min-h-screen text-[#24120b] pb-20">
+
+    <!-- HEADER + APPRECIATION COPY -->
+    <section class="bg-white border-b border-stone-200">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                <i data-lucide="handshake" class="w-4 h-4"></i> Strategic Alliances &amp; CSR Collaboration
+            </span>
+            <h1 class="mt-5 text-4xl sm:text-6xl font-black tracking-tight text-[#24120b]">
+                Our <span class="text-[#d58d4b]">Partners.</span>
+            </h1>
+            <div class="mt-8 max-w-4xl space-y-5 text-[15px] sm:text-base text-slate-700 leading-relaxed">
+                <p>
+                    At <strong class="text-slate-900">Think.4U Charitable Trust</strong>, we recognise that our impact is strengthened by the unwavering commitment of our partners and supporters. We extend our warm <strong class="text-slate-900">congratulations</strong> and sincere appreciation to every organisation and individual who has stood with us in this journey.
+                </p>
+                <p>
+                    Your collaboration has enabled us to deliver meaningful progress in <strong class="text-slate-900">education, women empowerment, youth development and community welfare</strong>. Each partnership reflects shared values, collective purpose, and a dedication to building stronger, more resilient communities.
+                </p>
+                <p>
+                    Together, we have expanded our reach, enhanced programme effectiveness, and created sustainable pathways for change.
+                </p>
+                <p>
+                    <strong class="text-slate-900">Thank you for your support and partnership.</strong><br>
+                    With your continued support, we look forward to advancing our mission and shaping a brighter future for communities across Telangana and India.
+                </p>
+            </div>
+
+            <div class="mt-9 flex flex-wrap gap-3">
+                <a href="{{ url_for('contact') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#d58d4b] hover:bg-[#c97835] text-white font-bold shadow transition">
+                    <i data-lucide="handshake" class="w-5 h-5"></i> Collaborate With Us
+                </a>
+                <a href="{{ url_for('events_page', all=1) }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-[#fffaf4] text-[#24120b] font-bold border border-stone-300 transition">
+                    <i data-lucide="calendar" class="w-5 h-5 text-amber-700"></i> Partner Events
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- PARTNER LOGO GRID -->
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h2 class="text-2xl sm:text-3xl font-black text-slate-900">Our Valued Partners</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                    Hover a logo and select <span class="font-bold text-amber-800">View</span> to open the event behind the partnership.
+                </p>
+            </div>
+            <a href="{{ url_for('events_page', all=1) }}" class="text-sm font-bold text-amber-800 hover:underline inline-flex items-center gap-1.5">
+                All events <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </a>
+        </div>
+
+        <div class="mt-8 border-t border-stone-300"></div>
+
+        <div class="mt-10 grid grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 max-w-4xl">
+            <!-- 1. Vigilant Cyber Ninjas (VCN) -->
+            <figure class="group">
+                <a href="{{ url_for('events_page', all=1) }}#partner-vcn-mou" class="relative block aspect-square rounded-2xl bg-white border border-stone-200 overflow-hidden shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-[#d58d4b] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300">
+                    <img src="{{ url_for('static', filename='images/partners/logos/vcn.png') }}" alt="Vigilant Cyber Ninjas (VCN) logo" class="w-full h-full object-contain p-4 sm:p-7">
+                    <span class="absolute inset-0 flex items-center justify-center bg-[#24120b]/55 opacity-100 sm:opacity-0 group-hover:opacity-100 transition duration-300">
+                        <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#d58d4b] text-white text-sm font-black shadow-lg">
+                            View <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </span>
+                    </span>
+                </a>
+                <figcaption class="mt-3 text-center">
+                    <span class="block text-sm font-black text-slate-900">Vigilant Cyber Ninjas (VCN)</span>
+                    <span class="block mt-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-amber-800">MoU Partner &bull; 21 Nov 2026</span>
+                </figcaption>
+            </figure>
+
+            <!-- 2. CMR Engineering College (Autonomous) -->
+            <figure class="group">
+                <a href="{{ url_for('events_page', all=1) }}#partner-cmr-mou" class="relative block aspect-square rounded-2xl bg-white border border-stone-200 overflow-hidden shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-[#d58d4b] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300">
+                    <img src="{{ url_for('static', filename='images/partners/logos/cmr.png') }}" alt="CMR Engineering College (Autonomous) logo" class="w-full h-full object-contain p-4 sm:p-7">
+                    <span class="absolute inset-0 flex items-center justify-center bg-[#24120b]/55 opacity-100 sm:opacity-0 group-hover:opacity-100 transition duration-300">
+                        <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#d58d4b] text-white text-sm font-black shadow-lg">
+                            View <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </span>
+                    </span>
+                </a>
+                <figcaption class="mt-3 text-center">
+                    <span class="block text-sm font-black text-slate-900">CMR Engineering College (Autonomous)</span>
+                    <span class="block mt-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-amber-800">MoU Partner &bull; 9 Nov 2026</span>
+                </figcaption>
+            </figure>
+
+            <!-- 3. Website Launch - Malkajgiri Parliamentary Constituency -->
+            <figure class="group">
+                <a href="{{ url_for('events_page', all=1) }}#partner-site-launch" class="relative block aspect-square rounded-2xl bg-white border border-stone-200 overflow-hidden shadow-sm transition duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-[#d58d4b] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300">
+                    <img src="{{ url_for('static', filename='images/partners/logos/website_launch.jpg') }}" alt="Official website launch by Shri Eatala Rajender Garu MP" class="w-full h-full object-contain p-3 sm:p-5">
+                    <span class="absolute inset-0 flex items-center justify-center bg-[#24120b]/55 opacity-100 sm:opacity-0 group-hover:opacity-100 transition duration-300">
+                        <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#d58d4b] text-white text-sm font-black shadow-lg">
+                            View <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </span>
+                    </span>
+                </a>
+                <figcaption class="mt-3 text-center">
+                    <span class="block text-sm font-black text-slate-900">Malkajgiri Parliamentary Constituency</span>
+                    <span class="block mt-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-amber-800">Website Launch Partner &bull; 4 Oct 2026</span>
+                </figcaption>
+            </figure>
+        </div>
+
+        <p class="mt-12 max-w-3xl text-xs sm:text-sm text-slate-500 leading-relaxed">
+            Interested in partnering with Think.4U Charitable Trust? Write to
+            <a href="mailto:info@think4u.org" class="text-amber-800 underline">info@think4u.org</a>
+            or call +91 99591 28946.
+        </p>
+    </section>
 </div>
 {% endblock %}
